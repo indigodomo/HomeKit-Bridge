@@ -1,0 +1,26 @@
+#!/bin/bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+export PATH="$DIR:/usr/bin:/bin:/usr/sbin:/sbin"
+export NODE_PATH="$( "$DIR/npm" -g root )"
+
+NAME="$1"
+
+if [[ "$NAME" == /* ]]; then
+	CDIR="$NAME"
+else
+	CDIR="$DIR/$NAME"
+fi
+
+LOG="$CDIR/homebridge.log"
+
+if [ -f "$LOG.6" ]; then /bin/mv -f "$LOG.6" "$LOG.7"; fi
+if [ -f "$LOG.5" ]; then /bin/mv -f "$LOG.5" "$LOG.6"; fi
+if [ -f "$LOG.4" ]; then /bin/mv -f "$LOG.4" "$LOG.5"; fi
+if [ -f "$LOG.3" ]; then /bin/mv -f "$LOG.3" "$LOG.4"; fi
+if [ -f "$LOG.2" ]; then /bin/mv -f "$LOG.2" "$LOG.3"; fi
+if [ -f "$LOG.1" ]; then /bin/mv -f "$LOG.1" "$LOG.2"; fi
+if [ -f "$LOG" ];   then /bin/mv -f "$LOG"   "$LOG.1"; fi
+
+exec "$DIR/homebridge" -D -U "$CDIR" -P "$CDIR" > "$LOG" 2>&1

@@ -1,0 +1,348 @@
+<?xml version="1.0"?>
+
+<Devices>
+	<!-- =========== HomeKit Server =========== -->
+	<Device type="relay" id="Server">
+		<Name>HomeKit Bridge Server</Name>
+		<ConfigUI>
+			<!-- =========== The view controller is a menu that all visibleBindings are linked to except for special circumstances =========== -->
+			<Field type="menu" id="viewControllerMenu" hidden="false">
+				<Label>View:</Label>
+				<List>
+                	<Option value="101">EVERYTHING (this should always be 100 on all forms)</Option>
+                    <Option value="102">Server options view</Option>
+                    <Option value="103">Include: object, device, add, list, sort</Option>
+                    <Option value="104">Include: object, device, add, (list sort and action if there are items)</Option>
+                </List>
+				<CallbackMethod>serverFormFieldChanged_DoNothing</CallbackMethod>
+			</Field>
+		
+		
+			<Field type="label" id="lbl_deviceLimitReached" visibleBindingId="deviceLimitReached" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true">
+				<Label>HomeKit can handle up to 99 devices and/or actions per server, you have reached this limit.  You can create additional servers if you need more than 99 devices and/or actions.
+		</Label>
+			</Field>
+			
+			<Field type="separator" id="sep_limitreached" visibleBindingId="deviceLimitReached" visibleBindingValue="true" />
+		
+			<Field type="menu" id="configOption" defaultValue="config">
+                <Label>Configure:</Label>
+                <List>
+                    <Option value="server">Server Parameters (Advanced)</Option>
+                    <Option value="config">Server Options</Option>
+                    <Option value="include">Include</Option>
+                </List>
+                <CallbackMethod>formFieldChanged</CallbackMethod>
+            </Field>
+            
+            <Field type="separator" id="sep_configOption"  />
+            
+            <Field type="checkbox" id="serverOverride" defaultValue="false" visibleBindingId="configOption" visibleBindingValue="server" alwaysUseInDialogHeightCalc="true" tooltip="When checked, the system will not automatically configure your server and you will have to make sure that all values, including server ports, are valid and available.">
+				<Label> </Label>
+				<Description>Override automatic settings</Description>
+				<CallbackMethod>formFieldChanged</CallbackMethod>
+			</Field>
+			
+			<Field type="textfield" id="username" hidden="false" defaultValue="CC:22:3D:E3:CE:30" visibleBindingId="serverOverride" visibleBindingValue="true" readonly="false" alwaysUseInDialogHeightCalc="true" tooltip="The user that Homekit will access Homebridge as.  If you change this then you WILL have to reconigure Homekit as the user name change causes Homekit to think that your old Homekit server was removed.  This is generally managed by the plugin and already takes into account multiple servers, only change this if you understand the ramifications!">
+				<Label>HB user:</Label>
+			</Field>
+			
+			<Field type="textfield" id="pin" hidden="true" defaultValue="031-45-154" visibleBindingId="serverOverride" visibleBindingValue="true" readonly="false" alwaysUseInDialogHeightCalc="true" tooltip="The key you will have to enter to access this Homebridge server in Homekit.  There is no need to change this as each Homekit server can have the same password.">
+				<Label>HB PIN:</Label>
+			</Field>
+			
+			<Field type="textfield" id="port" hidden="false" defaultValue="51826" visibleBindingId="serverOverride" visibleBindingValue="true" readonly="false" alwaysUseInDialogHeightCalc="true" tooltip="The port that Homebridge listens on.  This is generally managed by the plugin and already takes into account multiple servers, only change this if you understand the ramifications!">
+				<Label>HB port:</Label>
+			</Field>
+			
+			<Field type="textfield" id="listenPort" hidden="false" defaultValue="8445" visibleBindingId="serverOverride" visibleBindingValue="true" readonly="false" alwaysUseInDialogHeightCalc="true" tooltip="The port that Homebridge-Indigo will listen on for a forced device update, this should only be changed if you are having port conflicts.">
+				<Label>HB callback:</Label>
+			</Field>
+			
+			<Field type="textfield" id="accessoryNamePrefix" defaultValue="" visibleBindingId="configOption" visibleBindingValue="config" >
+				<Label>Prefix:</Label>
+			</Field>
+			
+			<Field type="checkbox" id="thermostatsInCelsius" defaultValue="false" visibleBindingId="configOption" visibleBindingValue="config">
+				<Label> </Label>
+				<Description>Show thermostats in Celsius</Description>
+			</Field>
+			
+			<Field type="checkbox" id="autoStartStop" defaultValue="true" visibleBindingId="configOption" visibleBindingValue="config">
+				<Label> </Label>
+				<Description>Automatically start and stop server with plugin</Description>
+			</Field>
+			
+			<Field type="checkbox" id="deviceLimitReached" defaultValue="false" hidden="true">
+				<Label> </Label>
+				<Description>If we have reached the 99 device limit then this is enabled</Description>
+			</Field>
+            
+            <Field type="checkbox" id="filterIncluded" defaultValue="false" enabledBindingId="deviceLimitReached" enabledBindingNegate="true" visibleBindingId="objectType" visibleBindingValue="device,action">
+				<Label> </Label>
+				<Description>Only show objects that are not being sent to HomeKit</Description>
+				<CallbackMethod>formFieldChanged</CallbackMethod>
+			</Field>
+            
+			<Field type="menu" id="objectType" defaultValue="none" enabledBindingId="deviceLimitReached" enabledBindingNegate="true" visibleBindingId="configOption" visibleBindingValue="include">
+                <Label>Object type:</Label>
+                <List>
+                	<Option value="none">Select An Object</Option>
+                    <Option value="device">Device</Option>
+                    <Option value="action">Action Group</Option>
+                </List>
+                <CallbackMethod>formFieldChanged</CallbackMethod>
+            </Field>
+            
+            <Field type="menu" id="device" enabledBindingId="deviceLimitReached" enabledBindingNegate="true" visibleBindingId="objectType" visibleBindingValue="device" defaultValue="-fill-">
+				<Label>Device:</Label>
+				<List class="self" filter="#plugin#[index=device, callback=serverListIncludeDevices, ref=hideWrappedItems, nocache=true]" method="getCustomList" dynamicReload="true"/>
+				<CallbackMethod>serverFormFieldChanged_Device</CallbackMethod>
+			</Field>
+			
+			<Field type="menu" id="action" enabledBindingId="deviceLimitReached" enabledBindingNegate="true" visibleBindingId="objectType" visibleBindingValue="action" defaultValue="-fill-">
+				<Label>Action group:</Label>
+				<List class="self" filter="#plugin#[index=action, callback=serverListIncludeActionGroups, ref=hideWrappedItems, nocache=true]" method="getCustomList" dynamicReload="true"/>
+				<CallbackMethod>formFieldChanged</CallbackMethod>
+			</Field>
+			
+			<!-- =========== check if device or action is selected =========== -->
+			<Field type="checkbox" id="deviceOrActionSelected" defaultValue="false" hidden="true">
+				<Label> </Label>
+				<Description>If an actual device or action has been selected and it isn't -all-, -none- or -line-</Description>
+			</Field>
+			
+			<Field type="textfield" id="alias" hidden="false" visibleBindingId="deviceOrActionSelected" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true" >
+				<Label>HomeKit Name:</Label>
+			</Field>
+			
+			<Field type="menu" id="hkType" defaultValue="none" visibleBindingId="deviceOrActionSelected" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true">
+                <Label>HomeKit Type:</Label>
+                <List class="self" filter="#plugin#[index=treatAs, callback=serverListHomeKitDeviceTypes, ref=hideWrappedItems, nocache=true]" method="getCustomList" dynamicReload="true"/>
+                <CallbackMethod>serverFormFieldChanged_HKType</CallbackMethod>
+            </Field>
+            
+            <Field type="checkbox" id="editDefinition" defaultValue="false" visibleBindingId="deviceOrActionSelected" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true">
+				<Label> </Label>
+				<Description>Edit HomeKit definition</Description>
+			</Field>
+			
+			<Field type="separator" id="sep_hkstates" visibleBindingId="editDefinition" visibleBindingValue="true" />
+			
+			<!-- =========== stash field for states =========== -->
+			<Field type="textfield" id="hkStatesJSON" hidden="true" >
+				<Label>States JSON:</Label>
+			</Field>
+			
+			<Field type="menu" id="hkStates" enabledBindingId="editActive" enabledBindingNegate="true" visibleBindingId="editDefinition" visibleBindingValue="true" defaultValue="" rows="5" alwaysUseInDialogHeightCalc="true">
+				<Label>States:</Label>
+				<List class="self" filter="#plugin#[index=device, callback=serverListJSONStates, ref=hideWrappedItems]" method="getCustomList" dynamicReload="true" />
+				<CallbackMethod>serverFormFieldChanged_HKStateChanged</CallbackMethod>
+			</Field>
+			
+			<Field type="menu" id="hkStatesPicker" defaultValue="" visibleBindingId="editDefinition" visibleBindingValue="true">
+				<Label>Source:</Label>
+				<List class="self" filter="#devicestatesvalues#[index=hkStatesPicker, srcfield=device, allowui=true, addoption=default|USE PLUGIN DEFAULT]" method="getCustomList" dynamicReload="true"/>
+				<CallbackMethod>serverFormFieldChanged_HKStateMapChanged</CallbackMethod>
+			</Field>
+			
+			<Field type="button" id="hkStatesSave" visibleBindingId="editDefinition" visibleBindingValue="true" >
+				<Label> 
+				</Label>
+				<Title>Save </Title>
+				<CallbackMethod>serverButtonSaveHKState</CallbackMethod>
+			</Field>
+			
+			<Field type="separator" id="sep_hkactions" visibleBindingId="editDefinition" visibleBindingValue="true" />
+			
+			<!-- =========== stash field for actions =========== -->
+			<Field type="textfield" id="hkActionsJSON" hidden="true" >
+				<Label>Actions JSON:</Label>
+			</Field>
+			
+			<Field type="menu" id="hkActions" enabledBindingId="editActive" enabledBindingNegate="true" visibleBindingId="editDefinition" visibleBindingValue="true" defaultValue="" rows="5" alwaysUseInDialogHeightCalc="true">
+				<Label>Actions:</Label>
+				<List class="self" filter="#plugin#[index=device, callback=serverListJSONActions, ref=hideWrappedItems]" method="getCustomList" dynamicReload="true" />
+				<CallbackMethod>serverFormFieldChanged_HKAction</CallbackMethod>
+			</Field>
+			
+			<Field type="menu" id="hkActionsSource" enabledBindingId="editActive" enabledBindingNegate="true" visibleBindingId="editDefinition" visibleBindingValue="true" defaultValue="" rows="5" alwaysUseInDialogHeightCalc="true">
+				<Label>State:</Label>
+				<List class="self" filter="#plugin#[index=hkActionsSource, callback=serverListHomeKitStatesForAction, ref=hideWrappedItems]" method="getCustomList" dynamicReload="true" />
+				<CallbackMethod>serverFormFieldChanged_DoNothing</CallbackMethod>
+			</Field>
+			
+			<Field type="menu" id="hkActionsOperator" enabledBindingId="editActive" enabledBindingNegate="true" visibleBindingId="editDefinition" visibleBindingValue="true" defaultValue="" rows="5" alwaysUseInDialogHeightCalc="true">
+				<Label>Operator:</Label>
+				<List>
+                	<Option value="equal">Equal To</Option>
+                    <Option value="between">Between</Option>
+                </List>
+				<CallbackMethod>serverFormFieldChanged_DoNothing</CallbackMethod>
+			</Field>
+			
+			<Field type="menu" id="hkActionsValueType" hidden="true" visibleBindingId="editDefinition" visibleBindingValue="true" defaultValue="" alwaysUseInDialogHeightCalc="true">
+				<Label>Type:</Label>
+				<List class="self" filter="#plugin#[index=device, callback=serverListHomeKitActionValueType, ref=hideWrappedItems]" method="getCustomList" dynamicReload="true" />
+				<CallbackMethod>serverFormFieldChanged_DoNothing</CallbackMethod>
+			</Field>
+			
+			<Field type="menu" id="hkActionsValue1Select" enabledBindingId="editActive" enabledBindingNegate="true" visibleBindingId="hkActionsValueType" visibleBindingValue="int,bool,ibetween,bbetween" defaultValue="" rows="5" alwaysUseInDialogHeightCalc="true">
+				<Label>Value:</Label>
+				<List class="self" filter="#plugin#[index=device, callback=serverListHomeKitActionValues, ref=hideWrappedItems]" method="getCustomList" dynamicReload="true" />
+			</Field>
+			
+			<Field type="menu" id="hkActionsValue2Select" enabledBindingId="editActive" enabledBindingNegate="true" visibleBindingId="hkActionsValueType" visibleBindingValue="ibetween,bbetween" defaultValue="" rows="5" alwaysUseInDialogHeightCalc="true">
+				<Label>To:</Label>
+				<List class="self" filter="#plugin#[index=device, callback=serverListHomeKitActionValues, ref=hideWrappedItems]" method="getCustomList" dynamicReload="true" />
+			</Field>
+			
+			<Field type="textfield" id="hkActionsValue1Text" enabledBindingId="editActive" enabledBindingNegate="true" visibleBindingId="hkActionsValueType" visibleBindingValue="unicode,float,ubetween,fbetween" defaultValue="" rows="5" alwaysUseInDialogHeightCalc="true" >
+				<Label>Value:</Label>
+			</Field>
+			
+			<Field type="textfield" id="hkActionsValue2Text" enabledBindingId="editActive" enabledBindingNegate="true" visibleBindingId="hkActionsValueType" visibleBindingValue="ubetween,fbetween" defaultValue="" rows="5" alwaysUseInDialogHeightCalc="true" >
+				<Label>To:</Label>
+			</Field>
+			
+			
+			<!-- =========== BEGIN ACTIONS 3 FIELDS =========== -->
+			
+			<Field type="textfield" id="actionsCommandReferenceField" hidden="true" defaultValue = "device" >
+				<Label>CRITICAL: SET THE DEFAULTVALUE OF THIS FIELD TO BE THE FIELD NAME FOR THE OBJECT THAT ACTIONS WILL BE BASED UPON </Label>
+			</Field>
+			
+			<Field type="checkbox" id="actionsCommandEnable" defaultValue="true" hidden="true">
+				<Label> </Label>
+				<Description>Determines if the action fields will be visible to the user, set programmatically by the calling plugin</Description>
+			</Field>
+			
+			<Field type="checkbox" id="actionsArgsEnable" defaultValue="false" hidden="true">
+				<Label> </Label>
+				<Description>Determines if the argument selection field will be visible to the user, set programmatically by the calling plugin</Description>
+			</Field>
+			
+			<Field type="menu" id="actionsCommandSelect" visibleBindingId="actionsCommandEnable" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true">
+				<Label>Action:</Label>
+				<List class="self" filter="#deviceactions#[index=deviceActionOn, srcfield=device, allowui=true]" method="getCustomList" dynamicReload="true"/>
+				<CallbackMethod>formFieldChanged</CallbackMethod>
+			</Field>
+			
+			<Field type="menu" id="actionsCommandArgsValueType" hidden="true" defaultValue = "none" >
+				<Label>Value Type:</Label>
+				<List>
+					<Option value="none">None - Hide all fields</Option>
+                	<Option value="menu">Menu</Option>
+                	<Option value="list">List</Option>
+                    <Option value="check">Checkbox</Option>
+                    <Option value="text">Text/Integer/Other</Option>
+                </List>
+			</Field>
+			
+			<Field type="menu" id="actionsCommandArgs" visibleBindingId="actionsArgsEnable" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true">
+				<Label>Argument:</Label>
+				<List class="self" filter="#fields#[srcfield=device]" method="getActionList" dynamicReload="true"/>
+				<CallbackMethod>actionsCommandArgsChanged</CallbackMethod>
+			</Field>
+			
+			<Field type="textfield" id="actionsCommandArgsValueText" visibleBindingId="actionsCommandArgsValueType" visibleBindingValue="text" alwaysUseInDialogHeightCalc="true" >
+				<Label>Arg Value:</Label>
+				<CallbackMethod>actionsCommandArgsValueChanged</CallbackMethod>
+			</Field>
+			
+			<Field type="menu" id="actionsCommandArgsValueList" visibleBindingId="actionsCommandArgsValueType" visibleBindingValue="menu" alwaysUseInDialogHeightCalc="true">
+				<Label>Arg Value:</Label>
+				<List class="self" filter="#fieldlist#[srcfield=device]" method="getActionList" dynamicReload="true"/>
+				<CallbackMethod>actionsCommandArgsValueChanged</CallbackMethod>
+			</Field>
+			
+			<Field type="checkbox" id="actionsCommandArgsValueCheckbox" visibleBindingId="actionsCommandArgsValueType" visibleBindingValue="check">
+				<Label>Arg Value:</Label>
+				<Description>Selected</Description>
+				<CallbackMethod>actionsCommandArgsValueChanged</CallbackMethod>
+			</Field>
+			
+			<!-- =========== END ACTIONS 3 FIELDS =========== -->
+			
+			
+			<Field type="textfield" id="hkActionsCommand" enabledBindingId="editActive" enabledBindingNegate="true" visibleBindingId="editDefinition" visibleBindingValue="true" defaultValue="indigo.device.turnOn" rows="5" alwaysUseInDialogHeightCalc="true" >
+				<Label>Py function:</Label>
+			</Field>
+			
+			<Field type="textfield" id="hkActionsArgs" enabledBindingId="editActive" enabledBindingNegate="true" visibleBindingId="editDefinition" visibleBindingValue="true" defaultValue="[devId]" rows="5" alwaysUseInDialogHeightCalc="true" >
+				<Label>Arguments:</Label>
+			</Field>
+			
+			<Field type="button" id="hkActionsSave" visibleBindingId="editDefinition" visibleBindingValue="true" >
+				<Label> </Label>
+				<Title>Save </Title>
+				<CallbackMethod>serverButtonSaveHKAction</CallbackMethod>
+			</Field>
+			
+			<Field type="separator" id="sep_hkactionsend" visibleBindingId="editDefinition" visibleBindingValue="true" />
+			
+			<Field type="label" id="lbl_spacer1" visibleBindingId="objectType" visibleBindingValue="device,action" alwaysUseInDialogHeightCalc="true">
+				<Label>
+				</Label>
+			</Field>
+			
+			<Field type="button" id="add" enabledBindingId="deviceLimitReached" enabledBindingNegate="true" visibleBindingId="objectType" visibleBindingValue="device,action" >
+				<Label> </Label>
+				<Title>Add To HomeKit </Title>
+				<CallbackMethod>serverButtonAddDeviceOrAction</CallbackMethod>
+			</Field>
+			
+			<Field type="label" id="lbl_spacer2" visibleBindingId="objectType" visibleBindingValue="device,action" alwaysUseInDialogHeightCalc="true">
+				<Label>
+				</Label>
+			</Field>
+			
+			<Field type="list" id="deviceList" enabledBindingId="editActive" enabledBindingNegate="true" visibleBindingId="objectType" visibleBindingValue="device,action" defaultValue="" rows="20" alwaysUseInDialogHeightCalc="true">
+				<Label> </Label>
+				<List class="self" filter="#plugin#[index=device, callback=serverListJSONDevices, ref=hideWrappedItems]" method="getCustomList" dynamicReload="true" />
+				<CallbackMethod>formFieldChanged</CallbackMethod>
+			</Field>
+			
+			<Field type="label" id="lbl_spacer3" visibleBindingId="objectType" visibleBindingValue="device,action" alwaysUseInDialogHeightCalc="true">
+				<Label>
+				</Label>
+			</Field>
+			
+			<Field type="checkbox" id="editActive" defaultValue="false" hidden="true">
+				<Label> </Label>
+				<Description>If we are editing a list item so we can set other items to read only</Description>
+			</Field>
+			
+			<Field type="menu" id="listSort" defaultValue="sortbyname" enabledBindingId="editActive" enabledBindingNegate="true" visibleBindingId="objectType" visibleBindingValue="device,action">
+                <Label>Sort:</Label>
+                <List>
+                    <Option value="sortbyname">Object Name</Option>
+                    <Option value="sortbytype">Object Type and Name</Option>
+                </List>
+                <CallbackMethod>formFieldChanged</CallbackMethod>
+            </Field>
+            
+            <Field type="label" id="lbl_spacer4" visibleBindingId="objectType" visibleBindingValue="device,action" alwaysUseInDialogHeightCalc="true">
+				<Label>
+				</Label>
+			</Field>
+			
+			<Field type="menu" id="objectAction" defaultValue="edit" enabledBindingId="editActive" enabledBindingNegate="true" visibleBindingId="objectType" visibleBindingValue="device,action">
+                <Label>Action:</Label>
+                <List>
+                    <Option value="edit">Edit</Option>
+                    <Option value="delete">Delete</Option>
+                </List>
+            </Field>
+			
+			<Field type="button" id="actionButton" enabledBindingId="editActive" enabledBindingNegate="true" visibleBindingId="objectType" visibleBindingValue="device,action" >
+				<Label> </Label>
+				<Title>Go </Title>
+				<CallbackMethod>serverButtonRunAction</CallbackMethod>
+			</Field>
+			
+		</ConfigUI>
+		<UiDisplayStateId>onOffState</UiDisplayStateId>
+		
+	</Device>
+</Devices>

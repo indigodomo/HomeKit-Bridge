@@ -1,0 +1,9 @@
+#!/bin/bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+export PATH="$DIR:/usr/bin:/bin:/usr/sbin:/sbin"
+export NODE_PATH="$( "$DIR/npm" -g root )"
+
+"$DIR/npm" install -g homebridge
+"$DIR/npm" install -g homebridge-indigo

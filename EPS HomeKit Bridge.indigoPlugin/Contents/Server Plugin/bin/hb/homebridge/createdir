@@ -1,0 +1,26 @@
+#!/bin/bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+export PATH="$DIR:/usr/bin:/bin:/usr/sbin:/sbin"
+
+NAME="$1"
+
+if [[ "$NAME" == /* ]]; then
+	CDIR="$NAME"
+else
+	CDIR="$DIR/$NAME"
+fi
+
+SHORTNAME="$( /usr/bin/basename "$NAME" )"
+
+TMPL="$DIR/com.webdeck.homebridge.plist.template"
+PLIST="$CDIR/com.webdeck.homebridge.$SHORTNAME.plist"
+
+/bin/mkdir -p "$CDIR" "$CDIR/accessories" "$CDIR/persist"
+/bin/rm -f "$PLIST"
+/usr/bin/sed -e "s|@NAME@|$NAME|" \
+			 -e "s|@SHORTNAME@|$SHORTNAME|" \
+			 -e "s|@DIR@|$DIR|" \
+			 -e "s|@CDIR@|$CDIR|" \
+			 < "$TMPL" > "$PLIST"

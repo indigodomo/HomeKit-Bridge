@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!-- EPS (ColoradoFourWheeler) Plugin -->
+<Actions>
+	<!-- Defaults to the main ColoradoFourWheeler forum on Indigo -->
+	<SupportURL>http://forums.indigodomo.com/viewforum.php?f=192</SupportURL>
+	
+	<Action id="sep_1" uiPath="DeviceActions"/>
+	
+</Actions>

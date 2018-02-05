@@ -1,0 +1,171 @@
+<?xml version="1.0"?>
+
+<Devices>
+	<!-- =========== HomeKit Server =========== -->
+	<Device type="relay" id="Server">
+		<Name>HomeKit Bridge Server</Name>
+		<ConfigUI>
+			<Field type="label" id="lbl_deviceLimitReached" visibleBindingId="deviceLimitReached" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true">
+				<Label>HomeKit can handle up to 99 devices and/or actions per server, you have reached this limit.  You can create additional servers if you need more than 99 devices and/or actions.
+		</Label>
+			</Field>
+			
+			<Field type="separator" id="sep_limitreached" visibleBindingId="deviceLimitReached" visibleBindingValue="true" />
+		
+			<Field type="menu" id="configOption" defaultValue="config">
+                <Label>Configure:</Label>
+                <List>
+                    <Option value="server">Server Parameters (Advanced)</Option>
+                    <Option value="config">Server Options</Option>
+                    <Option value="include">Include</Option>
+                </List>
+                <CallbackMethod>formFieldChanged</CallbackMethod>
+            </Field>
+            
+            <Field type="separator" id="sep_configOption"  />
+            
+            <Field type="checkbox" id="serverOverride" defaultValue="false" visibleBindingId="configOption" visibleBindingValue="server" alwaysUseInDialogHeightCalc="true" tooltip="When checked, the system will not automatically configure your server and you will have to make sure that all values, including server ports, are valid and available.">
+				<Label> </Label>
+				<Description>Override automatic settings</Description>
+				<CallbackMethod>formFieldChanged</CallbackMethod>
+			</Field>
+			
+			<Field type="textfield" id="username" hidden="false" defaultValue="" visibleBindingId="serverOverride" visibleBindingValue="true" readonly="false" alwaysUseInDialogHeightCalc="true" tooltip="The user that Homekit will access Homebridge as.  If you change this then you WILL have to reconigure Homekit as the user name change causes Homekit to think that your old Homekit server was removed.  This is generally managed by the plugin and already takes into account multiple servers, only change this if you understand the ramifications!">
+				<Label>HB user:</Label>
+			</Field>
+			
+			<Field type="textfield" id="pin" hidden="true" defaultValue="031-45-154" visibleBindingId="serverOverride" visibleBindingValue="true" readonly="false" alwaysUseInDialogHeightCalc="true" tooltip="The key you will have to enter to access this Homebridge server in Homekit.  There is no need to change this as each Homekit server can have the same password.">
+				<Label>HB PIN:</Label>
+			</Field>
+			
+			<Field type="textfield" id="port" hidden="false" defaultValue="" visibleBindingId="serverOverride" visibleBindingValue="true" readonly="false" alwaysUseInDialogHeightCalc="true" tooltip="The port that Homebridge listens on.  This is generally managed by the plugin and already takes into account multiple servers, only change this if you understand the ramifications!">
+				<Label>HB port:</Label>
+			</Field>
+			
+			<Field type="textfield" id="listenPort" hidden="false" defaultValue="" visibleBindingId="serverOverride" visibleBindingValue="true" readonly="false" alwaysUseInDialogHeightCalc="true" tooltip="The port that Homebridge-Indigo will listen on for a forced device update, this should only be changed if you are having port conflicts.">
+				<Label>HB callback:</Label>
+			</Field>
+			
+			<Field type="textfield" id="accessoryNamePrefix" defaultValue="" visibleBindingId="configOption" visibleBindingValue="config" >
+				<Label>Prefix:</Label>
+			</Field>
+			
+			<Field type="checkbox" id="autoStartStop" defaultValue="true" visibleBindingId="configOption" visibleBindingValue="config">
+				<Label> </Label>
+				<Description>Automatically start and stop server with plugin</Description>
+			</Field>
+			
+			<Field type="checkbox" id="deviceLimitReached" defaultValue="false" hidden="true">
+				<Label> </Label>
+				<Description>If we have reached the 99 device limit then this is enabled</Description>
+			</Field>
+            
+            <Field type="checkbox" id="filterIncluded" defaultValue="false" enabledBindingId="deviceLimitReached" enabledBindingNegate="true" visibleBindingId="objectType" visibleBindingValue="device,action">
+				<Label> </Label>
+				<Description>Only show objects that are not being sent to HomeKit</Description>
+				<CallbackMethod>formFieldChanged</CallbackMethod>
+			</Field>
+            
+			<Field type="menu" id="objectType" defaultValue="none" enabledBindingId="deviceLimitReached" enabledBindingNegate="true" visibleBindingId="configOption" visibleBindingValue="include">
+                <Label>Object type:</Label>
+                <List>
+                	<Option value="none">Select An Object</Option>
+                    <Option value="device">Device</Option>
+                    <Option value="action">Action Group</Option>
+                </List>
+                <CallbackMethod>formFieldChanged</CallbackMethod>
+            </Field>
+            
+            <Field type="menu" id="device" enabledBindingId="deviceLimitReached" enabledBindingNegate="true" visibleBindingId="objectType" visibleBindingValue="device" defaultValue="-fill-">
+				<Label>Device:</Label>
+				<List class="self" filter="#plugin#[index=device, callback=serverListIncludeDevices, ref=hideWrappedItems, nocache=true]" method="getCustomList" dynamicReload="true"/>
+				<CallbackMethod>serverFormFieldChanged_Device</CallbackMethod>
+			</Field>
+			
+			<Field type="menu" id="action" enabledBindingId="deviceLimitReached" enabledBindingNegate="true" visibleBindingId="objectType" visibleBindingValue="action" defaultValue="-fill-">
+				<Label>Action group:</Label>
+				<List class="self" filter="#plugin#[index=action, callback=serverListIncludeActionGroups, ref=hideWrappedItems, nocache=true]" method="getCustomList" dynamicReload="true"/>
+				<CallbackMethod>formFieldChanged</CallbackMethod>
+			</Field>
+			
+			<!-- =========== check if device or action is selected =========== -->
+			<Field type="checkbox" id="deviceOrActionSelected" defaultValue="false" hidden="true">
+				<Label> </Label>
+				<Description>If an actual device or action has been selected and it isn't -all-, -none- or -line-</Description>
+			</Field>
+			
+			<Field type="textfield" id="alias" hidden="false" visibleBindingId="deviceOrActionSelected" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true" >
+				<Label>HomeKit Name:</Label>
+			</Field>
+			
+			<Field type="menu" id="hkType" defaultValue="none" visibleBindingId="deviceOrActionSelected" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true">
+                <Label>HomeKit Type:</Label>
+                <List class="self" filter="#plugin#[index=hkType, callback=serverListHomeKitDeviceTypes, ref=hideWrappedItems, nocache=true]" method="getCustomList" dynamicReload="true"/>
+                
+            </Field>
+            
+           <Field type="label" id="lbl_spacer1" visibleBindingId="objectType" visibleBindingValue="device,action" alwaysUseInDialogHeightCalc="true">
+				<Label>
+				</Label>
+			</Field>
+			
+			<Field type="button" id="add" enabledBindingId="deviceLimitReached" enabledBindingNegate="true" visibleBindingId="objectType" visibleBindingValue="device,action" >
+				<Label> </Label>
+				<Title>Add To HomeKit </Title>
+				<CallbackMethod>serverButtonAddDeviceOrAction</CallbackMethod>
+			</Field>
+			
+			<Field type="label" id="lbl_spacer2" visibleBindingId="objectType" visibleBindingValue="device,action" alwaysUseInDialogHeightCalc="true">
+				<Label>
+				</Label>
+			</Field>
+			
+			<Field type="list" id="deviceList" enabledBindingId="editActive" enabledBindingNegate="true" visibleBindingId="objectType" visibleBindingValue="device,action" defaultValue="" rows="20" alwaysUseInDialogHeightCalc="true">
+				<Label> </Label>
+				<List class="self" filter="#plugin#[index=device, callback=serverListJSONDevices, ref=hideWrappedItems]" method="getCustomList" dynamicReload="true" />
+				<CallbackMethod>formFieldChanged</CallbackMethod>
+			</Field>
+			
+			<Field type="label" id="lbl_spacer3" visibleBindingId="objectType" visibleBindingValue="device,action" alwaysUseInDialogHeightCalc="true">
+				<Label>
+				</Label>
+			</Field>
+			
+			<Field type="checkbox" id="editActive" defaultValue="false" hidden="true">
+				<Label> </Label>
+				<Description>If we are editing a list item so we can set other items to read only</Description>
+			</Field>
+			
+			<Field type="menu" id="listSort" defaultValue="sortbyname" enabledBindingId="editActive" enabledBindingNegate="true" visibleBindingId="objectType" visibleBindingValue="device,action">
+                <Label>Sort:</Label>
+                <List>
+                    <Option value="sortbyname">Object Name</Option>
+                    <Option value="sortbytype">Object Type and Name</Option>
+                </List>
+                <CallbackMethod>formFieldChanged</CallbackMethod>
+            </Field>
+            
+            <Field type="label" id="lbl_spacer4" visibleBindingId="objectType" visibleBindingValue="device,action" alwaysUseInDialogHeightCalc="true">
+				<Label>
+				</Label>
+			</Field>
+			
+			<Field type="menu" id="objectAction" defaultValue="edit" enabledBindingId="editActive" enabledBindingNegate="true" visibleBindingId="objectType" visibleBindingValue="device,action">
+                <Label>Action:</Label>
+                <List>
+                    <Option value="edit">Edit</Option>
+                    <Option value="delete">Delete</Option>
+                </List>
+            </Field>
+			
+			<Field type="button" id="actionButton" enabledBindingId="editActive" enabledBindingNegate="true" visibleBindingId="objectType" visibleBindingValue="device,action" >
+				<Label> </Label>
+				<Title>Go </Title>
+				<CallbackMethod>serverButtonRunAction</CallbackMethod>
+			</Field>
+			
+		</ConfigUI>
+		<UiDisplayStateId>onOffState</UiDisplayStateId>
+		
+	</Device>
+</Devices>

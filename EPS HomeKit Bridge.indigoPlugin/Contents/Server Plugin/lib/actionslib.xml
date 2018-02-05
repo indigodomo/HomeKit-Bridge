@@ -1,0 +1,625 @@
+<?xml version="1.0"?>
+<!-- ========== ACTIONS ========== -->
+<Actions>
+	<!-- ############## RELAY ############## -->
+	
+	<Action id="indigo.device.turnOn" deviceFilter="indigo.dimmer,indigo.relay">
+		<Name>Turn On</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field id="duration" type="textfield" defaultValue="0" valueType="delay">
+				<Label>Duration (HH:MM:SS)</Label>
+			</Field>
+			
+			<Field id="delay" type="textfield" defaultValue="0" valueType="delay">
+				<Label>Delay by (HH:MM:SS)</Label>
+			</Field>
+		</ConfigUI>
+		
+	</Action>
+	
+	<Action id="indigo.device.turnOff" deviceFilter="indigo.dimmer,indigo.relay">
+		<Name>Turn Off</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field id="duration" type="textfield" defaultValue="0" valueType="delay">
+				<Label>Duration (HH:MM:SS)</Label>
+			</Field>
+			
+			<Field id="delay" type="textfield" defaultValue="0" valueType="delay">
+				<Label>Delay by (HH:MM:SS)</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="indigo.device.toggle" deviceFilter="indigo.dimmer,indigo.relay">
+		<Name>Toggle On/Off</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+	</Action>
+	
+	<!-- ############## DIMMER ############## -->
+		
+	<Action id="sep_dimmer1" deviceFilter="indigo.dimmer,indigo.relay"/>
+	
+	<Action id="indigo.dimmer.setBrightness" deviceFilter="indigo.dimmer">
+		<Name>Set Brightness</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field id="value" type="textfield" defaultValue="0" valueType="integer">
+				<Label>Amount</Label>
+			</Field>
+			
+			<Field id="delay" type="textfield" defaultValue="0" valueType="delay">
+				<Label>Delay by (HH:MM:SS)</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="indigo.dimmer.brighten" deviceFilter="indigo.dimmer">
+		<Name>Brighten by %</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field id="by" type="textfield" defaultValue="0" valueType="integer">
+				<Label>Amount</Label>
+			</Field>
+			
+			<Field id="delay" type="textfield" defaultValue="0" valueType="delay">
+				<Label>Delay by (HH:MM:SS)</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="indigo.dimmer.dim" deviceFilter="indigo.dimmer">
+		<Name>Dim by %</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field id="by" type="textfield" defaultValue="0" valueType="integer">
+				<Label>Amount</Label>
+			</Field>
+			
+			<Field id="delay" type="textfield" defaultValue="0" valueType="delay">
+				<Label>Delay by (HH:MM:SS)</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="indigo.dimmer.match" deviceFilter="indigo.dimmer">
+		<Name>Match Brightness</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field type="list" id="devices" valueType="list">
+				<Label>Select devices to have their brightness matched to this device</Label>
+				<List class="indigo.dimmer" />
+			</Field>
+			
+			<Field id="delay" type="textfield" defaultValue="0" valueType="delay">
+				<Label>Delay by (HH:MM:SS)</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<!-- ############## IO DEVICE ############## -->
+	
+	<Action id="indigo.iodevice.setBinaryOutput" deviceFilter="indigo.iodevice">
+		<Name>Turn On Output</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field id="index" type="textfield" defaultValue="0" valueType="integer">
+				<Label>Binary output number</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="indigo.iodevice.setBinaryOutput_2" deviceFilter="indigo.iodevice">
+		<Name>Turn Off Output</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field id="index" type="textfield" defaultValue="0" valueType="integer">
+				<Label>Binary output number</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="indigo.iodevice.setBinaryOutput_3" deviceFilter="indigo.iodevice">
+		<Name>Turn Off All Outputs</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+	</Action>
+	
+	<!-- ############## SPRINKLER ############## -->
+	
+	<Action id="indigo.sprinkler.run" deviceFilter="indigo.sprinkler">
+		<Name>Run Schedule</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field id="schedule" type="textfield" defaultValue="0" valueType="list">
+				<Label>Duration for all zones separated by commas</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="indigo.sprinkler.pause" deviceFilter="indigo.sprinkler">
+		<Name>Pause Schedule</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+	</Action>
+	
+	<Action id="indigo.sprinkler.resume" deviceFilter="indigo.sprinkler">
+		<Name>Resume Schedule</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+	</Action>
+	
+	<Action id="indigo.sprinkler.stop" deviceFilter="indigo.sprinkler">
+		<Name>Stop (all zones off &amp; clear schedule)</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+	</Action>
+	
+	<Action id="sep_sprinkler1" deviceFilter="indigo.sprinkler"/>
+	
+	<Action id="indigo.sprinkler.previousZone" deviceFilter="indigo.sprinkler">
+		<Name>Activate Previous Zone</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+	</Action>
+	
+	<Action id="indigo.sprinkler.nextZone" deviceFilter="indigo.sprinkler">
+		<Name>Activate Next Zone</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+	</Action>
+	
+	<Action id="sep_sprinkler2" deviceFilter="indigo.sprinkler"/>
+	
+	<Action id="indigo.sprinkler.setActiveZone" deviceFilter="indigo.sprinkler">
+		<Name>Set Active Zone</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field type="menu" id="index" valueType="integer">
+				<Label>Select which zone to make active</Label>
+				<List class="custom.zonenames" />
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<!-- ############## SPEED CONTROL ############## -->
+	
+	<Action id="indigo.speedcontrol.setSpeedIndex" deviceFilter="indigo.speedcontrol">
+		<Name>Set Fan Speed</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field type="value" id="value" defaultValue="0" valueType="integer">
+				<Label>Select speed</Label>
+				<List>
+					<Option value="0">Off</Option>
+					<Option value="25">Low</Option>
+					<Option value="75">Medium</Option>
+					<Option value="100">High</Option>
+				</List>
+			</Field>
+			
+			<Field id="delay" type="textfield" defaultValue="0" valueType="delay">
+				<Label>Delay by (HH:MM:SS)</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="indigo.speedcontrol.increaseSpeedIndex" deviceFilter="indigo.speedcontrol">
+		<Name>Increase Fan Speed</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field id="by" type="textfield" defaultValue="0" valueType="integer">
+				<Label>By</Label>
+			</Field>
+			
+			<Field id="delay" type="textfield" defaultValue="0" valueType="delay">
+				<Label>Delay by (HH:MM:SS)</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="indigo.speedcontrol.decreaseSpeedIndex" deviceFilter="indigo.speedcontrol">
+		<Name>Decrease Fan Speed</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field id="by" type="textfield" defaultValue="0" valueType="integer">
+				<Label>By</Label>
+			</Field>
+			
+			<Field id="delay" type="textfield" defaultValue="0" valueType="delay">
+				<Label>Delay by (HH:MM:SS)</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="sep_speedcontrol1" deviceFilter="indigo.speedcontrol"/>
+	
+	<Action id="indigo.speedcontrol.turnOn_2" deviceFilter="indigo.speedcontrol">
+		<Name>Turn Fan On (resume last speed)</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+	</Action>
+	
+	<Action id="indigo.speedcontrol.turnOff_2" deviceFilter="indigo.speedcontrol">
+		<Name>Turn Fan Off</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+	</Action>
+	
+	<Action id="indigo.speedcontrol.toggle_2" deviceFilter="indigo.speedcontrol">
+		<Name>Toggle Fan On/Off</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+	</Action>
+	
+	<!-- ############## THERMOSTAT ############## -->
+	
+	<Action id="indigo.thermostat.setHeatSetpoint" deviceFilter="indigo.thermostat">
+		<Name>Set Heat Setpoint</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field id="value" type="textfield" defaultValue="0" valueType="integer">
+				<Label>To (degrees)</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="indigo.thermostat.increaseHeatSetpoint" deviceFilter="indigo.thermostat">
+		<Name>Increase Heat Setpoint</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field id="value" type="textfield" defaultValue="0" valueType="integer">
+				<Label>Delta (degrees)</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="indigo.thermostat.decreaseHeatSetpoint" deviceFilter="indigo.thermostat">
+		<Name>Decrease Heat Setpoint</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field id="value" type="textfield" defaultValue="0" valueType="integer">
+				<Label>Delta (degrees)</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="sep_thermostat1" deviceFilter="indigo.thermostat"/>
+	
+	<Action id="indigo.thermostat.setCoolSetpoint" deviceFilter="indigo.thermostat">
+		<Name>Set Cool Setpoint</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field id="value" type="textfield" defaultValue="0" valueType="integer">
+				<Label>To (degrees)</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="indigo.thermostat.increaseCoolSetpoint" deviceFilter="indigo.thermostat">
+		<Name>Increase Cool Setpoint</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field id="value" type="textfield" defaultValue="0" valueType="integer">
+				<Label>Delta (degrees)</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="indigo.thermostat.decreaseCoolSetpoint" deviceFilter="indigo.thermostat">
+		<Name>Decrease Cool Setpoint</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field id="value" type="textfield" defaultValue="0" valueType="integer">
+				<Label>Delta (degrees)</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="sep_thermostat2" deviceFilter="indigo.thermostat"/>
+	
+	<Action id="indigo.thermostat.setHvacMode" deviceFilter="indigo.thermostat">
+		<Name>Set Main Mode</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field type="menu" id="value" defaultValue="indigo.kHvacMode.HeatCool" valueType="indigo_enum">
+				<Label>Mode</Label>
+				<List>
+					<Option value="indigo.kHvacMode.Cool">Cool</Option>
+					<Option value="indigo.kHvacMode.HeatCool">Heat/Cool</Option>
+					<Option value="indigo.kHvacMode.Heat">Heat</Option>
+					<Option value="-line-">-line-</Option>
+					<Option value="indigo.kHvacMode.Off">Off</Option>
+					<Option value="-line-">-line-</Option>
+					<Option value="indigo.kHvacMode.ProgramHeatCool">Program Heat/Cool</Option>
+					<Option value="indigo.kHvacMode.ProgramCool">Program Cool</Option>
+					<Option value="indigo.kHvacMode.ProgramHeat">Program Heat</Option>
+				</List>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="indigo.thermostat.setFanMode" deviceFilter="indigo.thermostat">
+		<Name>Set Fan Mode</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field type="menu" id="value" defaultValue="item2" valueType="indigo_enum">
+				<Label>Mode</Label>
+				<List>
+					<Option value="indigo.kFanMode.AlwaysOn">Always On</Option>
+					<Option value="indigo.kFanMode.Auto">Auto</Option>
+				</List>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="sep_thermostat3" deviceFilter="indigo.thermostat"/>
+	
+	<Action id="indigo.thermostat.cycleModes" deviceFilter="indigo.thermostat">
+		<Name>Cycle Through Thermostat Modes</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+	</Action>
+	
+	<Action id="indigo.thermostat.toggleFan" deviceFilter="indigo.thermostat">
+		<Name>Toggle Thermostat Fan Mode</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+	</Action>
+	
+	<!-- ############## VARIABLE ############## -->
+	
+	<Action id="indigo.variable.updateValue" deviceFilter="indigo.variable">
+		<Name>Modify Variable</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field id="value" type="textfield" defaultValue="0">
+				<Label>Value</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="sep_variable1" deviceFilter="indigo.variable"/>
+	
+	<Action id="indigo.variable.insertTimeStamp" deviceFilter="indigo.variable">
+		<Name>Insert Timestamp into Variable</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+	</Action>
+	
+	<Action id="indigo.variable.insertTimeStamp_2" deviceFilter="indigo.variable">
+		<Name>Insert Custom Format Timestamp into Variable</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field id="format" type="textfield" defaultValue="0">
+				<Label>Python format</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="sep_variable2" deviceFilter="indigo.variable"/>
+	
+	<Action id="indigo.variable.toggle_3" deviceFilter="indigo.variable">
+		<Name>Toggle Variable</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field type="menu" id="value" defaultValue="truefalse">
+				<Label>Toggle values</Label>
+				<List>
+					<Option value="truefalse">True/False</Option>
+					<Option value="onoff">On/Off</Option>
+					<Option value="yesno">Yes/No</Option>
+					<Option value="enabledisable">Enable/Disable</Option>
+					<Option value="openclose">Open/Close</Option>
+					<Option value="unlocklock">Unlock/Lock</Option>					
+				</List>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="indigo.variable.setVarToVar" deviceFilter="indigo.variable">
+		<Name>Set Variable To Variable</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field type="menu" id="variable" valueType="integer">
+				<Label>Set the variable to the value of</Label>
+				<List class="indigo.variables" />
+			</Field>
+		</ConfigUI>
+	</Action>
+
+	<!-- ############## SERVER ############## -->
+	
+	<Action id="indigo.server.removeDelayedAll" deviceFilter="indigo.server">
+		<Name>Remove All Delayed Actions</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+	</Action>
+	
+	<Action id="sep_server" deviceFilter="indigo.server"/>
+	
+	<Action id="indigo.server.removeDelayedDevice" deviceFilter="indigo.server">
+		<Name>Remove Delayed Device Actions</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field type="menu" id="device" valueType="integer">
+				<Label>Select the device to remove delayed actions for</Label>
+				<List class="indigo.devices" />
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="indigo.server.removeDelayedTrigger" deviceFilter="indigo.server">
+		<Name>Remove Delayed Trigger Actions</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field type="menu" id="trigger" valueType="integer">
+				<Label>Select the trigger to remove delayed actions for</Label>
+				<List class="indigo.triggers" />
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="indigo.server.removeDelayedSchedule" deviceFilter="indigo.server">
+		<Name>Remove Delayed Schedule Actions</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field type="menu" id="schedule" valueType="integer">
+				<Label>Select the schedule to remove delayed actions for</Label>
+				<List class="indigo.schedules" />
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="sep_server2" deviceFilter="indigo.server"/>
+	
+	<Action id="indigo.server.enableDevice" deviceFilter="indigo.server">
+		<Name>Enable Device</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field type="menu" id="device" valueType="integer">
+				<Label>Enable</Label>
+				<List class="indigo.devices" />
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="indigo.server.enableTrigger" deviceFilter="indigo.server">
+		<Name>Enable Trigger</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field type="menu" id="trigger" valueType="integer">
+				<Label>Enable</Label>
+				<List class="indigo.triggers" />
+			</Field>
+			
+			<Field id="delay" type="textfield" defaultValue="0" valueType="delay">
+				<Label>Delay by (HH:MM:SS)</Label>
+			</Field>
+			
+			<Field id="duration" type="textfield" defaultValue="0" valueType="delay">
+				<Label>Auto disable after (HH:MM:SS)</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="indigo.server.enableSchedule" deviceFilter="indigo.server">
+		<Name>Enable Schedule</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field type="menu" id="schedule" valueType="integer">
+				<Label>Enable</Label>
+				<List class="indigo.schedules" />
+			</Field>
+			
+			<Field id="delay" type="textfield" defaultValue="0" valueType="delay">
+				<Label>Delay by (HH:MM:SS)</Label>
+			</Field>
+			
+			<Field id="duration" type="textfield" defaultValue="0" valueType="delay">
+				<Label>Auto disable after (HH:MM:SS)</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="sep_server3" deviceFilter="indigo.server"/>
+	
+	<Action id="indigo.server.disableDevice" deviceFilter="indigo.server">
+		<Name>Disable Device</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field type="menu" id="device" valueType="integer">
+				<Label>Disable</Label>
+				<List class="indigo.devices" />
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="indigo.server.disableTrigger" deviceFilter="indigo.server">
+		<Name>Disable Trigger</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field type="menu" id="trigger" valueType="integer">
+				<Label>Disable</Label>
+				<List class="indigo.triggers" />
+			</Field>
+			
+			<Field id="delay" type="textfield" defaultValue="0" valueType="delay">
+				<Label>Delay by (HH:MM:SS)</Label>
+			</Field>
+			
+			<Field id="duration" type="textfield" defaultValue="0" valueType="delay">
+				<Label>Auto enable after (HH:MM:SS)</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="indigo.server.disableSchedule" deviceFilter="indigo.server">
+		<Name>Disable Schedule</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field type="menu" id="schedule" valueType="integer">
+				<Label>Disable</Label>
+				<List class="indigo.schedules" />
+			</Field>
+			
+			<Field id="delay" type="textfield" defaultValue="0" valueType="delay">
+				<Label>Delay by (HH:MM:SS)</Label>
+			</Field>
+			
+			<Field id="duration" type="textfield" defaultValue="0" valueType="delay">
+				<Label>Auto enable after (HH:MM:SS)</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="sep_server4" deviceFilter="indigo.server"/>
+	
+	<Action id="indigo.server.sendEmailTo" deviceFilter="indigo.server">
+		<Name>Send Email</Name>
+		<CallbackMethod>Nil</CallbackMethod>
+		<ConfigUI>
+			<Field id="to" type="textfield" defaultValue="" valueType="string">
+				<Label>To</Label>
+			</Field>
+			
+			<Field id="subject" type="textfield" defaultValue="" valueType="string">
+				<Label>Subject</Label>
+			</Field>
+			
+			<Field id="body" type="textfield" defaultValue="" valueType="string">
+				<Label>Body</Label>
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+</Actions>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,159 @@
+<?xml version="1.0"?>
+<!-- EPS (ColoradoFourWheeler) Plugin -->
+<MenuItems>
+	<MenuItem id="performanceOptions">
+        <Name>Performance Options</Name>
+        <ButtonTitle>Save</ButtonTitle>
+        <CallbackMethod>performanceOptions</CallbackMethod>
+        <ConfigUI>
+			<Field type="menu" id="pollingMode" defaultValue="realTime">
+				<Label>Device Updating:</Label>
+				<List>
+					<Option value="realTime">Realtime Device Updating</Option>
+					<Option value="pollDevice">Periodic Polling</Option>
+					<Option value="concurrentThread">Concurrent Threading</Option>
+				</List>
+			</Field>
+			
+			<Field id="realTime" type="label" visibleBindingId="pollingMode" visibleBindingValue="realTime">
+				<Label>Monitors every change to the plugin device and any associated subdevices in real-time.
+				
+Under most circumstances this is preferred but if you create a lot of devices or subdevices in a plugin with a lot of calculations this can cause timeouts, high memory usage and performance problems for both Indigo and the plugin.
+
+If you experience errors or timeouts in Indigo try changing to a different method.
+
+
+
+
+
+				</Label>
+			</Field>
+			
+			<Field id="pollDevice" type="label" visibleBindingId="pollingMode" visibleBindingValue="pollDevice">
+				<Label>Instead of monitoring for device and subdevice changes, instead periodically poll the device based on a schedule.
+				
+This will result in less real-time information but is far more efficient in terms of memory and processor usage than real-time updating.
+
+
+
+
+				</Label>
+			</Field>
+			
+			<Field id="concurrentThread" type="label" visibleBindingId="pollingMode" visibleBindingValue="concurrentThread">
+				<Label>Only update information for the device and subdevices when the plugins Concurrent Threading occurs.
+				
+This is similar to polling but instead of checking every ~1 second to see if polling needs to occur the plugin will instead only update on a set interval and update devices with no further calculations.
+
+Using this method is nit-picking performance since polling is almost equally as efficient, but if both other methods don't rectify performance problems or Indigo errors as a result of the plugin then this method is a good option.
+				</Label>
+			</Field>
+			
+			<Field id="sep_pollingMode" type="separator" visibleBindingId="pollingMode" visibleBindingValue="pollDevice,concurrentThread" />
+			
+			<Field id="realTimeSpacer" type="label" visibleBindingId="pollingMode" visibleBindingValue="realTime">
+				<Label>
+				
+				
+				</Label>
+			</Field>
+			
+			<Field id="pollingInterval" type="textfield" defaultValue="1" visibleBindingId="pollingMode" visibleBindingValue="pollDevice,concurrentThread">
+				<Label>Interval:</Label>
+			</Field>
+			
+			<Field type="menu" id="pollingFrequency" defaultValue="s" visibleBindingId="pollingMode" visibleBindingValue="pollDevice,concurrentThread">
+				<Label>Frequency:</Label>
+				<List>
+					<Option value="s">Seconds</Option>
+					<Option value="m">Minutes</Option>
+					<Option value="h">Hours</Option>
+				</List>
+			</Field>
+			
+        </ConfigUI>
+    </MenuItem>
+    
+    <MenuItem id="sep_options"/>
+    
+ 	<MenuItem id="libVersion">
+    	<Name>Show Support Information</Name>
+    	<CallbackMethod>pluginMenuSupportInfo</CallbackMethod>
+    </MenuItem>
+    
+    <MenuItem id="sep_advanced"/>
+    
+        <MenuItem id="advancedPluginActions">
+    	<Name>Advanced Plugin Actions</Name>
+    	<ButtonTitle>Done</ButtonTitle>
+        <ConfigUI>
+        	<Field type="label" id="lbl_devmessage" >
+				<Label>NOTE: This window and all the options are currently being developed.  You are seeing this message because you are using a pre-release or development build and that means that some things may not yet be finished in the development stages, including everything on this form.  Use at your own risk.
+				</Label>
+			</Field>
+			
+			<Field id="sep_devmessage" type="separator" />
+			
+			<Field type="checkbox" id="showDeviceActions" defaultValue="false" hidden="true">
+				<Label> </Label>
+				<Description>Hidden field to determine if server actions are visible</Description>
+			</Field>
+			
+			<Field type="label" id="lbl_devices" >
+				<Label>After selecting any plugin device you can perform various actions.
+				</Label>
+			</Field>
+			
+			<Field type="menu" id="device" defaultValue="-all-">
+				<Label>Device:</Label>
+				<List class="indigo.devices" filter="self"/>
+				<CallbackMethod>advPluginDeviceSelected</CallbackMethod>
+			</Field>
+			
+			<Field type="menu" id="deviceActions" defaultValue="props" visibleBindingId="showDeviceActions" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true">
+				<Label>Device Action:</Label>
+				<List>
+					<Option value="props">Indigo Device Plugin Properties</Option>
+					<Option value="states">Indigo Device States</Option>
+					<Option value="data">Indigo Device Data Dump</Option>
+				</List>
+			</Field>
+			
+			<Field type="button" id="deviceActionRun" visibleBindingId="showDeviceActions" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true" >
+				<Label> </Label>
+				<Title>Execute Action </Title>
+				<CallbackMethod>btnAdvDeviceAction</CallbackMethod>
+			</Field>
+        	
+			<Field id="sep_devices" type="separator" />
+			
+			<Field type="label" id="lbl_global" >
+				<Label>These options and actions below are not for a specific server but for the plugin as a whole, using them should be done with extreme caution!
+				</Label>
+			</Field>
+			
+			<Field type="menu" id="pluginActions" defaultValue="health" >
+				<Label>Plugin Action:</Label>
+				<List>
+					<Option value="health">Perform Health Check</Option>
+					<Option value="data">Plugin Data Dump</Option>
+					<Option value="compdata">Comprehensive Plugin Data Dump</Option>
+				</List>
+			</Field>
+			
+			<Field type="button" id="pluginActionRun"  >
+				<Label> </Label>
+				<Title>Execute Action </Title>
+				<CallbackMethod>btnAdvPluginAction</CallbackMethod>
+			</Field>
+        	
+			<Field id="sep_notice" type="separator" />
+        	
+        	<Field type="label" id="lbl_devexclude" >
+				<Label>Use at your own risk.</Label>
+			</Field>
+        	
+        </ConfigUI>
+    </MenuItem>
+    
+</MenuItems>
