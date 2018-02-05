@@ -3,6 +3,7 @@ HomeKit Bridge
 
 A bridge between HomeKit (via Homebridge) and Indigo.  This is a direct replacement for Homebridge Buddy.  Please not this is in ALPHA.
 
+
 Current ALPHA Testing Limitations
 ==========
 
@@ -13,6 +14,7 @@ Current ALPHA Testing Limitations
 * Multiple servers should work but anything past the first server has not been thoroughly tested yet
 * All mapped devices will use DEFAULT mapping and cannot yet be customized, i.e., if you set a device to be a Lock and it is not an Indigo lock then it likely won't work because the states required to map the device won't exist.  The next major test phase will include the ability to modify this behavior.
 * No integration with Homebridge will currently work because the Homebridge integration is being completely rewritten and until that is done there can be no HomeKit devices
-* Because of a major rewrite of how devices get included, do not use the Fill or All or None as those subroutines have not been yet updated - add devices one by one
+* Because of a major rewrite of how devices get included, All or None as those subroutines have not been yet updated - add devices one by one (Fill has been fixed)
 * The device address doesn't yet show the ports or user but will
 * During ALPHA testing the full Homebridge config will output to the console, this is by design and will be removed by BETA
+

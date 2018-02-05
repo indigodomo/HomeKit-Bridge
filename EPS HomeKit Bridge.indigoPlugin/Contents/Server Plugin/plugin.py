@@ -233,6 +233,11 @@ class Plugin(indigo.PluginBase):
 							ret = a.run (query[a.characteristic][0])
 							if ret: response = True # Only change it if its true, that way we know the operation was a success
 					
+					# Give it a second to complete, otherwise we'll report back what the values are before the action rather than after
+					# this only works for direct Indigo commands (and even then some users with slow networks may need this to be higher),
+					# when it comes to action groups we'll have to take longer
+					time.sleep(.5) 
+					
 					r = self.buildHKAPIDetails (devId, serverId)		
 					return "text/css",	json.dumps(r, indent=4)
 				
@@ -638,6 +643,7 @@ class Plugin(indigo.PluginBase):
 				#rec["treatas"] = "none" # Legacy Homebridge Buddy
 			
 				rec["object"] = "Device"
+				if obj.id in indigo.actionGroups: rec["object"] = "Action"
 				#if "Run Action Group" in rec["typename"]: rec["object"] = "Action"
 				
 				#indigo.server.log(unicode(rec))
@@ -726,9 +732,9 @@ class Plugin(indigo.PluginBase):
 			retList = []
 			
 			# Add our custom options
-			retList.append (("-all-", "All Indigo Devices"))
+			#retList.append (("-all-", "All Indigo Devices"))
 			retList.append (("-fill-", "Fill With Unassigned Devices"))
-			retList.append (("-none-", "Don't Include Any Devices"))
+			#retList.append (("-none-", "Don't Include Any Devices"))
 			retList = eps.ui.addLine (retList)
 			
 			for dev in indigo.devices:
@@ -765,9 +771,9 @@ class Plugin(indigo.PluginBase):
 			retList = []
 			
 			# Add our custom options
-			retList.append (("-all-", "All Indigo Action Groups"))
+			#retList.append (("-all-", "All Indigo Action Groups"))
 			retList.append (("-fill-", "Fill With Unassigned Action Groups"))
-			retList.append (("-none-", "Don't Include Any Action Groups"))
+			#retList.append (("-none-", "Don't Include Any Action Groups"))
 			retList = eps.ui.addLine (retList)
 			
 			for dev in indigo.actionGroups:
@@ -885,8 +891,8 @@ class Plugin(indigo.PluginBase):
 						#valuesDict["typename"] = r["typename"]
 						#valuesDict["type"] = r["type"]
 						valuesDict["hktype"] = r["hktype"]
-						valuesDict["hkStatesJSON"] = device["char"]
-						valuesDict["hkActionsJSON"] = device["action"]
+						valuesDict["hkStatesJSON"] = r["char"]
+						valuesDict["hkActionsJSON"] = r["action"]
 						valuesDict["deviceOrActionSelected"] = True
 						valuesDict["deviceLimitReached"] = False # Since we only allow 99 we are now at 98 and valid again
 						valuesDict["editActive"] = True # Disable fields so the user knows they are in edit mode
@@ -988,12 +994,8 @@ class Plugin(indigo.PluginBase):
 			else:
 				thistype = "Action"
 				
-			if valuesDict[thistype.lower()] == "-none-":
-				(valuesDict, errorsDict) = self.serverButtonAddDeviceOrAction_None (valuesDict, errorsDict, thistype)
-			elif valuesDict[thistype.lower()] == "-all-":
-				(valuesDict, errorsDict) = self.serverButtonAddDeviceOrAction_All (valuesDict, errorsDict, thistype)
-			elif valuesDict[thistype.lower()] == "-fill-":
-				(valuesDict, errorsDict) = self.serverButtonAddDeviceOrAction_Fill (valuesDict, errorsDict, thistype)
+			if valuesDict[thistype.lower()] == "-fill-":
+				(valuesDict, errorsDict) = self.serverButtonAddDeviceOrAction_Fill (valuesDict, errorsDict, thistype, devId)
 			else:
 				(valuesDict, errorsDict) = self.serverButtonAddDeviceOrAction_Object (valuesDict, errorsDict, thistype, devId)
 			
@@ -1023,97 +1025,12 @@ class Plugin(indigo.PluginBase):
 			
 		return (valuesDict, errorsDict)		
 		
-	#
-	# Add NONE type
-	#
-	def serverButtonAddDeviceOrAction_None (self, valuesDict, errorsDict, thistype):	
-		try:
-			total = 0
-			
-			(includeList, max) = self.getIncludeStashList (thistype, valuesDict)
-			
-			# If we already have a none then ignore and return
-			r = eps.jstash.getRecordWithFieldEquals (includeList, "type", "NONE")
-			if r is not None: return (valuesDict, errorsDict) # Just ignore it, we have it already
-			
-			# If its already set to all then change it out with none and pop a message
-			r = eps.jstash.getRecordWithFieldEquals (includeList, "type", "ALL")
-			if r is not None: 
-				includeList = eps.jstash.removeRecordFromStash (includeList, "type", "ALL")
-				errorsDict = eps.ui.setErrorStatus (errorsDict, "You had specified to include ALL {0}s, you are now not including any.".format(thistype.lower()) )
-				
-			# If they have devices already then let them know we are removing them all
-			if len(includeList) > 0:
-				errorsDict = eps.ui.setErrorStatus (errorsDict, "The {0}s that you had added have all been removed because you specified you don't want to include {0}s any longer.".format(thistype.lower()) )
-				includeList = []
-							
-			device = self.createJSONItemRecord (None)
-			device["name"] = "NO {0}S".format(thistype.upper())
-			device["alias"] = device["name"]
-			#device["type"] = "NONE"
-			#device["typename"] = "NONE"
-			device["object"] = thistype
-			
-			valuesDict["deviceLimitReached"] = False # Don't lock them out
-			
-			includeList.append (device)
-			
-			valuesDict = self.getIncludeStashList (thistype, valuesDict, includeList)
-		
-		except Exception as e:
-			self.logger.error (ext.getException(e))	
-			
-		return (valuesDict, errorsDict)	
-		
-	#
-	# Add ALL type
-	#
-	def serverButtonAddDeviceOrAction_All (self, valuesDict, errorsDict, thistype):	
-		try:
-			total = 0
-			
-			(includeList, max) = self.getIncludeStashList (thistype, valuesDict)
-			
-			# If we already have a none then ignore and return
-			r = eps.jstash.getRecordWithFieldEquals (includeList, "type", "ALL")
-			if r is not None: return (valuesDict, errorsDict) # Just ignore it, we have it already
-			
-			# If its already set to all then change it out with none and pop a message
-			r = eps.jstash.getRecordWithFieldEquals (includeList, "type", "NONE")
-			if r is not None: 
-				includeList = eps.jstash.removeRecordFromStash (includeList, "type", "NONE")
-				errorsDict["showAlertText"] = "You had specified to include no {0}s, you are now including them all.".format(thistype.lower())
-				
-			# If they have devices already then let them know we are removing them all
-			if len(includeList) > 0:
-				errorsDict["showAlertText"] = "The {0}s that you had added have all been removed because you specified you want to include all {0}s, which would include any devices you previously added.\n\nIncluding all {0}s means you cannot give them an alias, if you need that functionality then either use the Fill function or select your {0}s individually.".format(thistype.lower())				
-				includeList = []
-		
-			device = self.createJSONItemRecord (None)
-			device["name"] = "ALL {0}S".format(thistype.upper())
-			device["alias"] = device["name"]
-			#device["type"] = "ALL"
-			#device["typename"] = "ALL"
-			device["object"] = thistype
-			msg = "Using all {0}s could mean that you exceed the 99 device limit for HomeKit so only the first 99 Indigo items will be able to be used.  You gain more flexibility by using the Fill option or selecting your {0}s individually.".format(thistype.lower())
-			errorsDict = eps.ui.setErrorStatus (errorsDict, msg)
-			
-			valuesDict["deviceLimitReached"] = False # Don't lock them out
-			
-			includeList.append (device)	
-			
-			valuesDict = self.getIncludeStashList (thistype, valuesDict, includeList)
-			
-		
-		except Exception as e:
-			self.logger.error (ext.getException(e))	
-			
-		return (valuesDict, errorsDict)	
+
 		
 	#
 	# Add FILL type
 	#
-	def serverButtonAddDeviceOrAction_Fill (self, valuesDict, errorsDict, thistype):	
+	def serverButtonAddDeviceOrAction_Fill (self, valuesDict, errorsDict, thistype, serverId):	
 		try:
 			total = 0
 			
@@ -1151,7 +1068,10 @@ class Plugin(indigo.PluginBase):
 						if device is not None: 
 							if device["type"] == "error":
 								unknownType = True
-							else:						
+							else:				
+								device["url"] = "/HomeKit?cmd=setCharacteristic&objId={}&serverId={}".format(str(dev.id), str(serverId))	
+								obj = hkapi.automaticHomeKitDevice (indigo.devices[int(dev.id)], True)
+								device['hktype'] = "service_" + obj.type # Set to the default type
 								includeList.append (device)
 								total = total + 1
 								
@@ -1207,7 +1127,7 @@ class Plugin(indigo.PluginBase):
 				dev = indigo.actionGroups[int(valuesDict["action"])]
 				
 			device = self.createJSONItemRecord (dev, valuesDict["alias"])
-			#indigo.server.log(unicode(device))
+			indigo.server.log(unicode(device))
 			
 			if device is not None and device["type"] == "error":
 				#errorsDict = eps.ui.setErrorStatus (errorsDict, device["typename"]) # Let the user know we don't know how to control the device
@@ -1268,7 +1188,7 @@ class Plugin(indigo.PluginBase):
 			errorsDict = indigo.Dict()	
 			
 			# The device changed, if it's not a generic type then fill in defaults
-			if valuesDict["device"] != "" and valuesDict["device"] != "-fill-" and valuesDict["device"] != "-all-" and valuesDict["device"] != "-none-" and valuesDict["device"] != "-line-":
+			if valuesDict["device"] != "" and valuesDict["device"] != "-fill-" and valuesDict["device"] != "-line-":
 				valuesDict["deviceOrActionSelected"] = True # Enable fields
 				
 				# So long as we are not in edit mode then pull the HK defaults for this device and populate it
@@ -1320,7 +1240,7 @@ class Plugin(indigo.PluginBase):
 			#indigo.server.log ("Port: {}\tListen:{}xxxx\tUser:{}".format(valuesDict["port"], valuesDict["listenPort"], valuesDict["username"]))
 			
 			if valuesDict["objectType"] == "device":
-				if valuesDict["device"] != "" and valuesDict["device"] != "-fill-" and valuesDict["device"] != "-all-" and valuesDict["device"] != "-none-" and valuesDict["device"] != "-line-":
+				if valuesDict["device"] != "" and valuesDict["device"] != "-fill-" and valuesDict["device"] != "-line-":
 					valuesDict["deviceOrActionSelected"] = True
 					
 					#(type, typename) = self.deviceIdToHomeKitType (valuesDict["device"])
@@ -1335,7 +1255,7 @@ class Plugin(indigo.PluginBase):
 					valuesDict["deviceOrActionSelected"] = False	
 
 			if valuesDict["objectType"] == "action":
-				if valuesDict["action"] != "" and valuesDict["action"] != "-fill-" and valuesDict["action"] != "-all-" and valuesDict["action"] != "-none-" and valuesDict["action"] != "-line-":
+				if valuesDict["action"] != "" and valuesDict["action"] != "-fill-" and valuesDict["action"] != "-line-":
 					valuesDict["deviceOrActionSelected"] = True
 					#valuesDict["type"] = self.deviceIdToHomeKitType (valuesDict["action"])
 						

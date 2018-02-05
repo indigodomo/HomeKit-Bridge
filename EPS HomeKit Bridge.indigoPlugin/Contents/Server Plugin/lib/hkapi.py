@@ -496,7 +496,8 @@ class service_LockMechanism ():
 			if self.devId != 0 and self.devId in indigo.devices:
 				dev = indigo.devices[self.devId]
 		
-				if "onState" in dir(dev) and "LockCurrentState" not in characterDict: characterDict["LockCurrentState"] = dev.onState	
+				if "onState" in dir(dev) and "LockCurrentState" not in characterDict: characterDict["LockCurrentState"] = dev.onState
+				if "onState" in dir(dev) and "LockTargetState" not in characterDict: characterDict["LockTargetState"] = dev.onState	
 				
 				definedActions = []
 				for a in self.actions:
@@ -548,7 +549,10 @@ class service_Switch ():
 			if self.devId != 0 and self.devId in indigo.devices:
 				dev = indigo.devices[self.devId]
 		
-				if "onState" in dir(dev) and "On" not in characterDict: characterDict["On"] = dev.onState	
+				if "onState" in dir(dev) and "On" not in characterDict: 
+					characterDict["On"] = dev.onState	
+				else:
+					characterDict["On"] = False # Since all devices default to this type, this ensure that we never have NO characteristics
 				
 				definedActions = []
 				for a in self.actions:
