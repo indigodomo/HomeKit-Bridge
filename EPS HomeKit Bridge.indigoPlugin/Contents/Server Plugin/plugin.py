@@ -47,10 +47,13 @@ class Plugin(indigo.PluginBase):
 	SERVER_ALIAS = {}	 	# Included device aliases and their server as SERVER_ALIAS[aliasName] = serverId (helps prevent duplicate alias names)
 	SERVER_ID = {}			# Included device ID's and their server as SERVER_ID[devId] = serverId (for http service)
 	
+	CTICKS = 0				# Number of concurrent thread ticks since last reset
+	
 	# For shell commands
 	PLUGINDIR = os.getcwd()
 	HBDIR = PLUGINDIR + "/bin/hb/homebridge"
-	CONFIGDIR = expanduser("~") + "/.HomeKit-Bridge"
+	#CONFIGDIR = expanduser("~") + "/.HomeKit-Bridge"
+	CONFIGDIR = "" # Expanded in startup
 	
 	#
 	# Init
@@ -81,6 +84,10 @@ class Plugin(indigo.PluginBase):
 			# Start the httpd listener
 			eps.api.startServer (self.pluginPrefs.get('apiport', '8558'))
 			
+			# Set up the config path in the Indigo preferences folder
+			self.CONFIGDIR = '{}/Preferences/Plugins/{}'.format(indigo.server.getInstallFolderPath(), self.pluginId)
+			self.logger.debug ("Config path set to {}".format(self.CONFIGDIR))
+			
 			# Check that we have a server set up
 			for dev in indigo.devices.iter(self.pluginId + ".Server"):
 				self.SERVERS.append (dev.id)
@@ -91,8 +98,12 @@ class Plugin(indigo.PluginBase):
 				# Test shell scripts
 				self.shellCreateServerConfigFolders (dev)
 				
-				# Test config builder
-				#self.saveConfigurationToDisk (dev)
+				# Since the config file is easily and quickly built, save it on startup
+				self.saveConfigurationToDisk (dev)
+				
+				# If it's enabled then start the server
+				if "autoStartStop" in dev.pluginProps and dev.pluginProps["autoStartStop"]:
+					self.shellHBStartServer (dev)
 				
 			#xdev = hkapi.service_LightBulb (624004987)
 			#indigo.server.log(unicode(xdev))
@@ -114,11 +125,31 @@ class Plugin(indigo.PluginBase):
 			self.logger.error (ext.getException(e))	
 			
 	#
+	# Plugin shutdown
+	#
+	def onAfter_shutdown (self):		
+		try:
+			# Shut down ALL servers if they are running (since the API doesn't work when the plugin is not running anyway)
+			for dev in indigo.devices.iter(self.pluginId + ".Server"):
+				if dev.states["onOffState"]: self.shellHBStopServer (dev)
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+	#
 	# Concurrent thread
 	#
 	def onAfter_runConcurrentThread (self):
 		#hserver.runConcurrentThread()		
-		pass
+		self.CTICKS = self.CTICKS + 1
+		
+		# At 30 ticks we check server running state (more or less between 30 seconds and a minute but keeps us from having to do date calcs here which use CPU)
+		if self.CTICKS == 30:
+			self.logger.debug ("Checking running state of all servers")
+			for dev in indigo.devices.iter(self.pluginId + ".Server"):
+				self.checkRunningHBServer (dev)
+			
+			self.CTICKS = 0
 			
 	#
 	# A form field changed, update defaults
@@ -1319,6 +1350,9 @@ class Plugin(indigo.PluginBase):
 							errorsDict["listenPort"] = "This port number is already in use"
 				
 							return (False, valuesDict, errorsDict)
+							
+				# If we make it to here then everything is good and we can set the server address
+				valuesDict["address"] = valuesDict["pin"] + " | " + valuesDict["port"]
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -1330,7 +1364,7 @@ class Plugin(indigo.PluginBase):
 	#
 	def serverPropChanged (self, origDev, newDev, changedProps):
 		try:
-			indigo.server.log(unicode(changedProps))
+			self.logger.threaddebug ("Server property change: " + unicode(changedProps))
 			
 			# States that will prompt us to save and restart the server
 			watchStates = ["port", "listenPort", "includedDevices", "includedActions", "accessoryNamePrefix", "pin", "username"]
@@ -1360,7 +1394,7 @@ class Plugin(indigo.PluginBase):
 	#
 	def serverAttribChanged (self, origDev, newDev, changedProps):
 		try:
-			#indigo.server.log(unicode(changedProps))
+			self.logger.threaddebug ("Server attribute change: " + unicode(changedProps))
 						
 			# States that will prompt us to save and restart the server
 			watchStates = ["name"]
@@ -1456,7 +1490,8 @@ class Plugin(indigo.PluginBase):
 			self.saveConfigurationToDisk (dev)
 
 			# Start the HB server
-			os.system('"' + self.HBDIR + '/load" ' + self.CONFIGDIR + "/" + str(dev.id))
+			self.logger.threaddebug ('Running: "' + self.HBDIR + '/load" "' + self.CONFIGDIR + "/" + str(dev.id) + '"')
+			os.system('"' + self.HBDIR + '/load" "' + self.CONFIGDIR + "/" + str(dev.id) + '"')
 			
 			self.logger.info ("Attempting to start '{0}'".format(dev.name))
 			
@@ -1469,7 +1504,12 @@ class Plugin(indigo.PluginBase):
 					self.logger.info ("HomeKit server '{0}' has been started".format(dev.name))
 					return True
 					
-			self.logger.error ("HomeKit server '{0}' could not be started, please check the service logs for more information".format(dev.name))		
+				loopcount = loopcount + 1
+					
+			self.logger.error ("HomeKit server '{0}' could not be started, please check the service logs for more information, now issuing a forced shutdown of the service to be safe.".format(dev.name))	
+			self.shellHBStopServer (dev)
+			
+			# To help prevent a possible hang	
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -1483,7 +1523,8 @@ class Plugin(indigo.PluginBase):
 	def shellHBStopServer (self, dev):
 		try:
 			# Start the HB server
-			os.system('"' + self.HBDIR + '/unload" ' + self.CONFIGDIR + "/" + str(dev.id))
+			self.logger.threaddebug ('Running: "' + self.HBDIR + '/unload" "' + self.CONFIGDIR + "/" + str(dev.id) + '"')
+			os.system('"' + self.HBDIR + '/unload" "' + self.CONFIGDIR + "/" + str(dev.id) + '"')
 			
 			self.logger.info ("Attempting to stop '{0}'".format(dev.name))
 			
@@ -1495,6 +1536,8 @@ class Plugin(indigo.PluginBase):
 				if not result: 
 					self.logger.info ("HomeKit server '{0}' has been stopped".format(dev.name))
 					return True
+					
+				loopcount = loopcount + 1		
 					
 			self.logger.error ("HomeKit server '{0}' could not be stopped, please check the service logs for more information".format(dev.name))		
 			
@@ -1521,7 +1564,7 @@ class Plugin(indigo.PluginBase):
 				return False
 				
 			jsonData = json.dumps(config, indent=8)
-			indigo.server.log(unicode(jsonData))
+			self.logger.debug (unicode(jsonData))
 			
 			if os.path.exists (self.CONFIGDIR + "/" + str(server.id)):
 				with open(self.CONFIGDIR + "/" + str(server.id) + "/config.json", 'w') as file_:

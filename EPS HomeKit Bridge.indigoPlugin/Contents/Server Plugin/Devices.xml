@@ -52,7 +52,7 @@
 			
 			<Field type="checkbox" id="autoStartStop" defaultValue="true" visibleBindingId="configOption" visibleBindingValue="config">
 				<Label> </Label>
-				<Description>Automatically start and stop server with plugin</Description>
+				<Description>Enable server auto start</Description>
 			</Field>
 			
 			<Field type="checkbox" id="deviceLimitReached" defaultValue="false" hidden="true">
