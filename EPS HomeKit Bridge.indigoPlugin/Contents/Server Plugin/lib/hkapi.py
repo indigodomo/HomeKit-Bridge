@@ -36,7 +36,7 @@ def automaticHomeKitDevice (dev, loadOptional = False):
 			return service_LockMechanism (dev.id, {}, [], loadOptional)
 			
 		elif "brightnessLevel" in dev.states and "brightness" in dir(dev):
-			return service_LightBulb (dev.id, {}, [], loadOptional)
+			return service_Lightbulb (dev.id, {}, [], loadOptional)
 			
 		elif "Outlet" in dev.model:
 			return service_Outlet (dev.id, {}, [], loadOptional)
@@ -355,7 +355,7 @@ class HomeKitAction ():
 # ==============================================================================
 # LIGHT BULB
 # ==============================================================================
-class service_LightBulb ():
+class service_Lightbulb ():
 	def __init__(self, devId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		try:
 			self.type = "Lightbulb"

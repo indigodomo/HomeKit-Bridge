@@ -1,18 +1,24 @@
 Release Notes
 ==========
 
-Version 0.0.3 (Alpha 3)
+Version 0.0.4 (Alpha 4)
 ==========
-* Fixed ability to add actions to the HomeKit device list
-* Changed LightBulb to Lightbulb for better HomeKit compatibility and naming conventions
-* Changed RESTful URL output to remove the cmd parameter
+* Additional changed to fix Lightbulb definition (note,  you will need to edit your lightbulb devices on the server and re-save them so they reference the correct library, you'll get an error if you do not)
+* Fixed API issue where if the item was an action it would not resolve properly and cause an error
+* Added error check to API deviceList so that if there is any kind of an error on a device it will not be added to the final result, preventing a Homebridge restart race condition
 
 Known Issues
 ---------------
 * Action integration not fully coded
 * Automatic starting and stopping of Homebridge server on plugin restart not yet implemented
 * Currently using a delay when we get a setCharacteristic to make sure the value reports back in the JSON, but this should really be more dynamic and should go into a loop until we get confirmation from the device via Indigo events.  Since this is tricky it's slated for later implementation because the workaround is fine for now. 
+* A failed Homebridge start can cause a minor race condition where HB will continuously try to restart itself, the current solution to this if it happens is to remove the serverId folder under ~/.HomeKit-Bridge so that the restarts cannot be processed.  This is fine because the plugin will regenerate that folder automatically when you turn on your server device
 
+Version 0.0.3 (Alpha 3)
+==========
+* Fixed ability to add actions to the HomeKit device list
+* Changed LightBulb to Lightbulb for better HomeKit compatibility and naming conventions
+* Changed RESTful URL output to remove the cmd parameter
 
 Version 0.0.2 (Alpha 2)
 ==========

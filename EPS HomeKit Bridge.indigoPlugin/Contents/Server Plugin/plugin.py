@@ -270,11 +270,11 @@ class Plugin(indigo.PluginBase):
 						ret = []
 						for d in includedDevices:
 							r = self.buildHKAPIDetails (d["id"], serverId)
-							ret.append (r)
+							if r is not None and len(r) > 0: ret.append (r)
 							
 						for a in includedActions:
 							r = self.buildHKAPIDetails (a["id"], serverId)
-							ret.append (r)	
+							if r is not None and len(r) > 0: ret.append (r)	
 						
 						return "text/css",	json.dumps(ret, indent=4)
 						
@@ -301,8 +301,14 @@ class Plugin(indigo.PluginBase):
 			includedActions = json.loads(valuesDict["includedActions"])
 			
 			r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", objId)
+			if r is None: r = eps.jstash.getRecordWithFieldEquals (includedActions, "id", objId)
 			
 			# Create an HK object so we can get all default data
+			self.logger.threaddebug ("Looking for HomeKit class {}".format(r["hktype"]))
+			if r["hktype"] not in dir(hkapi):
+				self.logger.error ("Server '{}' device '{}' is trying to reference a HomeKit class of {} that isn't defined.".format(indigo.devices[serverId].name, r["alias"], r["hktype"]))
+				return []
+			
 			hk = getattr (hkapi, r["hktype"]) # Find the class matching the selection
 			obj = hk (int(r["id"]), {}, [], True) # init the class so we can pull the values, loading all optional values so we can type them
 			
@@ -1568,17 +1574,18 @@ class Plugin(indigo.PluginBase):
 			hb = {}
 			if debugMode: hb = indigo.Dict()
 			
-			hb["platform"] = "Indigo"
+			hb["platform"] = "Indigo2"
 			hb["name"] = "HomeKit Bridge Server"
 			
 			# The following come from the plugin prefs for where to find Indigo's API
 			hb["protocol"] = self.pluginPrefs["protocol"]
-			hb["host"] = self.pluginPrefs["host"]
-			hb["port"] = self.pluginPrefs["port"]
-			hb["apiPort"] = self.pluginPrefs["apiport"] # Arbitrary when we develop the API
+			hb["host"] = "127.0.0.1" # Fixed localhost only for now
+			#hb["port"] = self.pluginPrefs["port"]
+			#hb["apiPort"] = self.pluginPrefs["apiport"] # Arbitrary when we develop the API
+			hb["port"] = self.pluginPrefs["apiport"]
 			hb["path"] = self.pluginPrefs["path"]
-			hb["username"] = self.pluginPrefs["username"]
-			hb["password"] = self.pluginPrefs["password"]
+			#hb["username"] = self.pluginPrefs["username"]
+			#hb["password"] = self.pluginPrefs["password"]
 			hb["listenPort"] = server.pluginProps["listenPort"]
 			hb["serverId"] = serverId
 			
