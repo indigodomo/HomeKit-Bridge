@@ -1,6 +1,19 @@
 Release Notes
 ==========
 
+Version 0.0.3 (Alpha 3)
+==========
+* Fixed ability to add actions to the HomeKit device list
+* Changed LightBulb to Lightbulb for better HomeKit compatibility and naming conventions
+* Changed RESTful URL output to remove the cmd parameter
+
+Known Issues
+---------------
+* Action integration not fully coded
+* Automatic starting and stopping of Homebridge server on plugin restart not yet implemented
+* Currently using a delay when we get a setCharacteristic to make sure the value reports back in the JSON, but this should really be more dynamic and should go into a loop until we get confirmation from the device via Indigo events.  Since this is tricky it's slated for later implementation because the workaround is fine for now. 
+
+
 Version 0.0.2 (Alpha 2)
 ==========
 * Server can now FILL with devices, this will take the server up to it's 99 object limit
@@ -9,11 +22,6 @@ Version 0.0.2 (Alpha 2)
 * Removed FILL and NONE from the device and action lists as they proved unnecessary given that you can FILL or cherry pick or simply don't add devices and those options are already satisfied.  Using ALL is an option for future versions but won't be considered for now
 * Added delay after receiving a characteristic change on the API so when it reports the JSON back it represents the values after the action, without this it was reporting back instantly and then the JSON represented the values before the command was called
 
-Known Issues
----------------
-* Action integration not fully coded
-* Automatic starting and stopping of Homebridge server on plugin restart not yet implemented
-* Currently using a delay when we get a setCharacteristic to make sure the value reports back in the JSON, but this should really be more dynamic and should go into a loop until we get confirmation from the device via Indigo events.  Since this is tricky it's slated for later implementation because the workaround is fine for now. 
 
 Version 0.0.1
 ---------------

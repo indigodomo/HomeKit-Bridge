@@ -358,7 +358,7 @@ class HomeKitAction ():
 class service_LightBulb ():
 	def __init__(self, devId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		try:
-			self.type = "LightBulb"
+			self.type = "Lightbulb"
 			self.desc = "Light Bulb"
 			
 			self.required = ["On"]

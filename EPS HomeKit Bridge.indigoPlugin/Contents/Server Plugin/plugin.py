@@ -1069,7 +1069,8 @@ class Plugin(indigo.PluginBase):
 							if device["type"] == "error":
 								unknownType = True
 							else:				
-								device["url"] = "/HomeKit?cmd=setCharacteristic&objId={}&serverId={}".format(str(dev.id), str(serverId))	
+								#device["url"] = "/HomeKit?cmd=setCharacteristic&objId={}&serverId={}".format(str(dev.id), str(serverId))	
+								device["url"] = "/HomeKit?objId={}&serverId={}".format(str(dev.id), str(serverId))	
 								obj = hkapi.automaticHomeKitDevice (indigo.devices[int(dev.id)], True)
 								device['hktype'] = "service_" + obj.type # Set to the default type
 								includeList.append (device)
