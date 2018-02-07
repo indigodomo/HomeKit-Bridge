@@ -85,7 +85,7 @@
 			<Field type="menu" id="action" enabledBindingId="deviceLimitReached" enabledBindingNegate="true" visibleBindingId="objectType" visibleBindingValue="action" defaultValue="-fill-">
 				<Label>Action group:</Label>
 				<List class="self" filter="#plugin#[index=action, callback=serverListIncludeActionGroups, ref=hideWrappedItems, nocache=true]" method="getCustomList" dynamicReload="true"/>
-				<CallbackMethod>formFieldChanged</CallbackMethod>
+				<CallbackMethod>serverFormFieldChanged_Action</CallbackMethod>
 			</Field>
 			
 			<!-- =========== check if device or action is selected =========== -->

@@ -1,6 +1,30 @@
 Release Notes
 ==========
 
+Version 0.0.6 (Alpha 6)
+==========
+* Removed the callback URL builder from the server device to instead be dynamic on the API call so it can be easily modified if needed in the future - plus it doesn't need to be saved statically anyway
+* Added Indigo-to-Homebridge callback whenever an included object has a change so that HomeKit will stay up-to-date so long as the server is running when an object change takes place
+* Changed the object indexer so that having one object on multiple servers would be properly indexed
+* Added action indexing for monitored objects
+* Added function that when the server configuration is saved the plugin will reindex all devices and actions automatically
+* Changed Homebridge startup routine so that when starting a server it will no longer sleep to wait for the HB server to start because that means it cannot answer API queries (something that happens when HB starts and it will hang if sleeping), now it will check every second or so until 30 seconds when it will give up and report an error
+* Added error trapping to concurrent threading
+* Server status will now show "Starting" when attempting to start Homebridge and switch to "Running" when successful
+* Server status will now show "Stopping" when attempting to stop Homebridge and switch to "Stopped" when successful
+* Updated to the most current NodeJS script, Lightbulb On/Off functioning but callbacks are not
+* Fixed bug that when editing an object on the server list it would not change the object type properly, leading to potentially changing the object type incorrectly or filling the list with unwanted objects
+* Fixed a few UI inconsistancies
+
+Known Issues
+---------------
+* Integrated Homebridge server is partially enabled, currently only Lightbulbs are functional and then only for On/Off
+* Action integration not fully coded
+* Indigo server information is still being collected in the plugin config but is no longer used or needed and should be removed since don't talk to the Indigo API any longer
+* The current API is not locked to Localhost but will need to be prior to being publicly released for security purposes
+* Currently using a delay when we get a setCharacteristic to make sure the value reports back in the JSON, but this should really be more dynamic and should go into a loop until we get confirmation from the device via Indigo events.  Since this is tricky it's slated for later implementation because the workaround is fine for now. 
+* A failed Homebridge start can cause a minor race condition where HB will continuously try to restart itself, the current solution to this if it happens is to remove the serverId folder under ~/.HomeKit-Bridge so that the restarts cannot be processed.  This is fine because the plugin will regenerate that folder automatically when you turn on your server device.  This has been countered by extra safeguards in server startup and plugin shutdown but it's a HB issue that still needs resolved.
+
 Version 0.0.5 (Alpha 5)
 ==========
 * Moved server folder from ~/.HomeKit-Bridge to the Indigo plugin preferences folder on the recommendation of Jay from Indigo
@@ -11,16 +35,6 @@ Version 0.0.5 (Alpha 5)
 * Added automatic HB server stop on plugin shutdown regardless of any selection options because the API won't run when the plugin is stopped anyway so why keep the HB server running?
 * Saving a server config dialog will now update the address of the server to reflect the HB port and username
 * Added regular server process checking so that the running state of the plugin device will reflect the running state of the service every 30-60 seconds (variable to keep CPU costs down)
-
-Known Issues
----------------
-* Integrated Homebridge server does not yet start, it reads the API and identifies devices but does not actually start the full HB service.
-* Action integration not fully coded
-* Indigo server information is still being collected in the plugin config but is no longer used or needed and should be removed since don't talk to the Indigo API any longer
-* The current API is not locked to Localhost but will need to be prior to being publicly released for security purposes
-* Editing an Action that was added to devices could result in the FILL command being run when you save the device back to the server.  Current work around is to select Action Group from the Object Type combobox before editing Action Groups.
-* Currently using a delay when we get a setCharacteristic to make sure the value reports back in the JSON, but this should really be more dynamic and should go into a loop until we get confirmation from the device via Indigo events.  Since this is tricky it's slated for later implementation because the workaround is fine for now. 
-* A failed Homebridge start can cause a minor race condition where HB will continuously try to restart itself, the current solution to this if it happens is to remove the serverId folder under ~/.HomeKit-Bridge so that the restarts cannot be processed.  This is fine because the plugin will regenerate that folder automatically when you turn on your server device.  This has been countered by extra safeguards in server startup and plugin shutdown but it's a HB issue that still needs resolved.
 
 Version 0.0.4 (Alpha 4)
 ==========

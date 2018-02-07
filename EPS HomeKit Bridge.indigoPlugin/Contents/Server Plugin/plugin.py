@@ -22,6 +22,7 @@ import json # for encoding server devices/actions
 from os.path import expanduser # getting ~ user from shell
 import shutil # shell level utilities for dealing with our local HB server, mostly removing non empty folders
 import socket # port checking
+import requests # for sending forced updates to HB-Indigo (POST JSON)
 
 #from lib.httpsvr import httpServer
 #hserver = httpServer(None)
@@ -45,9 +46,11 @@ class Plugin(indigo.PluginBase):
 	
 	SERVERS = []			# All servers
 	SERVER_ALIAS = {}	 	# Included device aliases and their server as SERVER_ALIAS[aliasName] = serverId (helps prevent duplicate alias names)
-	SERVER_ID = {}			# Included device ID's and their server as SERVER_ID[devId] = serverId (for http service)
+	SERVER_ID = {}			# Included device ID's and their server as SERVER_ID[devId] = {serverId dict} (for http service)
+	SERVER_STARTING = []	# List of servers that are pending a start, lets us know to check this in concurrent threads
 	
 	CTICKS = 0				# Number of concurrent thread ticks since last reset
+	STICKS = 0				# Number of concurrent thread server start ticks since last reset
 	
 	# For shell commands
 	PLUGINDIR = os.getcwd()
@@ -88,6 +91,9 @@ class Plugin(indigo.PluginBase):
 			self.CONFIGDIR = '{}/Preferences/Plugins/{}'.format(indigo.server.getInstallFolderPath(), self.pluginId)
 			self.logger.debug ("Config path set to {}".format(self.CONFIGDIR))
 			
+			# Subscribe to changes so we can send update requests to Homebridge
+			eps.plug.subscribeChanges (["devices", "actionGroups"])
+			
 			# Check that we have a server set up
 			for dev in indigo.devices.iter(self.pluginId + ".Server"):
 				self.SERVERS.append (dev.id)
@@ -104,6 +110,8 @@ class Plugin(indigo.PluginBase):
 				# If it's enabled then start the server
 				if "autoStartStop" in dev.pluginProps and dev.pluginProps["autoStartStop"]:
 					self.shellHBStartServer (dev)
+					
+			#indigo.server.log(unicode(self.SERVER_ID))	
 				
 			#xdev = hkapi.service_LightBulb (624004987)
 			#indigo.server.log(unicode(xdev))
@@ -142,14 +150,44 @@ class Plugin(indigo.PluginBase):
 	def onAfter_runConcurrentThread (self):
 		#hserver.runConcurrentThread()		
 		self.CTICKS = self.CTICKS + 1
+		if len(self.SERVER_STARTING) > 0: self.STICKS = self.STICKS + 1
+		
+		# If we have servers starting then check every tick until the 30 mark
+		if len(self.SERVER_STARTING) > 0:
+			try:
+				for devId in self.SERVER_STARTING:
+					if self.checkRunningHBServer (indigo.devices[devId]):
+						self.logger.info ("Server '{}' has successfully started and can answer Siri commands".format(indigo.devices[devId].name))
+					
+						# Remove this from the list so we don't check anymore
+						newList = []
+						for d in self.SERVER_STARTING:
+							if d == devId: continue
+							newList.append (d)
+						
+						self.SERVER_STARTING = newList
+					
+				if len(self.SERVER_STARTING) > 0 and self.STICKS > 30:
+					for devId in self.SERVER_STARTING:
+						self.logger.info ("Server '{}' has not responded to a start request after more than 30 seconds, forcing an abort on the startup".format(indigo.devices[devId].name))
+						self.shellHBStopServer (indigo.devices[devId])
+						
+					self.STICKS = 0
+					
+			except Exception as e:
+				self.logger.error (ext.getException(e))		
 		
 		# At 30 ticks we check server running state (more or less between 30 seconds and a minute but keeps us from having to do date calcs here which use CPU)
 		if self.CTICKS == 30:
-			self.logger.debug ("Checking running state of all servers")
-			for dev in indigo.devices.iter(self.pluginId + ".Server"):
-				self.checkRunningHBServer (dev)
+			try:
+				self.logger.debug ("Checking running state of all servers")
+				for dev in indigo.devices.iter(self.pluginId + ".Server"):
+					self.checkRunningHBServer (dev)
 			
-			self.CTICKS = 0
+				self.CTICKS = 0
+				
+			except Exception as e:
+				self.logger.error (ext.getException(e))		
 			
 	#
 	# A form field changed, update defaults
@@ -217,6 +255,46 @@ class Plugin(indigo.PluginBase):
 		except Exception as e:
 			self.logger.error (ext.getException(e))		
 			
+	#
+	# Device update
+	#
+	def onAfter_nonpluginDeviceUpdated (self, origDev, newDev):
+		try:
+			if newDev.id in self.SERVER_ID:
+				devId = newDev.id
+				for serverId in self.SERVER_ID[devId]:
+					valuesDict = self.serverCheckForJSONKeys (indigo.devices[serverId].pluginProps)	
+					includedDevices = json.loads(valuesDict["includedDevices"])
+					includedActions = json.loads(valuesDict["includedActions"])
+					
+					r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", devId)
+					if r is None: r = eps.jstash.getRecordWithFieldEquals (includedActions, "id", devId)
+					if r is None: continue
+					
+					hk = getattr (hkapi, r["hktype"]) # Find the class matching the selection
+					obj = hk (int(r["id"]), {}, [], True)
+			
+					updateRequired = False		
+					for a in obj.actions:
+						if devId in a.monitors: # This device is being monitored (generally it is)
+							for deviceId, monitor in a.monitors.iteritems(): # Iter all monitors
+								if deviceId == devId: # If the monitor is for this device
+									if monitor[0:5] == "attr_": # If it is an attribute
+										action = monitor.replace("attr_", "")
+										if action in dir(newDev) and action in dir(origDev):
+											n = getattr (newDev, action)
+											o = getattr (origDev, action)
+											
+											if n != o:
+												updateRequired = True
+												break # We don't need to check anything else, if one thing needs an update then we need an update
+												
+					if updateRequired:
+						self.serverSendObjectUpdateToHomebridge (indigo.devices[serverId], newDev.id)
+					
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
 		
 	################################################################################
 	# PLUGIN SPECIFIC ROUTINES
@@ -250,7 +328,12 @@ class Plugin(indigo.PluginBase):
 					includedDevices = json.loads(valuesDict["includedDevices"])
 					includedActions = json.loads(valuesDict["includedActions"])
 					
+					isAction = False
 					r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", devId)
+					if r is None: 
+						r = eps.jstash.getRecordWithFieldEquals (includedActions, "id", devId)
+						isAction = True
+					
 					hk = getattr (hkapi, r["hktype"]) # Find the class matching the selection
 					obj = hk (int(r["id"]), {}, [], True)
 					
@@ -269,7 +352,7 @@ class Plugin(indigo.PluginBase):
 					# when it comes to action groups we'll have to take longer
 					time.sleep(.5) 
 					
-					r = self.buildHKAPIDetails (devId, serverId)		
+					r = self.buildHKAPIDetails (devId, serverId, isAction)		
 					return "text/css",	json.dumps(r, indent=4)
 				
 				if "cmd" in query and query["cmd"][0] == "getInfo":
@@ -277,7 +360,11 @@ class Plugin(indigo.PluginBase):
 						devId = int(query["objId"][0])
 			
 						serverId = 0
-						if devId in self.SERVER_ID: serverId = self.SERVER_ID[devId]
+						#if devId in self.SERVER_ID: 
+						#	if len(self.SERVER_ID[devId]) == 1: serverId = self.SERVER_ID[devId][0]
+						if "serverId" in query:
+							server = indigo.devices[int(query["serverId"][0])]
+							serverId = server.id
 						
 						if serverId == 0:
 							msg = {}
@@ -325,7 +412,7 @@ class Plugin(indigo.PluginBase):
 	#
 	# Build HK API details for object ID
 	#
-	def buildHKAPIDetails (self, objId, serverId):
+	def buildHKAPIDetails (self, objId, serverId, runningAction = False):
 		try:
 			valuesDict = self.serverCheckForJSONKeys (indigo.devices[serverId].pluginProps)	
 			includedDevices = json.loads(valuesDict["includedDevices"])
@@ -352,6 +439,9 @@ class Plugin(indigo.PluginBase):
 			del r["type"]
 			del r["char"]
 			
+			# Add the callback
+			r["url"] = "/HomeKit?objId={}&serverId={}".format(str(objId), str(serverId))	
+			
 			# Fix characteristics for readability
 			charList = []
 			for charName, charValue in obj.characterDict.iteritems():
@@ -359,6 +449,9 @@ class Plugin(indigo.PluginBase):
 				characteristic = getattr (obj, charName)
 				charItem["name"] = charName
 				charItem["value"] = charValue
+				
+				if runningAction and charItem["name"] == "On": charItem["value"] = True
+				
 				charItem["readonly"] = characteristic.readonly
 				charItem["notify"] = characteristic.notify
 				charList.append (charItem)
@@ -371,6 +464,11 @@ class Plugin(indigo.PluginBase):
 				if not a.characteristic in actList: actList.append(a.characteristic)
 				
 			r["action"] = actList
+			
+			# This will only come up if an action group was turned on and then called down to here so this should be safe, but we need to now
+			# notify Homebridge that the action has completed and to get the false value
+			if runningAction:
+				self.serverSendObjectUpdateToHomebridge (indigo.devices[int(serverId)], r["id"])
 			
 			return r
 		
@@ -467,7 +565,25 @@ class Plugin(indigo.PluginBase):
 			
 			for d in includedDevices:
 				self.SERVER_ALIAS[d["alias"]] = dev.id
-				self.SERVER_ID[d["id"]] = dev.id
+				
+				if d["id"] not in self.SERVER_ID:
+					self.SERVER_ID[d["id"]] = [dev.id]
+				else:
+					servers = self.SERVER_ID[d["id"]]
+					if dev.id not in servers: # Only add it if it's not already there
+						servers.append(dev.id)
+						self.SERVER_ID[d["id"]] = servers
+						
+			for d in includedActions:
+				self.SERVER_ALIAS[d["alias"]] = dev.id
+				
+				if d["id"] not in self.SERVER_ID:
+					self.SERVER_ID[d["id"]] = [dev.id]
+				else:
+					servers = self.SERVER_ID[d["id"]]
+					if dev.id not in servers: # Only add it if it's not already there
+						servers.append(dev.id)
+						self.SERVER_ID[d["id"]] = servers			
 				
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -488,9 +604,15 @@ class Plugin(indigo.PluginBase):
 				indigo.devices[dev.id].updateStateImageOnServer(indigo.kStateImageSel.SensorOn)
 				return True
 			else:
-				indigo.devices[dev.id].updateStateOnServer("onOffState", False, uiValue="Stopped")
-				indigo.devices[dev.id].updateStateImageOnServer(indigo.kStateImageSel.SensorOff)
-				return False
+				if dev.id in self.SERVER_STARTING:
+					indigo.devices[dev.id].updateStateOnServer("onOffState", False, uiValue="Starting")
+					indigo.devices[dev.id].updateStateImageOnServer(indigo.kStateImageSel.SensorOff)
+					return False
+				
+				else:
+					indigo.devices[dev.id].updateStateOnServer("onOffState", False, uiValue="Stopped")
+					indigo.devices[dev.id].updateStateImageOnServer(indigo.kStateImageSel.SensorOff)
+					return False
 			
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -920,8 +1042,13 @@ class Plugin(indigo.PluginBase):
 						includedDevices = eps.jstash.removeRecordFromStash (includedDevices, "id", int(valuesDict["deviceList"][0]))
 						includedActions = eps.jstash.removeRecordFromStash (includedActions, "id", int(valuesDict["deviceList"][0]))
 						
-						if not isAction: valuesDict["device"] = str(r["id"])
-						if isAction: valuesDict["action"] = str(r["id"])
+						if not isAction: 
+							valuesDict["objectType"] = "device"
+							valuesDict["device"] = str(r["id"])
+							
+						if isAction: 
+							valuesDict["objectType"] = "action"
+							valuesDict["action"] = str(r["id"])
 						
 						valuesDict["name"] = r["name"]
 						valuesDict["alias"] = r["alias"]
@@ -1107,7 +1234,7 @@ class Plugin(indigo.PluginBase):
 								unknownType = True
 							else:				
 								#device["url"] = "/HomeKit?cmd=setCharacteristic&objId={}&serverId={}".format(str(dev.id), str(serverId))	
-								device["url"] = "/HomeKit?objId={}&serverId={}".format(str(dev.id), str(serverId))	
+								#device["url"] = "/HomeKit?objId={}&serverId={}".format(str(dev.id), str(serverId))	
 								obj = hkapi.automaticHomeKitDevice (indigo.devices[int(dev.id)], True)
 								device['hktype'] = "service_" + obj.type # Set to the default type
 								includeList.append (device)
@@ -1181,7 +1308,8 @@ class Plugin(indigo.PluginBase):
 				if r is None:					
 					#device['treatas'] = valuesDict["treatAs"] # Homebridge Buddy Legacy
 					device['hktype'] = valuesDict["hkType"]
-					device["url"] = "/HomeKit?cmd=setCharacteristic&objId={}&serverId={}".format(str(dev.id), str(serverId))
+					#device["url"] = "/HomeKit?cmd=setCharacteristic&objId={}&serverId={}".format(str(dev.id), str(serverId))
+					#device["url"] = "/HomeKit?objId={}&serverId={}".format(str(dev.id), str(serverId))	
 					#device["char"] = valuesDict["hkStatesJSON"]
 					#device["action"] = valuesDict["hkActionsJSON"]
 					
@@ -1243,12 +1371,30 @@ class Plugin(indigo.PluginBase):
 		return (valuesDict, errorsDict)
 		
 
+	#
+	# Server form action field changed
+	#
+	def serverFormFieldChanged_Action (self, valuesDict, typeId, devId):	
+		try:
+			errorsDict = indigo.Dict()	
+			
+			# The device changed, if it's not a generic type then fill in defaults
+			if valuesDict["action"] != "" and valuesDict["action"] != "-fill-" and valuesDict["action"] != "-line-":
+				valuesDict["deviceOrActionSelected"] = True # Enable fields
+				
+				# So long as we are not in edit mode then pull the HK defaults for this device and populate it
+				if not valuesDict["editActive"]:
+					# Actions are always switches by default
+					obj = hkapi.automaticHomeKitDevice (indigo.actionGroups[int(valuesDict["action"])], True)
+					#valuesDict = self.serverFormFieldChanged_RefreshHKDef (valuesDict, obj) # For our test when we were defining the HK object here
+					valuesDict["hkType"] = "service_" + obj.type # Set to the default type		
+					
+			#if valuesDict["deviceOrActionSelected"]: valuesDict["actionsCommandEnable"] = True # Enable actions		
 		
-
-		
-
-		
-		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+		return (valuesDict, errorsDict)
 		
 	#
 	# Server form field change
@@ -1259,8 +1405,10 @@ class Plugin(indigo.PluginBase):
 			errorsDict = indigo.Dict()		
 			
 			# Defaults if there are none
+			valuesDict["deviceOrActionSelected"] = False # We'll change it below if needed
 			if valuesDict["device"] == "": valuesDict["device"] = "-fill-"
 			if valuesDict["action"] == "": valuesDict["action"] = "-fill-"
+			
 			#if valuesDict["treatAs"] == "": valuesDict["treatAs"] = "service_Switch" # Default
 			
 			# If there is no port and the server hasn't been overridden then populate it (suppress logging, we don't need it)
@@ -1353,7 +1501,10 @@ class Plugin(indigo.PluginBase):
 							
 				# If we make it to here then everything is good and we can set the server address
 				valuesDict["address"] = valuesDict["pin"] + " | " + valuesDict["port"]
-		
+				
+				# Re-catalog the server just to be safe
+				self._catalogServerDevices (server)
+						
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
 			
@@ -1449,6 +1600,31 @@ class Plugin(indigo.PluginBase):
 			
 		return False	
 		
+	#
+	# Send an update to Homebridge
+	#
+	def serverSendObjectUpdateToHomebridge (self, server, objId):
+		try:
+			if not server.states["onOffState"]:
+				self.logger.debug ("Homebridge update requested, but '{}' isn't running, ignoring update request".format(server.name))
+				return
+									
+			url = "http://127.0.0.1:{1}/devices/{0}".format(str(objId), server.pluginProps["listenPort"])
+			
+			#data = {'isOn':1, 'brightness': 100}
+			data = {}
+			
+			data_json = json.dumps(data)
+			payload = {'json_payload': data_json}
+			r = requests.get(url, data=payload)
+			
+			#indigo.server.log(unicode(r))
+			
+			self.logger.debug ("Homebridge update requested, querying {0}".format(url))
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+		
 		
 	################################################################################
 	# SHELL COMMANDS
@@ -1484,7 +1660,7 @@ class Plugin(indigo.PluginBase):
 	#
 	# Start HB for the provided server
 	#
-	def shellHBStartServer (self, dev):
+	def shellHBStartServer (self, dev, noCheck = False):
 		try:
 			self.logger.info ("Rebuilding configuration for '{0}'".format(dev.name))
 			self.saveConfigurationToDisk (dev)
@@ -1493,7 +1669,14 @@ class Plugin(indigo.PluginBase):
 			self.logger.threaddebug ('Running: "' + self.HBDIR + '/load" "' + self.CONFIGDIR + "/" + str(dev.id) + '"')
 			os.system('"' + self.HBDIR + '/load" "' + self.CONFIGDIR + "/" + str(dev.id) + '"')
 			
+			indigo.devices[dev.id].updateStateOnServer("onOffState", False, uiValue="Starting")
 			self.logger.info ("Attempting to start '{0}'".format(dev.name))
+						
+			# We cannot check the running port and have the server start because that will pause our web server too, so add
+			# it to the global so that concurrent threading can check on the startup
+			self.STICKS = 0 # Reset server concurrent count
+			self.SERVER_STARTING.append (dev.id) # So we can check on the startup
+			return True
 			
 			# Give it up to 60 seconds to respond to a port query to know if it started
 			loopcount = 1
@@ -1527,6 +1710,7 @@ class Plugin(indigo.PluginBase):
 			os.system('"' + self.HBDIR + '/unload" "' + self.CONFIGDIR + "/" + str(dev.id) + '"')
 			
 			self.logger.info ("Attempting to stop '{0}'".format(dev.name))
+			indigo.devices[dev.id].updateStateOnServer("onOffState", True, uiValue="Stopping")
 			
 			# Give it up to 60 seconds to respond to a port query to know if it started
 			loopcount = 1

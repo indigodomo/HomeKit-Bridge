@@ -32,7 +32,10 @@ def compareDataTypes (self, HKItem, HKAttrib, IndigoItem, IndigoAttrib, isState 
 #
 def automaticHomeKitDevice (dev, loadOptional = False):
 	try:
-		if dev.pluginId == "com.perceptiveautomation.indigoplugin.zwave" and dev.deviceTypeId == "zwLockType":
+		if dev.id in indigo.actionGroups:
+			return service_Switch (dev.id, {}, [], loadOptional)
+		
+		elif dev.pluginId == "com.perceptiveautomation.indigoplugin.zwave" and dev.deviceTypeId == "zwLockType":
 			return service_LockMechanism (dev.id, {}, [], loadOptional)
 			
 		elif "brightnessLevel" in dev.states and "brightness" in dir(dev):
@@ -68,14 +71,21 @@ def deviceInitialize (dev, devId, characterDict):
 		dev.characterDict = characterDict
 		dev.devId = 0
 		
-		if int(devId) != 0 and int(devId) in indigo.devices: dev.devId = int(devId)
+		if int(devId) != 0 and (int(devId) in indigo.devices or int(devId) in indigo.actionGroups): dev.devId = int(devId)
 		
 		# One shared property is name, we can set the alias of this right away
 		if dev.devId != 0: 
 			dev.Alias = characteristic_Name() # Generic enough for our use
-			dev.Alias.value = indigo.devices[dev.devId].name			
+			if int(devId) in indigo.devices:
+				dev.Alias.value = indigo.devices[dev.devId].name			
+			elif int(devId) in indigo.actionGroups:
+				dev.Alias.value = indigo.actionGroups[dev.devId].name			
+			
 			dev.Model = characteristic_Name()
-			dev.Model.value = indigo.devices[dev.devId].model
+			if int(devId) in indigo.devices:
+				dev.Model.value = indigo.devices[dev.devId].model
+			elif int(devId) in indigo.actionGroups:
+				dev.Model.value = "Action Group"
 		
 		dev.updateFromIndigoObject(characterDict)	
 		
@@ -237,6 +247,7 @@ def convertFromBoolean (dev, attribute, value, atype, vtype, obj):
 		indigo.server.log  (ext.getException(e), isError=True)
 		
 	return False
+				
 
 ################################################################################
 # DEVICES (MISC)
@@ -246,7 +257,7 @@ def convertFromBoolean (dev, attribute, value, atype, vtype, obj):
 # ACTION
 # ==============================================================================
 class HomeKitAction ():
-	def __init__(self, characteristic, whenvalueis = "equal", whenvalue = 0, command = "", arguments = [], whenvalue2 = 0):
+	def __init__(self, characteristic, whenvalueis = "equal", whenvalue = 0, command = "", arguments = [], whenvalue2 = 0, monitors = {}):
 		try:
 			self.logger = logging.getLogger ("Plugin.HomeKitAction")
 			
@@ -256,6 +267,7 @@ class HomeKitAction ():
 			self.whenvalue2 = whenvalue2
 			self.command = command
 			self.arguments = arguments
+			self.monitors = monitors # Dict of objId: attr_* | state_* | prop_* that we will monitor for this action - partly for future use if we are tying multiple objects to different properties and actions but also so our subscribe to changes knows what will trigger an update
 			
 			# Determine the value data type by creating a mock object
 			cclass = characteristicsToClasses (characteristic)
@@ -360,6 +372,8 @@ class service_Lightbulb ():
 		try:
 			self.type = "Lightbulb"
 			self.desc = "Light Bulb"
+			self.native = True # Functions can map directly to Indigo or a plugin (see requiresPlugin) natively without any customization
+			self.requiresPlugin = [] # For this device to work Indigo must have one or more plugins installed, list of dict items with name and plugin id requirements
 			
 			self.required = ["On"]
 			self.optional = ["Brightness", "Hue", "Saturation", "Name", "ColorTemperature"]
@@ -381,6 +395,10 @@ class service_Lightbulb ():
 			
 	def updateFromIndigoObject (self, characterDict):
 		try:
+			definedActions = []
+			for a in self.actions:
+				definedActions.append (a["name"])
+				
 			self.characterDict = characterDict # Always overwrite
 			if self.devId != 0 and self.devId in indigo.devices:
 				dev = indigo.devices[self.devId]
@@ -388,20 +406,23 @@ class service_Lightbulb ():
 				if "onState" in dir(dev) and "On" not in characterDict: characterDict["On"] = dev.onState
 				if "brightness" in dir(dev) and "Brightness" not in characterDict: characterDict["Brightness"] = dev.brightness		
 				
-				definedActions = []
-				for a in self.actions:
-					definedActions.append (a["name"])
-				
 				if "On" not in definedActions:
-					self.actions.append (HomeKitAction("On", "equal", False, "device.turnOff", [self.devId]))
-					self.actions.append (HomeKitAction("On", "equal", True, "device.turnOn", [self.devId]))
+					self.actions.append (HomeKitAction("On", "equal", False, "device.turnOff", [self.devId], 0, {self.devId: "attr_onState"}))
+					self.actions.append (HomeKitAction("On", "equal", True, "device.turnOn", [self.devId], 0, {self.devId: "attr_brightness"}))
 					
 				if "Brightness" not in definedActions:
-					self.actions.append (HomeKitAction("Brightness", "between", 1, "dimmer.setBrightness", [self.devId, "=value="], 99))
-					self.actions.append (HomeKitAction("Brightness", "equal", 0, "device.turnOff", [self.devId]))
-					self.actions.append (HomeKitAction("Brightness", "equal", 100, "device.turnOn", [self.devId]))
+					self.actions.append (HomeKitAction("Brightness", "between", 1, "dimmer.setBrightness", [self.devId, "=value="], 99, {self.devId: "attr_brightness"}))
+					self.actions.append (HomeKitAction("Brightness", "equal", 0, "device.turnOff", [self.devId], 0, {self.devId: "attr_onState"}))
+					self.actions.append (HomeKitAction("Brightness", "equal", 100, "device.turnOn", [self.devId], 0, {self.devId: "attr_onState"}))
 					
-
+			elif self.devId != 0 and self.devId in indigo.actionGroups:
+				dev = indigo.actionGroups[self.devId]
+				
+				if "On" not in characterDict: characterDict["On"] = False
+				
+				if "On" not in definedActions:
+					self.actions.append (HomeKitAction("On", "equal", True, "actionGroup.execute", [self.devId], 0, {}))
+				
 		except Exception as e:
 			indigo.server.log  (ext.getException(e), isError=True)	
 		
@@ -419,6 +440,8 @@ class service_Outlet ():
 		try:
 			self.type = "Outlet"
 			self.desc = "Outlet"
+			self.native = True # Functions can map directly to Indigo or a plugin (see requiresPlugin) natively without any customization
+			self.requiresPlugin = [] # For this device to work Indigo must have one or more plugins installed
 			
 			self.required = ["On", "OutletInUse"]
 			self.optional = []
@@ -440,19 +463,26 @@ class service_Outlet ():
 			
 	def updateFromIndigoObject (self, characterDict):
 		try:
+			definedActions = []
+			for a in self.actions:
+				definedActions.append (a["name"])
+				
 			self.characterDict = characterDict # Always overwrite
 			if self.devId != 0 and self.devId in indigo.devices:
 				dev = indigo.devices[self.devId]
 		
 				if "onState" in dir(dev) and "On" not in characterDict: characterDict["On"] = dev.onState	
+				if "On" not in definedActions:
+					self.actions.append (HomeKitAction("On", "equal", False, "device.turnOff", [self.devId], 0, {self.devId: "attr_onState"}))
+					self.actions.append (HomeKitAction("On", "equal", True, "device.turnOn", [self.devId], 0, {self.devId: "attr_onState"}))
+					
+			elif self.devId != 0 and self.devId in indigo.actionGroups:
+				dev = indigo.actionGroups[self.devId]
 				
-				definedActions = []
-				for a in self.actions:
-					definedActions.append (a["name"])
+				if "On" not in characterDict: characterDict["On"] = False
 				
 				if "On" not in definedActions:
-					self.actions.append (HomeKitAction("On", "equal", False, "device.turnOff", [self.devId]))
-					self.actions.append (HomeKitAction("On", "equal", True, "device.turnOn", [self.devId]))
+					self.actions.append (HomeKitAction("On", "equal", True, "actionGroup.execute", [self.devId], 0, {}))
 
 		except Exception as e:
 			indigo.server.log  (ext.getException(e), isError=True)			
@@ -471,6 +501,8 @@ class service_LockMechanism ():
 		try:
 			self.type = "LockMechanism"
 			self.desc = "Lock Mechanism"
+			self.native = True # Functions can map directly to Indigo or a plugin (see requiresPlugin) natively without any customization
+			self.requiresPlugin = [] # For this device to work Indigo must have one or more plugins installed
 			
 			self.required = ["LockCurrentState", "LockTargetState"]
 			self.optional = ["Name"]
@@ -492,20 +524,28 @@ class service_LockMechanism ():
 			
 	def updateFromIndigoObject (self, characterDict):
 		try:
+			definedActions = []
+			for a in self.actions:
+				definedActions.append (a["name"])
+				
 			self.characterDict = characterDict # Always overwrite
 			if self.devId != 0 and self.devId in indigo.devices:
 				dev = indigo.devices[self.devId]
 		
 				if "onState" in dir(dev) and "LockCurrentState" not in characterDict: characterDict["LockCurrentState"] = dev.onState
 				if "onState" in dir(dev) and "LockTargetState" not in characterDict: characterDict["LockTargetState"] = dev.onState	
-				
-				definedActions = []
-				for a in self.actions:
-					definedActions.append (a["name"])
 					
 				if "LockTargetState" not in definedActions:
-					self.actions.append (HomeKitAction("On", "equal", False, "device.turnOff", [self.devId]))
-					self.actions.append (HomeKitAction("On", "equal", True, "device.turnOn", [self.devId]))
+					self.actions.append (HomeKitAction("On", "equal", False, "device.turnOff", [self.devId], 0, {self.devId: "attr_onState"}))
+					self.actions.append (HomeKitAction("On", "equal", True, "device.turnOn", [self.devId], 0, {self.devId: "attr_onState"}))
+					
+			elif self.devId != 0 and self.devId in indigo.actionGroups:
+				dev = indigo.actionGroups[self.devId]
+				
+				if "On" not in characterDict: characterDict["On"] = False
+				
+				if "On" not in definedActions:
+					self.actions.append (HomeKitAction("On", "equal", True, "actionGroup.execute", [self.devId], 0, {}))		
 
 		except Exception as e:
 			indigo.server.log  (ext.getException(e), isError=True)			
@@ -524,6 +564,8 @@ class service_Switch ():
 		try:
 			self.type = "Switch"
 			self.desc = "Switch"
+			self.native = True # Functions can map directly to Indigo or a plugin (see requiresPlugin) natively without any customization
+			self.requiresPlugin = [] # For this device to work Indigo must have one or more plugins installed
 			
 			self.required = ["On"]
 			self.optional = []
@@ -537,6 +579,7 @@ class service_Switch ():
 			self.characterDict = characterDict
 			self.devId = 0
 			
+			#indigo.server.log(unicode(devId))
 			deviceInitialize (self, devId, characterDict)
 			setAttributesForDevice (self)
 			
@@ -545,22 +588,31 @@ class service_Switch ():
 			
 	def updateFromIndigoObject (self, characterDict):
 		try:
+			definedActions = []
+			for a in self.actions:
+				definedActions.append (a["name"])
+					
 			self.characterDict = characterDict # Always overwrite
 			if self.devId != 0 and self.devId in indigo.devices:
 				dev = indigo.devices[self.devId]
-		
+				
 				if "onState" in dir(dev) and "On" not in characterDict: 
 					characterDict["On"] = dev.onState	
 				else:
 					characterDict["On"] = False # Since all devices default to this type, this ensure that we never have NO characteristics
 				
-				definedActions = []
-				for a in self.actions:
-					definedActions.append (a["name"])
+				if "On" not in definedActions:
+					self.actions.append (HomeKitAction("On", "equal", False, "device.turnOff", [self.devId], 0, {self.devId: "attr_onState"}))
+					self.actions.append (HomeKitAction("On", "equal", True, "device.turnOn", [self.devId], 0, {self.devId: "attr_onState"}))
+					
+			elif self.devId != 0 and self.devId in indigo.actionGroups:
+				dev = indigo.actionGroups[self.devId]
+				
+				if "On" not in characterDict: characterDict["On"] = False
 				
 				if "On" not in definedActions:
-					self.actions.append (HomeKitAction("On", "equal", False, "device.turnOff", [self.devId]))
-					self.actions.append (HomeKitAction("On", "equal", True, "device.turnOn", [self.devId]))
+					self.actions.append (HomeKitAction("On", "equal", True, "actionGroup.execute", [self.devId], 0, {}))
+					
 
 		except Exception as e:
 			indigo.server.log  (ext.getException(e), isError=True)			

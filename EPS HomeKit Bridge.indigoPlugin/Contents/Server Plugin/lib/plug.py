@@ -41,9 +41,9 @@ class plug:
 			for change in changes:
 				if change.lower() == "variables": self.isSubscribedVariables = True
 				if change.lower() == "devices": self.isSubscribedDevices = True
-				if change.lower() == "actiongroups": self.isSubscribedActionGroups = True
+				if change.lower() == "actionGroups": self.isSubscribedActionGroups = True
 				
-				f = getattr(indigo, change.lower())
+				f = getattr(indigo, change)
 				f.subscribeToChanges()
 				
 		except Exception as e:

@@ -16,6 +16,7 @@ Version 3.0.0
 * Redesigned plugcache as plugdetails, this will read the same info in real time rather than pre-caching all plugin information - a savings of time and, on average, 25MB of memory for each plugin using the cache
 * Created a 3rd version of actions to be more streamlined and automated than the original
 * Modified plug.formFieldChanged to incorporate Actions 3
+* Fixed minor bug in plug.subscribeChanges that sent an improper case and would cause mixed case subscriptions to fail (i.e., actiongroups instead of actionGroups)
 
 Version 2.4.4
 ---------------
