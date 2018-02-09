@@ -13,10 +13,12 @@ import sys # exception reporting
 import logging # logging
 import ext
 
+PLUGIN_PREFS = {}
+
 ################################################################################
 # GENERAL FUNCTIONS
 ################################################################################
-
+	
 #
 # Compare data types and return if they will convert
 #
@@ -47,6 +49,20 @@ def automaticHomeKitDevice (dev, loadOptional = False):
 		elif "speedIndex" in dir(dev):
 			return service_Fanv2 (dev.id, {}, [], loadOptional)	
 			
+		elif "sensorInputs" in dir(dev):	
+			if "protocol" in dir(dev) and dev.protocol == "Insteon" and dev.model == "I/O-Linc Controller":
+				return service_GarageDoorOpener (dev.id, {}, [], loadOptional)	
+				
+			else:
+				return service_GarageDoorOpener (dev.id, {}, [], loadOptional)	
+			
+		elif "sensorValue" in dir(dev):
+			if dev.protocol == "Insteon" and "Motion Sensor" in dev.model: 
+				return service_MotionSensor (dev.id, {}, [], loadOptional)	
+				
+			else:
+				return service_MotionSensor (dev.id, {}, [], loadOptional)	
+				
 		else:
 			return service_Switch (dev.id, {}, [], loadOptional)
 	
@@ -58,7 +74,8 @@ def automaticHomeKitDevice (dev, loadOptional = False):
 #
 def characteristicsToClasses (characteristic):
 	try:
-		classes = {"Active": characteristic_Active, "CurrentFanState": characteristic_CurrentFanState, "TargetFanState": characteristic_TargetFanState, "LockPhysicalControls": characteristic_LockPhysicalControls, "RotationDirection": characteristic_RotationDirection, "RotationSpeed": characteristic_RotationSpeed, "SwingMode": characteristic_SwingMode, "Brightness": characteristic_Brightness, "ColorTemperature": characteristic_ColorTemperature, "Hue": characteristic_Hue, "LockCurrentState": characteristic_LockCurrentState, "LockTargetState": characteristic_LockTargetState, "Name": characteristic_Name, "On": characteristic_On, "OutletInUse": characteristic_OutletInUse, "Saturation": characteristic_Saturation }
+		classes = {"Active": characteristic_Active, "Brightness": characteristic_Brightness, "ColorTemperature": characteristic_ColorTemperature, "CurrentDoorState": characteristic_CurrentDoorState, "CurrentFanState": characteristic_CurrentFanState, "Hue": characteristic_Hue, "LockCurrentState": characteristic_LockCurrentState, "LockPhysicalControls": characteristic_LockPhysicalControls, "LockTargetState": characteristic_LockTargetState, "MotionDetected": characteristic_MotionDetected, "Name": characteristic_Name, "ObstructionDetected": characteristic_ObstructionDetected, "On": characteristic_On, "OutletInUse": characteristic_OutletInUse, "RotationDirection": characteristic_RotationDirection, "RotationSpeed": characteristic_RotationSpeed, "Saturation": characteristic_Saturation, "StatusActive": characteristic_StatusActive, "StatusFault": characteristic_StatusFault, "StatusLowBattery": characteristic_StatusLowBattery, "StatusTampered": characteristic_StatusTampered, "SwingMode": characteristic_SwingMode, "TargetDoorState": characteristic_TargetDoorState, "TargetFanState": characteristic_TargetFanState}
+
 		if characteristic in classes: return classes[characteristic]
 		
 		return None
@@ -446,6 +463,88 @@ class service_Fanv2 ():
 			
 	def __str__(self):
 		return getStr(self)
+		
+# ==============================================================================
+# GARAGE DOOR OPENER
+# ==============================================================================
+class service_GarageDoorOpener ():
+	def __init__(self, devId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		try:
+			self.type = "GarageDoorOpener"
+			self.desc = "Garage Door Opener"
+			self.native = True # Functions can map directly to Indigo or a plugin (see requiresPlugin) natively without any customization
+			self.requiresPlugin = [] # For this device to work Indigo must have one or more plugins installed, list of dict items with name and plugin id requirements
+			
+			self.required = ["CurrentDoorState", "TargetDoorState", "ObstructionDetected"]
+			self.optional = ["LockCurrentState", "LockTargetState", "Name"]
+			self.actions = []
+			self.loadOptional = loadOptional # Create attributes for the optional fields
+			
+			# We have to append from here, if we were to set self.actions equal an outside list it would share among all instances of this class
+			for d in deviceActions:
+				self.actions.append (d)
+			
+			self.characterDict = characterDict
+			self.devId = 0
+			
+			deviceInitialize (self, devId, characterDict)
+			setAttributesForDevice (self)
+			
+		except Exception as e:
+			indigo.server.log  (ext.getException(e), isError=True)	
+			
+	def updateFromIndigoObject (self, characterDict):
+		try:
+			definedActions = []
+			for a in self.actions:
+				definedActions.append (a["name"])
+				
+			self.characterDict = characterDict # Always overwrite
+			if self.devId != 0 and self.devId in indigo.devices:
+				dev = indigo.devices[self.devId]
+		
+				# Insteon Multi I/O controller
+				if "protocol" in dir(dev) and dev.protocol == "Insteon" and dev.model == "I/O-Linc Controller":
+					if "binaryInput1" in dev.states and "CurrentDoorState" not in characterDict: 
+						characterDict["CurrentDoorState"] = 1 # Open
+						if not dev.states["binaryInput1"]: characterDict["CurrentDoorState"] = 0 # Closed
+						
+					if "binaryInput1" in dev.states and "TargetDoorState" not in characterDict: 
+						characterDict["TargetDoorState"] = 1 # Open
+						if not dev.states["binaryInput1"]: characterDict["TargetDoorState"] = 0 # Closed	
+						
+					if "ObstructionDetected" not in characterDict: characterDict["ObstructionDetected"] = 0 # Unsupported but it's required right now
+				
+					if "CurrentDoorState" not in definedActions:
+						self.actions.append (HomeKitAction("CurrentDoorState", "equal", 0, "iodevice.setBinaryOutput", [self.devId, 1, True], 0, {self.devId: "state_binaryInput1"}))
+						self.actions.append (HomeKitAction("CurrentDoorState", "equal", 1, "iodevice.setBinaryOutput", [self.devId, 1, True], 0, {self.devId: "state_binaryInput1"}))
+						
+					if "TargetDoorState" not in definedActions:
+						self.actions.append (HomeKitAction("TargetDoorState", "equal", 0, "iodevice.setBinaryOutput", [self.devId, 1, True], 0, {self.devId: "state_binaryInput1"}))
+						self.actions.append (HomeKitAction("TargetDoorState", "equal", 1, "iodevice.setBinaryOutput", [self.devId, 1, True], 0, {self.devId: "state_binaryInput1"}))	
+					
+					
+			elif self.devId != 0 and self.devId in indigo.actionGroups:
+				dev = indigo.actionGroups[self.devId]
+				
+				if "CurrentDoorState" not in characterDict: characterDict["CurrentDoorState"] = 1
+				if "TargetDoorState" not in characterDict: characterDict["TargetDoorState"] = 1
+				if "ObstructionDetected" not in characterDict: characterDict["ObstructionDetected"] = 0
+				
+				if "CurrentDoorState" not in definedActions:
+					self.actions.append (HomeKitAction("CurrentDoorState", "equal", True, "actionGroup.execute", [self.devId], 0, {}))
+					
+				if "TargetDoorState" not in definedActions:
+					self.actions.append (HomeKitAction("TargetDoorState", "equal", True, "actionGroup.execute", [self.devId], 0, {}))	
+				
+		except Exception as e:
+			indigo.server.log  (ext.getException(e), isError=True)	
+		
+	def setValue (self, attribute, value):
+		return setAttributeValue (self, attribute, value)
+			
+	def __str__(self):
+		return getStr(self)		
 
 # ==============================================================================
 # LIGHT BULB
@@ -514,6 +613,94 @@ class service_Lightbulb ():
 			
 	def __str__(self):
 		return getStr(self)
+		
+# ==============================================================================
+# MOTION SENSOR
+# ==============================================================================
+class service_MotionSensor ():
+	def __init__(self, devId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		try:
+			self.type = "MotionSensor"
+			self.desc = "Motion Sensor"
+			self.native = True # Functions can map directly to Indigo or a plugin (see requiresPlugin) natively without any customization
+			self.requiresPlugin = [] # For this device to work Indigo must have one or more plugins installed
+			
+			self.required = ["MotionDetected"]
+			self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name"]
+			self.actions = []
+			self.loadOptional = loadOptional # Create attributes for the optional fields
+			
+			# We have to append from here, if we were to set self.actions equal an outside list it would share among all instances of this class
+			for d in deviceActions:
+				self.actions.append (d)
+			
+			self.characterDict = characterDict
+			self.devId = 0
+			
+			deviceInitialize (self, devId, characterDict)
+			setAttributesForDevice (self)
+			
+		except Exception as e:
+			indigo.server.log  (ext.getException(e), isError=True)	
+			
+	def updateFromIndigoObject (self, characterDict):
+		global PLUGIN_PREFS
+		
+		try:
+			definedActions = []
+			for a in self.actions:
+				definedActions.append (a["name"])
+				
+			self.characterDict = characterDict # Always overwrite
+			if self.devId != 0 and self.devId in indigo.devices:
+				dev = indigo.devices[self.devId]
+				
+				if "onState" in dir(dev) and "MotionDetected" not in characterDict: characterDict["MotionDetected"] = dev.onState	
+				if "batteryLevel" in dir(dev) and dev.batteryLevel is not None: 
+					characterDict["StatusLowBattery"] = 0
+					
+					if "lowbattery" in PLUGIN_PREFS:
+						lowbattery = int(PLUGIN_PREFS["lowbattery"])
+						if lowbattery > 0: lowbattery = lowbattery / 100
+						
+						if dev.batteryLevel < ((100 * lowbattery) + 1): characterDict["StatusLowBattery"] = 1
+						
+				# Special consideration for Fibaro sensors that fill up a couple more Characteristics (if this grows we may need to call a function for these)
+				if "model" in dir(dev) and "FGMS001" in dev.model:
+					# See if we can find all the devices with this Zwave ID
+					for idev in indigo.devices.iter("com.perceptiveautomation.indigoplugin.zwave.zwOnOffSensorType"):
+						if idev.address == dev.address:
+							# Same Fibaro model
+							if "Tilt/Tamper" in idev.subModel:
+								characterDict["StatusTampered"] = 0
+								if idev.onState: characterDict["StatusTampered"] = 1
+								
+								# Make sure this gets added to our watch list
+								self.actions.append (HomeKitAction("StatusTampered", "equal", False, "device.turnOff", [idev.id], 0, {idev.id: "attr_onState"}))
+						
+				# This is a read only device so it'll never need this but it must be here so when we get activity for this device we can tell
+				# homekit to update, if this isn't here it'll never know that attr_onState should trigger an HK update
+				self.actions.append (HomeKitAction("MotionDetected", "equal", False, "device.turnOff", [self.devId], 0, {self.devId: "attr_onState"}))
+				self.actions.append (HomeKitAction("StatusLowBattery", "equal", False, "device.turnOff", [self.devId], 0, {self.devId: "attr_batteryLevel"}))
+					
+			elif self.devId != 0 and self.devId in indigo.actionGroups:
+				dev = indigo.actionGroups[self.devId]
+				
+				if "MotionDetected" not in characterDict: characterDict["MotionDetected"] = False
+
+				# This is a read only device so it'll never need this but it must be here so when we get activity for this device we can tell
+				# homekit to update, if this isn't here it'll never know that attr_onState should trigger an HK update
+				self.actions.append (HomeKitAction("MotionDetected", "equal", False, "device.turnOff", [self.devId], 0, {self.devId: "attr_onState"}))
+
+				
+		except Exception as e:
+			indigo.server.log  (ext.getException(e), isError=True)			
+		
+	def setAttributeValue (self, attribute, value):
+		return setDevValue (self, attribute, value)
+			
+	def __str__(self):
+		return getStr(self)			
 		
 # ==============================================================================
 # OUTLET
@@ -757,6 +944,20 @@ class characteristic_ColorTemperature:
 		self.notify = True	
 		
 # ==============================================================================
+# CURRENT DOOR STATE
+# ==============================================================================
+class characteristic_CurrentDoorState:	
+	def __init__(self):
+		self.value = 0 # open [closed, opening, closing, stopped]
+		self.maxValue = 4
+		self.minValue = 0
+		
+		self.validValues = [0, 1, 2, 3, 4]
+		
+		self.readonly = True
+		self.notify = True			
+		
+# ==============================================================================
 # CURRENT FAN STATE
 # ==============================================================================
 class characteristic_CurrentFanState:	
@@ -824,6 +1025,18 @@ class characteristic_LockTargetState:
 		
 		self.readonly = False
 		self.notify = True		
+
+# ==============================================================================
+# MOTION DETECTED
+# ==============================================================================
+class characteristic_MotionDetected:
+	def __init__(self):
+		self.value = False
+		
+		self.validValues = [True, False]
+		
+		self.readonly = True
+		self.notify = False		
 		
 # ==============================================================================
 # NAME
@@ -834,6 +1047,18 @@ class characteristic_Name:
 		
 		self.readonly = False
 		self.notify = False
+		
+# ==============================================================================
+# OBSTRUCTION DETECTED
+# ==============================================================================
+class characteristic_ObstructionDetected:	
+	def __init__(self):
+		self.value = False
+		
+		self.validValues = [True, False]
+		
+		self.readonly = True
+		self.notify = False				
 		
 # ==============================================================================
 # ON
@@ -900,6 +1125,60 @@ class characteristic_Saturation:
 		self.notify = True
 		
 # ==============================================================================
+# STATUS ACTIVE
+# ==============================================================================
+class characteristic_StatusActive:
+	def __init__(self):
+		self.value = True
+		
+		self.validValues = [True, False]
+		
+		self.readonly = True
+		self.notify = False			
+		
+# ==============================================================================
+# STATUS FAULT
+# ==============================================================================
+class characteristic_StatusFault:	
+	def __init__(self):
+		self.value = 0 # no fault [fault]
+		self.maxValue = 1
+		self.minValue = 0
+		
+		self.validValues = [0, 1]
+		
+		self.readonly = True
+		self.notify = True			
+		
+# ==============================================================================
+# STATUS LOW BATTERY
+# ==============================================================================
+class characteristic_StatusLowBattery:	
+	def __init__(self):
+		self.value = 0 # normal [low]
+		self.maxValue = 1
+		self.minValue = 0
+		
+		self.validValues = [0, 1]
+		
+		self.readonly = True
+		self.notify = True			
+		
+# ==============================================================================
+# STATUS TAMPERED
+# ==============================================================================
+class characteristic_StatusTampered:	
+	def __init__(self):
+		self.value = 0 # not tampered [tampered]
+		self.maxValue = 1
+		self.minValue = 0
+		
+		self.validValues = [0, 1]
+		
+		self.readonly = True
+		self.notify = True			
+		
+# ==============================================================================
 # SWING MODE
 # ==============================================================================
 class characteristic_SwingMode:	
@@ -912,6 +1191,20 @@ class characteristic_SwingMode:
 		
 		self.readonly = False
 		self.notify = True		
+		
+# ==============================================================================
+# TARGET DOOR STATE
+# ==============================================================================
+class characteristic_TargetDoorState:	
+	def __init__(self):
+		self.value = 0 # open [closed]
+		self.maxValue = 1
+		self.minValue = 0
+		
+		self.validValues = [0, 1]
+		
+		self.readonly = True
+		self.notify = True			
 
 # ==============================================================================
 # TARGET FAN STATTE

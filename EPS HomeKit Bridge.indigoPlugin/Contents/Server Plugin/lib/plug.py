@@ -93,7 +93,8 @@ class plug:
 			
 			if funcname in dir(self.factory.plugin):	
 				if caller != "runConcurrentThread":		
-					self.logger.threaddebug ("Raising {0} in plugin.py from call to {1}".format(funcname, caller))
+					#self.logger.threaddebug ("Raising {0} in plugin.py from call to {1}".format(funcname, caller))
+					pass
 			
 				return self.factory.raiseEvent (funcname, args)
 		
@@ -397,7 +398,10 @@ class plug:
 			else:
 				# In case our plugin wants to know about other devices that aren't our own for
 				# API calls or whatever
-				if len(origDev.ownerProps) > 0: 
+				if origDev.states != newDev.states:
+					self.nonpluginDeviceUpdated (origDev, newDev)
+								
+				elif len(origDev.ownerProps) > 0: 
 					self.nonpluginDeviceUpdated (origDev, newDev)
 					
 				elif len(origDev.ownerProps) == 0 and len(newDev.ownerProps) == 0 and newDev.deviceTypeId != "":
@@ -406,8 +410,9 @@ class plug:
 				elif len(origDev.ownerProps) == 0 and len(newDev.ownerProps) > 0:
 					self.nonpluginDeviceCreated (newDev)
 					
-				elif origDev.states != newDev.states:
-					self.nonpluginDeviceUpdated (origDev, newDev)
+				else:
+					#indigo.server.log ("Cannot determine difference")
+					pass
 					
 			
 			# See if we are watching this
@@ -431,7 +436,7 @@ class plug:
 	# New non plugin device entering configuration
 	def nonpluginDeviceBegun (self, dev):
 		try:
-			self.logger.threaddebug ("Non plugin device '{0}' being created and configured".format(dev.name))
+			#self.logger.threaddebug ("Non plugin device '{0}' being created and configured".format(dev.name))
 			
 			self._callBack (BEFORE, [dev])	
 			
@@ -443,7 +448,7 @@ class plug:
 	# Non plugin device created (Custom)
 	def nonpluginDeviceCreated (self, dev):
 		try:
-			self.logger.threaddebug ("Non plugin device '{0}' created".format(dev.name))
+			#self.logger.threaddebug ("Non plugin device '{0}' created".format(dev.name))
 			
 			self._callBack (BEFORE, [dev])	
 			
@@ -455,7 +460,7 @@ class plug:
 	# Non plugin device updated (Custom)
 	def nonpluginDeviceUpdated (self, origDev, newDev):
 		try:
-			self.logger.threaddebug ("Non plugin device '{0}' has been updated".format(newDev.name))
+			#self.logger.threaddebug ("Non plugin device '{0}' has been updated".format(newDev.name))
 
 			self._callBack (BEFORE, [origDev, newDev])	
 			
@@ -609,7 +614,7 @@ class plug:
 	# Non plugin device deleted (Custom)
 	def nonpluginDeviceDeleted (self, dev):
 		try:
-			self.logger.threaddebug ("Non plugin device '{0}' deleted".format(dev.name))
+			#self.logger.threaddebug ("Non plugin device '{0}' deleted".format(dev.name))
 			
 			self._callBack (BEFORE, [dev])
 			

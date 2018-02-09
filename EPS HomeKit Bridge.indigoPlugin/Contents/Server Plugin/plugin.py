@@ -70,6 +70,9 @@ class Plugin(indigo.PluginBase):
 		# Create JSON stash record for server devices
 		self.setupJstash ()
 		self.catalogServerDevices()
+		
+		# Store plugin prefs to HKAPI so those functions can utilize it
+		hkapi.PLUGIN_PREFS = pluginPrefs
 				
 						
 	################################################################################
@@ -79,13 +82,33 @@ class Plugin(indigo.PluginBase):
 	# we want to intercept and do something with
 	################################################################################	
 	
+	
+	#
+	# This only gets run manually in code when new devices are added to facilitate the lookup needed for classes
+	#
+	def printClassLookupDict (self):
+		try:
+		
+			d = "{"
+			
+			for name in dir(hkapi):
+				if "characteristic_" in name:
+					d += '"' + name.replace("characteristic_", "") + '": ' + name + ", "
+
+			d += "}"
+								
+			indigo.server.log(unicode(d))
+					
+		except Exception as e:
+			self.logger.error (ext.getException(e))				
+	
 	#
 	# Development Testing
 	#
 	def devTest (self):
 		try:
 			#eps.api.startServer (self.pluginPrefs.get('apiport', '8558'))
-			eps.api.stopServer ()
+			#eps.api.stopServer ()
 			#eps.api.run (self.pluginPrefs.get('apiport', '8558'))
 			pass
 		
@@ -97,6 +120,9 @@ class Plugin(indigo.PluginBase):
 	#
 	def onAfter_startup (self):
 		try:
+			# Only uncomment this when new characteristics have been added so the class lookup can be printed
+			#self.printClassLookupDict()
+			
 			# Start the httpd listener
 			eps.api.startServer (self.pluginPrefs.get('apiport', '8558'))
 			
@@ -261,7 +287,6 @@ class Plugin(indigo.PluginBase):
 	def onAfter_nonpluginDeviceUpdated (self, origDev, newDev):
 		try:
 			#indigo.server.log (newDev.name)
-			
 			if newDev.id in self.SERVER_ID:
 				devId = newDev.id
 				for serverId in self.SERVER_ID[devId]:
@@ -294,7 +319,6 @@ class Plugin(indigo.PluginBase):
 					if updateRequired:
 						self.serverSendObjectUpdateToHomebridge (indigo.devices[serverId], newDev.id)
 					
-			
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
 			
@@ -334,6 +358,17 @@ class Plugin(indigo.PluginBase):
 					
 				self.SERVERS = newservers
 				
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+	#
+	# Plugin prefs were closed
+	#
+	def onAfter_closedPrefsConfigUi(self, valuesDict, userCancelled):
+		try:
+			if not userCancelled:
+				hkapi.PLUGIN_PREFS = valuesDict
+		
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
 		
@@ -403,11 +438,11 @@ class Plugin(indigo.PluginBase):
 								break # Failsafe
 
 							d = dtutil.dateDiff ("seconds", indigo.server.getTime(), indigo.devices[int(r["id"])].lastChanged)
-							if d == 0: 
+							if d == 0 or d == 1 or d == 2: 
 								break # We got there, this is perfect timing
 							elif d < 6:
 								# A bit slow, log it
-								self.logger.warning ("Attempting to control '{}' from HomeKit and we didn't get notified for 1 second after the action was run, this is a bit slow".format(r["name"]))
+								self.logger.warning ("Attempting to control '{}' from HomeKit and we didn't get notified for {} seconds after the action was run, this is a bit slow".format(r["name"], unicode(d)))
 								break
 								
 						time.sleep (1) # For good measure
@@ -543,6 +578,7 @@ class Plugin(indigo.PluginBase):
 	################################################################################
 	# GENERAL METHODS
 	################################################################################
+	
 	
 	#
 	# Find an available Homebridge username starting from the default
@@ -1595,6 +1631,10 @@ class Plugin(indigo.PluginBase):
 							
 				# If we make it to here then everything is good and we can set the server address
 				valuesDict["address"] = valuesDict["pin"] + " | " + valuesDict["port"]
+				
+				# Just in case we are missing either of these, add them now so that we won't get errors when we start up
+				if not "includedDevices" in valuesDict: valuesDict["includedDevices"] = json.dumps([])
+				if not "includedActions" in valuesDict: valuesDict["includedActions"] = json.dumps([])
 				
 				# Re-catalog the server just to be safe
 				self._catalogServerDevices (server)

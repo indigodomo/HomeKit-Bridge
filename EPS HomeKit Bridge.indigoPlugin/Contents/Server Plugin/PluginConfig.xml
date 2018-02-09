@@ -36,46 +36,10 @@
    	
    	<Field id="sep_debug" type="separator" />
    	
-   	<Field type="textfield" id="ifttt_key" defaultValue=""  >
-		<Label>IFTTT Webhooks Key:</Label>
+   	<Field type="textfield" id="lowbattery" defaultValue="20"  >
+		<Label>Low Battery Warning %:</Label>
 	</Field>   	
    	
-   	<Field id="sep_ifttt" type="separator" />
-   	
-	<!-- *********** HOMEBRIDGE *********** -->
-	
-	<Field type="menu" id="protocol" defaultValue="http">
-		<Label>Indigo server protocol:</Label>
-		<List>
-			<Option value="http">Normal HTTP</Option>
-			<Option value="https">Secure HTTPS</Option>
-		</List>
-	</Field>
-	
-	<Field type="textfield" id="host" defaultValue="127.0.0.1" hidden="true">
-		<Label>Indigo server IP:</Label>
-	</Field>
-	
-	<Field type="textfield" id="port" defaultValue="8176"  >
-		<Label>Indigo server port:</Label>
-	</Field>
-	
-	<Field type="textfield" id="path" defaultValue=""  >
-		<Label>Indigo server path:</Label>
-	</Field>
-	
-	<Field type="textfield" id="username" defaultValue="" >
-		<Label>Web access user name:</Label>
-	</Field>
-	
-	<Field type="textfield" id="password" defaultValue="" secure="true" >
-		<Label>Web access password:</Label>
-	</Field>
-	
-	<Field id="sep_homebridge" type="separator" hidden="false" />
-	
-	<Field type="textfield" id="apiport" defaultValue="8558" hidden="false">
-		<Label>Enhanced API port:</Label>
-	</Field>
-	
+   	<Field id="sep_ifttt" type="separator" hidden="true"/>
+
 </PluginConfig>
