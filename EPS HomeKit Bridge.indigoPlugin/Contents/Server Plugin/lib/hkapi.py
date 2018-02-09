@@ -44,6 +44,9 @@ def automaticHomeKitDevice (dev, loadOptional = False):
 		elif "Outlet" in dev.model:
 			return service_Outlet (dev.id, {}, [], loadOptional)
 			
+		elif "speedIndex" in dir(dev):
+			return service_Fanv2 (dev.id, {}, [], loadOptional)	
+			
 		else:
 			return service_Switch (dev.id, {}, [], loadOptional)
 	
@@ -55,7 +58,7 @@ def automaticHomeKitDevice (dev, loadOptional = False):
 #
 def characteristicsToClasses (characteristic):
 	try:
-		classes = {"Brightness": characteristic_Brightness, "ColorTemperature": characteristic_ColorTemperature, "Hue": characteristic_Hue, "LockCurrentState": characteristic_LockCurrentState, "LockTargetState": characteristic_LockTargetState, "Name": characteristic_Name, "On": characteristic_On, "OutletInUse": characteristic_OutletInUse, "Saturation": characteristic_Saturation }
+		classes = {"Active": characteristic_Active, "CurrentFanState": characteristic_CurrentFanState, "TargetFanState": characteristic_TargetFanState, "LockPhysicalControls": characteristic_LockPhysicalControls, "RotationDirection": characteristic_RotationDirection, "RotationSpeed": characteristic_RotationSpeed, "SwingMode": characteristic_SwingMode, "Brightness": characteristic_Brightness, "ColorTemperature": characteristic_ColorTemperature, "Hue": characteristic_Hue, "LockCurrentState": characteristic_LockCurrentState, "LockTargetState": characteristic_LockTargetState, "Name": characteristic_Name, "On": characteristic_On, "OutletInUse": characteristic_OutletInUse, "Saturation": characteristic_Saturation }
 		if characteristic in classes: return classes[characteristic]
 		
 		return None
@@ -101,6 +104,7 @@ def setAttributesForDevice (dev):
 		if "required" in dir(dev):
 			for a in dev.required:
 				cclass = characteristicsToClasses (a)
+				#indigo.server.log (dev.type + "\t" + a)
 				setattr (dev, a, cclass() )
 				
 		if "optional" in dir(dev):
@@ -207,6 +211,9 @@ def setAttributeValue (dev, attribute, value):
 			if vtype == "bool": converted = convertFromBoolean (dev, attribute, value, atype, vtype, obj)
 			if vtype == "str" and atype == "unicode":
 				obj.value = value
+				converted = True
+			if vtype == "int" and atype == "float":
+				obj.value = float(obj.value)
 				converted = True
 			
 			if not converted:
@@ -419,17 +426,17 @@ class service_Fanv2 ():
 					self.actions.append (HomeKitAction("Active", "equal", 1, "device.turnOn", [self.devId], 0, {self.devId: "attr_brightness"}))
 					
 				if "speedIndex" not in definedActions:
-					self.actions.append (HomeKitAction("RotationSpeed", "between", 0, "dimmer.setBrightness", [self.devId, "=value="], 100, {self.devId: "attr_brightness"}))
+					self.actions.append (HomeKitAction("RotationSpeed", "between", 0, "speedcontrol.setSpeedLevel", [self.devId, "=value="], 100, {self.devId: "attr_brightness"}))
 					#self.actions.append (HomeKitAction("RotationSpeed", "equal", 0, "device.turnOff", [self.devId], 0, {self.devId: "attr_onState"}))
 					#self.actions.append (HomeKitAction("RotationSpeed", "equal", 100, "device.turnOn", [self.devId], 0, {self.devId: "attr_onState"}))
 					
 			elif self.devId != 0 and self.devId in indigo.actionGroups:
 				dev = indigo.actionGroups[self.devId]
 				
-				if "On" not in characterDict: characterDict["On"] = False
+				if "Active" not in characterDict: characterDict["On"] = False
 				
-				if "On" not in definedActions:
-					self.actions.append (HomeKitAction("On", "equal", True, "actionGroup.execute", [self.devId], 0, {}))
+				if "Active" not in definedActions:
+					self.actions.append (HomeKitAction("Active", "equal", 1, "actionGroup.execute", [self.devId], 0, {}))
 				
 		except Exception as e:
 			indigo.server.log  (ext.getException(e), isError=True)	

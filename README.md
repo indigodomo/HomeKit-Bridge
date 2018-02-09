@@ -1,13 +1,20 @@
 HomeKit Bridge
 ==========
 
-A bridge between HomeKit (via Homebridge) and Indigo.  This is a direct replacement for Homebridge Buddy.  Please not this is in ALPHA.
+A bridge between HomeKit (via Homebridge) and Indigo.  This is a direct replacement for Homebridge Buddy.  Please note this is in BETA.
 
+Supported Native Devices (Meaning Direct From Indigo to HomeKit Integration)
+==========
+* Lightbulb (i.e., dimmer)
+* Switch (i.e., relay)
+* Outlet
+* Lock
+* Fan (Beta 1)
 
 Current BETA Testing Limitations (ALPHA is complete)
 ==========
 
-* Only four HomeKit device types are currently supported: Light Bulb, Switch, Outlet and Lock (this is by design while things are being worked out with the new Homebridge integration, once that is dialed in more devices will be added until ALL HomeKit devices are supported)
+* Only the above HomeKit device types are currently supported, this is by design while things are being worked out with the new Homebridge integration, once that is dialed in more devices will be added until ALL HomeKit devices are supported
 * To save your server configuration simply turn your server device ON (this is by design to simplify saving configs, but is not 100% coded for possible pitfalls)
 * Deleting a server will not stop the service or remove the config folder.  Suggest that you turn OFF the server before deleting it so you don't tie up the port.
 * Multiple servers should work but anything past the first server has not been thoroughly tested yet

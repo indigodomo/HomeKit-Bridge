@@ -1,12 +1,9 @@
 Release Notes
 ==========
 
-Version 0.0.7 (Alpha 7)
+Version 0.1.1 (Beta 1)
 ==========
-* Fixed bug where locks were looking for the wrong value from HomeKit and as a result wouldn't operate properly
-* Changed http server to be multi-threaded after it was apparent that non-concurrent web requests will never work under HomeKit
-* Changed API so that it now will wait until Indigo completes the action before it returns values, insuring that everything is now real-time except actions, that get a 5 second delay instead since there is no way to know if it completes or not (and we wouldn't want to because it could be a 30 minute run for all we know)
-* Both the plugin and NodeJS are proving to be quite stable right now, alpha is complete and closed beta begins
+* Hello, I would like to introduce you to the new Fan device!  And it's cool.  WOOT.
 
 Known Issues
 ---------------
@@ -16,6 +13,13 @@ Known Issues
 * The current API is not locked to Localhost but will need to be prior to being publicly released for security purposes
 * A failed Homebridge start can cause a minor race condition where HB will continuously try to restart itself, the current solution to this if it happens is to remove the serverId folder under ~/.HomeKit-Bridge so that the restarts cannot be processed.  This is fine because the plugin will regenerate that folder automatically when you turn on your server device.  This has been countered by extra safeguards in server startup and plugin shutdown but it's a HB issue that still needs resolved.
 * Changing the port on a running server will result in the plugin reporting that the port is in use when it's only in use by the currently running server (resolve by stopping the server before attempting to manually change any HB settings)
+
+Version 0.0.7 (Alpha 7)
+==========
+* Fixed bug where locks were looking for the wrong value from HomeKit and as a result wouldn't operate properly
+* Changed http server to be multi-threaded after it was apparent that non-concurrent web requests will never work under HomeKit
+* Changed API so that it now will wait until Indigo completes the action before it returns values, insuring that everything is now real-time except actions, that get a 5 second delay instead since there is no way to know if it completes or not (and we wouldn't want to because it could be a 30 minute run for all we know)
+* Both the plugin and NodeJS are proving to be quite stable right now, alpha is complete and closed beta begins
 
 Version 0.0.6 (Alpha 6)
 ==========
