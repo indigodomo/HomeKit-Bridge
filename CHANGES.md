@@ -1,6 +1,22 @@
 Release Notes
 ==========
 
+Version 0.0.7 (Alpha 7)
+==========
+* Fixed bug where locks were looking for the wrong value from HomeKit and as a result wouldn't operate properly
+* Changed http server to be multi-threaded after it was apparent that non-concurrent web requests will never work under HomeKit
+* Changed API so that it now will wait until Indigo completes the action before it returns values, insuring that everything is now real-time except actions, that get a 5 second delay instead since there is no way to know if it completes or not (and we wouldn't want to because it could be a 30 minute run for all we know)
+* Both the plugin and NodeJS are proving to be quite stable right now, alpha is complete and closed beta begins
+
+Known Issues
+---------------
+* Possible feedback loop because when I update HomeKit it causes you to send a request to Indigo, which changes the device and that prompts the plugin to then contact you to let you know that the device was updated.  I’ll have to figure out a creative way to work around that.
+* Possible minor race condition (it could be attributed to an experimental version of HBB running) but sometimes commands from HomeKit will cause a series of concurrent thread issues over multiple plugins, indicating that Indigo is too busy to answer, this recovers after a few seconds
+* Indigo server information is still being collected in the plugin config but is no longer used or needed and should be removed since don't talk to the Indigo API any longer
+* The current API is not locked to Localhost but will need to be prior to being publicly released for security purposes
+* A failed Homebridge start can cause a minor race condition where HB will continuously try to restart itself, the current solution to this if it happens is to remove the serverId folder under ~/.HomeKit-Bridge so that the restarts cannot be processed.  This is fine because the plugin will regenerate that folder automatically when you turn on your server device.  This has been countered by extra safeguards in server startup and plugin shutdown but it's a HB issue that still needs resolved.
+* Changing the port on a running server will result in the plugin reporting that the port is in use when it's only in use by the currently running server (resolve by stopping the server before attempting to manually change any HB settings)
+
 Version 0.0.6 (Alpha 6)
 ==========
 * Removed the callback URL builder from the server device to instead be dynamic on the API call so it can be easily modified if needed in the future - plus it doesn't need to be saved statically anyway
@@ -14,16 +30,7 @@ Version 0.0.6 (Alpha 6)
 * Server status will now show "Stopping" when attempting to stop Homebridge and switch to "Stopped" when successful
 * Updated to the most current NodeJS script, Lightbulb On/Off functioning but callbacks are not
 * Fixed bug that when editing an object on the server list it would not change the object type properly, leading to potentially changing the object type incorrectly or filling the list with unwanted objects
-* Fixed a few UI inconsistancies
-
-Known Issues
----------------
-* Integrated Homebridge server is partially enabled, currently only Lightbulbs are functional and then only for On/Off
-* Action integration not fully coded
-* Indigo server information is still being collected in the plugin config but is no longer used or needed and should be removed since don't talk to the Indigo API any longer
-* The current API is not locked to Localhost but will need to be prior to being publicly released for security purposes
-* Currently using a delay when we get a setCharacteristic to make sure the value reports back in the JSON, but this should really be more dynamic and should go into a loop until we get confirmation from the device via Indigo events.  Since this is tricky it's slated for later implementation because the workaround is fine for now. 
-* A failed Homebridge start can cause a minor race condition where HB will continuously try to restart itself, the current solution to this if it happens is to remove the serverId folder under ~/.HomeKit-Bridge so that the restarts cannot be processed.  This is fine because the plugin will regenerate that folder automatically when you turn on your server device.  This has been countered by extra safeguards in server startup and plugin shutdown but it's a HB issue that still needs resolved.
+* Fixed a few UI inconsistencies
 
 Version 0.0.5 (Alpha 5)
 ==========

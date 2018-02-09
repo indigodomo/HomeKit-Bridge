@@ -14,6 +14,8 @@ import logging # logging
 import ext
 
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
+from SocketServer import ThreadingMixIn
+import threading
 from urlparse import urlparse, parse_qs
 import base64
 
@@ -29,10 +31,26 @@ class httpServer:
 		self.logger = logging.getLogger ("Plugin.http")
 		factory = factoryref
 		self.httpd = None
+		self.stopped = False
 		#self.startServer(8558)
+		
+	def run (self, port, username = None, password = None):
+		self.myThread = threading.Thread(target=self.startServer, args=[port])
+		self.myThread.daemon = True
+		self.myThread.start()
+		
+	def stop (self):
+		self.logger.debug ("Stopping HTTP server")
+		self.httpd.shutdown
+		#self.httpd.socket.close() # not really needed, if enabled it will cause an error because for some reason the HTTP will try to start again but will crash because the socket is closed
+		self.httpd = None
+		self.myThread.paused = True
+		self.stopped = True
 		
 	def startServer (self, port, username = None, password = None):
 		try:
+			if self.stopped: return # It can try starting again after we stopped, causing an error on the except below
+			
 			port = int(port)
 			
 			if username is None: 
@@ -40,9 +58,15 @@ class httpServer:
 			else:
 				self.authKey = base64.b64encode("api:api")
 				
-			self.httpd = MyHTTPServer(("", port), AuthHandler)
+			# Single Threaded
+			#self.httpd = MyHTTPServer(("", port), AuthHandler)
 			
-		except:
+			# Multi Threaded
+			self.httpd = ThreadedHTTPServer(('', port), AuthHandler)
+			self.httpd.serve_forever()
+
+		except Exception as e:
+			self.logger.error (ext.getException(e))
 			self.logger.error("Unable to open port {} for HTTP Server".format(str(port)))
 			self.httpd = None
 			
@@ -51,7 +75,15 @@ class httpServer:
 			self.httpd.setKey(self.authKey)
 			
 	def runConcurrentThread (self):
-		if not self.httpd is None: self.httpd.handle_request()
+		try:
+			return
+			if not self.httpd is None: self.httpd.handle_request()
+		except:
+			# We don't care right now
+			pass
+
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    """Handle requests in a separate thread."""
 
 
 class MyHTTPServer(HTTPServer):

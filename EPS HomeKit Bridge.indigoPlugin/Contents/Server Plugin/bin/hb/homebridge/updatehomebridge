@@ -6,4 +6,4 @@ export PATH="$DIR:/usr/bin:/bin:/usr/sbin:/sbin"
 export NODE_PATH="$( "$DIR/npm" -g root )"
 
 "$DIR/npm" upgrade -g homebridge
-"$DIR/npm" upgrade -g homebridge-indigo
+"$DIR/npm" upgrade -g "https://github.com/webdeck/homebridge-indigo2.git"

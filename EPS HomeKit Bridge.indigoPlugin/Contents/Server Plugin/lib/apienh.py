@@ -23,13 +23,28 @@ class api:
 	def __init__(self, factory):
 		self.logger = logging.getLogger ("Plugin.api")
 		self.factory = factory
+		self.stopped = False
+	
+	#
+	# Stop listening for http requests on the http server in factory
+	#	
+	def stopServer (self):
+		try:
+			if self.stopped: return
+			
+			self.factory.http.stop ()
+			self.stopped = True
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e))
 	
 	#
 	# Start listening for http requests on the http server in factory
 	#	
 	def startServer (self, port, username = None, password = None):
 		try:
-			self.factory.http.startServer (port, username, password)			
+			#self.factory.http.startServer (port, username, password)			
+			self.factory.http.run (port, username, password)			
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))		

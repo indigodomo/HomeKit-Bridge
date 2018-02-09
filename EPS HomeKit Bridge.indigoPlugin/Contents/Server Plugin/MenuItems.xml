@@ -81,6 +81,11 @@ Using this method is nit-picking performance since polling is almost equally as 
     	<CallbackMethod>pluginMenuSupportInfo</CallbackMethod>
     </MenuItem>
     
+    <MenuItem id="devtest">
+    	<Name>Development Testing</Name>
+    	<CallbackMethod>devTest</CallbackMethod>
+    </MenuItem>
+    
     <MenuItem id="sep_advanced"/>
     
         <MenuItem id="advancedPluginActions">

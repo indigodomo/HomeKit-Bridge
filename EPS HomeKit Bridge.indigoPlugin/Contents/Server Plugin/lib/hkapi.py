@@ -365,6 +365,82 @@ class HomeKitAction ():
 ################################################################################
 
 # ==============================================================================
+# FAN V2
+# ==============================================================================
+class service_Fanv2 ():
+	def __init__(self, devId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		try:
+			self.type = "Fanv2"
+			self.desc = "Fan Version 2"
+			self.native = True # Functions can map directly to Indigo or a plugin (see requiresPlugin) natively without any customization
+			self.requiresPlugin = [] # For this device to work Indigo must have one or more plugins installed, list of dict items with name and plugin id requirements
+			
+			self.required = ["Active"]
+			self.optional = ["CurrentFanState", "TargetFanState", "LockPhysicalControls", "Name", "RotationDirection", "RotationSpeed", "SwingMode"]
+			self.actions = []
+			self.loadOptional = loadOptional # Create attributes for the optional fields
+			
+			# We have to append from here, if we were to set self.actions equal an outside list it would share among all instances of this class
+			for d in deviceActions:
+				self.actions.append (d)
+			
+			self.characterDict = characterDict
+			self.devId = 0
+			
+			deviceInitialize (self, devId, characterDict)
+			setAttributesForDevice (self)
+			
+		except Exception as e:
+			indigo.server.log  (ext.getException(e), isError=True)	
+			
+	def updateFromIndigoObject (self, characterDict):
+		try:
+			definedActions = []
+			for a in self.actions:
+				definedActions.append (a["name"])
+				
+			self.characterDict = characterDict # Always overwrite
+			if self.devId != 0 and self.devId in indigo.devices:
+				dev = indigo.devices[self.devId]
+				curval = 0 # Unsecure
+				if "onState" in dir(dev):
+					if dev.onState: 
+						curval = 1
+					else:
+						curval = 0
+		
+				if "onState" in dir(dev) and "Active" not in characterDict: characterDict["Active"] = curval
+				if "onState" in dir(dev) and "CurrentFanState" not in characterDict: characterDict["CurrentFanState"] = curval + 1
+				if "onState" in dir(dev) and "TargetFanState" not in characterDict: characterDict["TargetFanState"] = 0 # Assume ceiling fan and, as such, it's always MANUAL or 0
+				if "speedIndex" in dir(dev) and "RotationSpeed" not in characterDict: characterDict["RotationSpeed"] = dev.speedIndex		
+				
+				if "TargetFanState" not in definedActions:
+					self.actions.append (HomeKitAction("Active", "equal", 0, "device.turnOff", [self.devId], 0, {self.devId: "attr_onState"}))
+					self.actions.append (HomeKitAction("Active", "equal", 1, "device.turnOn", [self.devId], 0, {self.devId: "attr_brightness"}))
+					
+				if "speedIndex" not in definedActions:
+					self.actions.append (HomeKitAction("RotationSpeed", "between", 0, "dimmer.setBrightness", [self.devId, "=value="], 100, {self.devId: "attr_brightness"}))
+					#self.actions.append (HomeKitAction("RotationSpeed", "equal", 0, "device.turnOff", [self.devId], 0, {self.devId: "attr_onState"}))
+					#self.actions.append (HomeKitAction("RotationSpeed", "equal", 100, "device.turnOn", [self.devId], 0, {self.devId: "attr_onState"}))
+					
+			elif self.devId != 0 and self.devId in indigo.actionGroups:
+				dev = indigo.actionGroups[self.devId]
+				
+				if "On" not in characterDict: characterDict["On"] = False
+				
+				if "On" not in definedActions:
+					self.actions.append (HomeKitAction("On", "equal", True, "actionGroup.execute", [self.devId], 0, {}))
+				
+		except Exception as e:
+			indigo.server.log  (ext.getException(e), isError=True)	
+		
+	def setValue (self, attribute, value):
+		return setAttributeValue (self, attribute, value)
+			
+	def __str__(self):
+		return getStr(self)
+
+# ==============================================================================
 # LIGHT BULB
 # ==============================================================================
 class service_Lightbulb ():
@@ -411,9 +487,9 @@ class service_Lightbulb ():
 					self.actions.append (HomeKitAction("On", "equal", True, "device.turnOn", [self.devId], 0, {self.devId: "attr_brightness"}))
 					
 				if "Brightness" not in definedActions:
-					self.actions.append (HomeKitAction("Brightness", "between", 1, "dimmer.setBrightness", [self.devId, "=value="], 99, {self.devId: "attr_brightness"}))
-					self.actions.append (HomeKitAction("Brightness", "equal", 0, "device.turnOff", [self.devId], 0, {self.devId: "attr_onState"}))
-					self.actions.append (HomeKitAction("Brightness", "equal", 100, "device.turnOn", [self.devId], 0, {self.devId: "attr_onState"}))
+					self.actions.append (HomeKitAction("Brightness", "between", 0, "dimmer.setBrightness", [self.devId, "=value="], 100, {self.devId: "attr_brightness"}))
+					#self.actions.append (HomeKitAction("Brightness", "equal", 0, "device.turnOff", [self.devId], 0, {self.devId: "attr_onState"}))
+					#self.actions.append (HomeKitAction("Brightness", "equal", 100, "device.turnOn", [self.devId], 0, {self.devId: "attr_onState"}))
 					
 			elif self.devId != 0 and self.devId in indigo.actionGroups:
 				dev = indigo.actionGroups[self.devId]
@@ -531,13 +607,19 @@ class service_LockMechanism ():
 			self.characterDict = characterDict # Always overwrite
 			if self.devId != 0 and self.devId in indigo.devices:
 				dev = indigo.devices[self.devId]
+				curval = 0 # Unsecure
+				if "onState" in dir(dev):
+					if dev.onState: 
+						curval = 1
+					else:
+						curval = 0
 		
-				if "onState" in dir(dev) and "LockCurrentState" not in characterDict: characterDict["LockCurrentState"] = dev.onState
-				if "onState" in dir(dev) and "LockTargetState" not in characterDict: characterDict["LockTargetState"] = dev.onState	
+				if "onState" in dir(dev) and "LockCurrentState" not in characterDict: characterDict["LockCurrentState"] = curval
+				if "onState" in dir(dev) and "LockTargetState" not in characterDict: characterDict["LockTargetState"] = curval
 					
 				if "LockTargetState" not in definedActions:
-					self.actions.append (HomeKitAction("On", "equal", False, "device.turnOff", [self.devId], 0, {self.devId: "attr_onState"}))
-					self.actions.append (HomeKitAction("On", "equal", True, "device.turnOn", [self.devId], 0, {self.devId: "attr_onState"}))
+					self.actions.append (HomeKitAction("LockTargetState", "equal", 0, "device.turnOff", [self.devId], 0, {self.devId: "attr_onState"}))
+					self.actions.append (HomeKitAction("LockTargetState", "equal", 1, "device.turnOn", [self.devId], 0, {self.devId: "attr_onState"}))
 					
 			elif self.devId != 0 and self.devId in indigo.actionGroups:
 				dev = indigo.actionGroups[self.devId]
@@ -668,6 +750,20 @@ class characteristic_ColorTemperature:
 		self.notify = True	
 		
 # ==============================================================================
+# CURRENT FAN STATE
+# ==============================================================================
+class characteristic_CurrentFanState:	
+	def __init__(self):
+		self.value = 0 # inactive
+		self.maxValue = 2
+		self.minValue = 0
+		
+		self.validValues = [0, 1, 2]
+		
+		self.readonly = True
+		self.notify = True		
+		
+# ==============================================================================
 # HUE
 # ==============================================================================		
 class characteristic_Hue:
@@ -693,6 +789,20 @@ class characteristic_LockCurrentState:
 		
 		self.readonly = True
 		self.notify = True
+		
+# ==============================================================================
+# LOCK PHYSICAL CONTROLS
+# ==============================================================================
+class characteristic_LockPhysicalControls:	
+	def __init__(self):
+		self.value = 0 # lock disabled [lock enabled]
+		self.maxValue = 1
+		self.minValue = 0
+		
+		self.validValues = [0, 1]
+		
+		self.readonly = False
+		self.notify = True		
 		
 # ==============================================================================
 # LOCK TARGET STATE
@@ -741,6 +851,33 @@ class characteristic_OutletInUse:
 		
 		self.readonly = True
 		self.notify = True		
+		
+# ==============================================================================
+# ROTATION DIRECTION
+# ==============================================================================
+class characteristic_RotationDirection:	
+	def __init__(self):
+		self.value = 0 # clockwise [counter-clockwise]
+		self.maxValue = 1
+		self.minValue = 0
+		
+		self.validValues = [0, 1]
+		
+		self.readonly = False
+		self.notify = True		
+		
+# ==============================================================================
+# ROTATION SPEED
+# ==============================================================================
+class characteristic_RotationSpeed:	
+	def __init__(self):
+		self.value = 0.0
+		self.maxValue = 100
+		self.minValue = 0
+		self.minStep = 1
+				
+		self.readonly = False
+		self.notify = True		
 	
 # ==============================================================================
 # SATURATION
@@ -754,4 +891,31 @@ class characteristic_Saturation:
 
 		self.readonly = False
 		self.notify = True
+		
+# ==============================================================================
+# SWING MODE
+# ==============================================================================
+class characteristic_SwingMode:	
+	def __init__(self):
+		self.value = 0 # disabled [enabled]
+		self.maxValue = 1
+		self.minValue = 0
+		
+		self.validValues = [0, 1]
+		
+		self.readonly = False
+		self.notify = True		
 
+# ==============================================================================
+# TARGET FAN STATTE
+# ==============================================================================
+class characteristic_TargetFanState:	
+	def __init__(self):
+		self.value = 0 # inactive
+		self.maxValue = 1
+		self.minValue = 0
+		
+		self.validValues = [0, 1]
+		
+		self.readonly = False
+		self.notify = True

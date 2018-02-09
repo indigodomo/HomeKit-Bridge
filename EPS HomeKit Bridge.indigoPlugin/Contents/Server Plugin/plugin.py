@@ -80,6 +80,19 @@ class Plugin(indigo.PluginBase):
 	################################################################################	
 	
 	#
+	# Development Testing
+	#
+	def devTest (self):
+		try:
+			#eps.api.startServer (self.pluginPrefs.get('apiport', '8558'))
+			eps.api.stopServer ()
+			#eps.api.run (self.pluginPrefs.get('apiport', '8558'))
+			pass
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+	
+	#
 	# Plugin startup
 	#
 	def onAfter_startup (self):
@@ -340,17 +353,39 @@ class Plugin(indigo.PluginBase):
 					# Loop through actions to see if any of them are in the query
 					processedActions = {}
 					response = False
+					
 					for a in obj.actions:
+						#indigo.server.log(unicode(a))
 						if a.characteristic in query and a.characteristic not in processedActions: 
-							#indigo.server.log ("Received {} in query, setting to {}".format(a.characteristic, query[a.characteristic][0]))
+							self.logger.debug ("Received {} in query, setting to {}".format(a.characteristic, query[a.characteristic][0]))
 							#processedActions.append(a.characteristic)
 							ret = a.run (query[a.characteristic][0])
+							#self.HKREQUESTQUEUE[obj.id] = a.characteristic # It's ok that this overwrites, it's the same
 							if ret: response = True # Only change it if its true, that way we know the operation was a success
 					
-					# Give it a second to complete, otherwise we'll report back what the values are before the action rather than after
-					# this only works for direct Indigo commands (and even then some users with slow networks may need this to be higher),
-					# when it comes to action groups we'll have to take longer
-					time.sleep(.5) 
+					# Loop for up to 30 seconds (this is in a thread so it won't hurt the plugin or other requests) to wait for
+					# the given command to be completed
+					if not isAction:
+						commandComplete = False
+						commandLoop = 0
+						while not commandComplete:
+							commandLoop = commandLoop + 1
+							if commandLoop > 1000: 
+								self.logger.error ("Attempting to control '{}' from HomeKit and have not gotten a response from the Indigo device for at least 10 seconds, aborting command".format(r["name"]))
+								break # Failsafe
+
+							d = dtutil.dateDiff ("seconds", indigo.server.getTime(), indigo.devices[int(r["id"])].lastChanged)
+							if d == 0: 
+								break # We got there, this is perfect timing
+							elif d < 6:
+								# A bit slow, log it
+								self.logger.warning ("Attempting to control '{}' from HomeKit and we didn't get notified for 1 second after the action was run, this is a bit slow".format(r["name"]))
+								break
+								
+						time.sleep (1) # For good measure
+							
+					else:
+						time.sleep (5) # Give it time to run
 					
 					r = self.buildHKAPIDetails (devId, serverId, isAction)		
 					return "text/css",	json.dumps(r, indent=4)
@@ -1674,9 +1709,9 @@ class Plugin(indigo.PluginBase):
 						
 			# We cannot check the running port and have the server start because that will pause our web server too, so add
 			# it to the global so that concurrent threading can check on the startup
-			self.STICKS = 0 # Reset server concurrent count
-			self.SERVER_STARTING.append (dev.id) # So we can check on the startup
-			return True
+			#self.STICKS = 0 # Reset server concurrent count
+			#self.SERVER_STARTING.append (dev.id) # So we can check on the startup
+			#return True
 			
 			# Give it up to 60 seconds to respond to a port query to know if it started
 			loopcount = 1

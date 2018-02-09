@@ -1,9 +1,0 @@
-#!/bin/bash
-
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-export PATH="$DIR:/usr/bin:/bin:/usr/sbin:/sbin"
-export NODE_PATH="$( "$DIR/npm" -g root )"
-
-"$DIR/npm" list -g --depth=0 | grep homebridge 
-"$DIR/node" -v

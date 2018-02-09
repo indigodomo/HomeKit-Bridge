@@ -250,9 +250,20 @@ class plug:
 			pass
 			
 	def stopConcurrentThread(self):
-		self._callBack (BEFORE, [])
-		self.factory.plugin.stopThread = True
-		self._callBack (AFTER, [])
+		try:
+			self._callBack (BEFORE, [])
+		
+			# Stop the HTTP server
+			if "api" in dir(self.factory):
+				self.factory.api.stopServer ()
+				
+			self.factory.plugin.stopThread = True
+		
+			self._callBack (AFTER, [])
+		
+		except self.factory.plugin.StopThread:
+			self.logger.error (ext.getException(e))		
+			
 				
 	################################################################################
 	# DEVICE COMMUNICATION
