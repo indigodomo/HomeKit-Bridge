@@ -377,6 +377,8 @@ class plug:
 	# Device updated (Indigo)
 	def deviceUpdated (self, origDev, newDev):
 		try:
+			#indigo.server.log ("{} has been updated".format(newDev.name))
+			
 			if self.isFinishedLoading():
 				pass
 			else:
@@ -403,6 +405,9 @@ class plug:
 					
 				elif len(origDev.ownerProps) == 0 and len(newDev.ownerProps) > 0:
 					self.nonpluginDeviceCreated (newDev)
+					
+				elif origDev.states != newDev.states:
+					self.nonpluginDeviceUpdated (origDev, newDev)
 					
 			
 			# See if we are watching this

@@ -1,9 +1,13 @@
 Release Notes
 ==========
 
-Version 0.1.1 (Beta 1)
+Version 0.1.2 (Beta 1)
 ==========
 * Hello, I would like to introduce you to the new Fan device!  And it's cool.  WOOT.
+* Fixed issue with Insteon devices not reporting to HomeKit when they have changed
+* Fixed issue where server device would not automatically restart when configuration was changed
+* Added server delete routine so that if you delete a server it will stop the server and remove the config folder
+* Running multiple servers should now work fine but will need beta tested to be certain, only limited alpha testing was performed
 
 Known Issues
 ---------------
@@ -13,6 +17,7 @@ Known Issues
 * The current API is not locked to Localhost but will need to be prior to being publicly released for security purposes
 * A failed Homebridge start can cause a minor race condition where HB will continuously try to restart itself, the current solution to this if it happens is to remove the serverId folder under ~/.HomeKit-Bridge so that the restarts cannot be processed.  This is fine because the plugin will regenerate that folder automatically when you turn on your server device.  This has been countered by extra safeguards in server startup and plugin shutdown but it's a HB issue that still needs resolved.
 * Changing the port on a running server will result in the plugin reporting that the port is in use when it's only in use by the currently running server (resolve by stopping the server before attempting to manually change any HB settings)
+* If saving the server after adding an object the HomeKit name/type may still show on the form but the Device/Action is set to Fill as it should be
 
 Version 0.0.7 (Alpha 7)
 ==========

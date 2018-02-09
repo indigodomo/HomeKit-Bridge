@@ -109,20 +109,7 @@ class Plugin(indigo.PluginBase):
 			
 			# Check that we have a server set up
 			for dev in indigo.devices.iter(self.pluginId + ".Server"):
-				self.SERVERS.append (dev.id)
-				
-				# Just for now
-				self.checkRunningHBServer (dev)
-				
-				# Test shell scripts
-				self.shellCreateServerConfigFolders (dev)
-				
-				# Since the config file is easily and quickly built, save it on startup
-				self.saveConfigurationToDisk (dev)
-				
-				# If it's enabled then start the server
-				if "autoStartStop" in dev.pluginProps and dev.pluginProps["autoStartStop"]:
-					self.shellHBStartServer (dev)
+				self.checkserverFoldersAndStartIfConfigured (dev)
 					
 			#indigo.server.log(unicode(self.SERVER_ID))	
 				
@@ -273,6 +260,8 @@ class Plugin(indigo.PluginBase):
 	#
 	def onAfter_nonpluginDeviceUpdated (self, origDev, newDev):
 		try:
+			#indigo.server.log (newDev.name)
+			
 			if newDev.id in self.SERVER_ID:
 				devId = newDev.id
 				for serverId in self.SERVER_ID[devId]:
@@ -306,6 +295,45 @@ class Plugin(indigo.PluginBase):
 						self.serverSendObjectUpdateToHomebridge (indigo.devices[serverId], newDev.id)
 					
 			
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+			
+	#
+	# Plugin device created
+	#
+	def onAfter_pluginDeviceCreated (self, dev):
+		try:
+			if dev.deviceTypeId == "Server": 
+				self.checkserverFoldersAndStartIfConfigured (dev)
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+	#
+	# Plugin device deleted
+	#
+	def onAfter_pluginDeviceDeleted (self, dev):
+		try:
+			if dev.deviceTypeId == "Server": 
+				# Stop it if it's running
+				if self.checkRunningHBServer (dev, True):
+					if self.shellHBStopServer (dev, True):
+						pass
+					else:
+						self.logger.error ("Unable to stop '{}' before it was deleted, you may need to restart your Mac to make sure it isn't running any longer".format(dev.name))
+						
+				# Remove the folder structure
+				import shutil
+				shutil.rmtree(self.CONFIGDIR + "/" + str(dev.id))
+				
+				# Remove from cache
+				newservers = []
+				for s in self.SERVERS:
+					if s != dev.id: newservers.append(s)
+					
+				self.SERVERS = newservers
+				
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
 		
@@ -626,13 +654,20 @@ class Plugin(indigo.PluginBase):
 	#
 	# See if a port connection can be made - used to test if HB is running for a specific server
 	#
-	def checkRunningHBServer (self, dev):
+	def checkRunningHBServer (self, dev, noStatus = False):
 		try:
 			if dev.pluginProps["port"] == "": return False
 			port = int(dev.pluginProps["port"])
 			
 			sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			result = sock.connect_ex(("127.0.0.1", int(port)))
+			
+			# If we are deleting and go past here we'll get errors and then never stop the running server
+			if result == 0 and noStatus: return True
+			if result != 0 and noStatus: return False
+			
+			# We can still get here on a delete, if the device is missing just return
+			if dev.id not in indigo.devices: return
 			
 			if result == 0:
 				indigo.devices[dev.id].updateStateOnServer("onOffState", True, uiValue="Running")
@@ -653,6 +688,30 @@ class Plugin(indigo.PluginBase):
 			self.logger.error (ext.getException(e))	
 			
 		return False
+		
+	#
+	# Health check, folder creation, caching and server startup for new devices or when plugin starts
+	#
+	def checkserverFoldersAndStartIfConfigured (self, dev):
+		try:
+			if dev.deviceTypeId == "Server": 
+				self.SERVERS.append (dev.id)
+				
+				# Just for now
+				self.checkRunningHBServer (dev)
+				
+				# Test shell scripts
+				self.shellCreateServerConfigFolders (dev)
+				
+				# Since the config file is easily and quickly built, save it on startup
+				self.saveConfigurationToDisk (dev)
+				
+				# If it's enabled then start the server
+				if "autoStartStop" in dev.pluginProps and dev.pluginProps["autoStartStop"]:
+					self.shellHBStartServer (dev)
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))		
 			
 			
 	#
@@ -1327,7 +1386,7 @@ class Plugin(indigo.PluginBase):
 				dev = indigo.actionGroups[int(valuesDict["action"])]
 				
 			device = self.createJSONItemRecord (dev, valuesDict["alias"])
-			indigo.server.log(unicode(device))
+			#indigo.server.log(unicode(device))
 			
 			if device is not None and device["type"] == "error":
 				#errorsDict = eps.ui.setErrorStatus (errorsDict, device["typename"]) # Let the user know we don't know how to control the device
@@ -1571,6 +1630,13 @@ class Plugin(indigo.PluginBase):
 				self.saveConfigurationToDisk (newDev)
 				
 				# Restart the server
+				if self.checkRunningHBServer (newDev):
+					if self.shellHBStopServer (newDev):
+						self.shellHBStartServer (newDev)
+						
+				else:
+					indigo.server.log ("HomeKit server '{0}' is not currently running, the configuration has been saved and will be used the next time this server starts".format(newDev.name))
+				
 				
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -1738,14 +1804,14 @@ class Plugin(indigo.PluginBase):
 	#
 	# Stop HB for the provided server
 	#
-	def shellHBStopServer (self, dev):
+	def shellHBStopServer (self, dev, noStatus = False):
 		try:
 			# Start the HB server
 			self.logger.threaddebug ('Running: "' + self.HBDIR + '/unload" "' + self.CONFIGDIR + "/" + str(dev.id) + '"')
 			os.system('"' + self.HBDIR + '/unload" "' + self.CONFIGDIR + "/" + str(dev.id) + '"')
 			
 			self.logger.info ("Attempting to stop '{0}'".format(dev.name))
-			indigo.devices[dev.id].updateStateOnServer("onOffState", True, uiValue="Stopping")
+			if not noStatus: indigo.devices[dev.id].updateStateOnServer("onOffState", True, uiValue="Stopping")
 			
 			# Give it up to 60 seconds to respond to a port query to know if it started
 			loopcount = 1

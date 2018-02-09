@@ -96,13 +96,13 @@ function Indigo2Platform(log, config) {
         this.log("WARNING: port not configured - using %s", port);
     }
 
-    this.baseURL = protocol + "://" + config.host + ":" + port;
+    this.baseURL = protocol + "://" + host + ":" + port;
     this.log("HomeKit Bridge base URL is %s", this.baseURL);
 
     this.serverId = "0";
     if (config.serverId) {
         this.serverId = String(config.serverId);
-        this.log("HomeKit Bridge serverId is %s", this.serverId)
+        this.log("HomeKit Bridge serverId is %s", this.serverId);
     } else {
         this.log("WARNING: serverId not configured - using %s", this.serverId);
     }
@@ -110,7 +110,7 @@ function Indigo2Platform(log, config) {
     this.accessoryNamePrefix = "";
     if (config.accessoryNamePrefix) {
         this.accessoryNamePrefix = config.accessoryNamePrefix;
-        this.log("Using accessory name prefix '%s'", this.accessoryNamePrefix)
+        this.log("Using accessory name prefix '%s'", this.accessoryNamePrefix);
     }
 
     // Start the accessory update listener, if configured
@@ -127,7 +127,7 @@ function Indigo2Platform(log, config) {
         );
     }
     else {
-        this.log("WARNING: listenPort not configured - not listening for updates")
+        this.log("WARNING: listenPort not configured - not listening for updates");
     }
 }
 
@@ -171,7 +171,7 @@ Indigo2Platform.prototype.discoverAccessories = function(callback) {
                 callback();
             }
             else {
-                callback("Invalid response getting deviceList")
+                callback("Invalid HomeKit Bridge response getting device list: %s", JSON.stringify(json));
             }
         }.bind(this)
     );
@@ -232,14 +232,14 @@ Indigo2Platform.prototype.createAccessory = function(item) {
     }
     objectType = String(objectType);
 
-    var characteristics = item.hkcharacteristics;
-    if (! Array.isArray(characteristics)) {
-        this.log("Error: Device %s has no characteristics", id);
+    var characteristicsJSON = item.hkcharacteristics;
+    if (! Array.isArray(characteristicsJSON)) {
+        this.log("Error: Device %s has invalid characteristics: %s", id, JSON.stringify(characteristicsJSON));
         return null;
     }
 
     this.log("Discovered %s %s (ID %s): %s", objectType, serviceName, id, name);
-    return new Indigo2Accessory(this, service, url, id, objectType, name, characteristics);
+    return new Indigo2Accessory(this, service, url, id, objectType, name, characteristicsJSON);
 };
 
 // Makes a request to Indigo using the RESTful API
@@ -273,21 +273,23 @@ Indigo2Platform.prototype.indigoRequestJSON = function(path, method, qs, callbac
     this.indigoRequest(path, method, qs,
         function(error, response, body) {
             if (error) {
-                var msg = "Error for Indigo request " + path + ": " + error;
+                var msg = "Error for HomeKit Bridge request " + path + ": " + error;
                 this.log(msg);
                 callback(msg);
             }
             else {
                 var json;
                 try {
-                    var json = JSON.parse(body);
+                    json = JSON.parse(body);
                 } catch (e) {
-                    var msg2 = "Error parsing Indigo response for " + path +
+                    var msg2 = "Error parsing HomeKit Bridge response for " + path +
                                "\nException: " + e + "\nResponse: " + body;
                     this.log(msg2);
                     callback(msg2);
                     return;
                 }
+                // TODO - debug logging
+                // this.log("HomeKit Bridge response:\n%s", body);
                 callback(undefined, json);
             }
         }.bind(this)
@@ -299,7 +301,7 @@ Indigo2Platform.prototype.indigoRequestJSON = function(path, method, qs, callbac
 // Sends a 200 HTTP response if successful, a 404 if the ID is not found, or a 500 if there is an error
 Indigo2Platform.prototype.updateAccessory = function(request, response) {
     var id = String(request.params.id);
-    this.log("Got update request for device ID %s", id);
+    this.log("GET update request for device ID %s", id);
     var accessory = this.accessoryMap.get(id);
     if (accessory) {
         accessory.refresh(function(error) {
@@ -312,6 +314,7 @@ Indigo2Platform.prototype.updateAccessory = function(request, response) {
         }.bind(this));
     }
     else {
+        this.log("ERROR: Unknown device ID %s", id);
         response.sendStatus(404);
     }
 };
@@ -322,7 +325,7 @@ Indigo2Platform.prototype.updateAccessory = function(request, response) {
 // Sends a 200 HTTP response if successful, or a 404 if the ID is not found
 Indigo2Platform.prototype.updateAccessoryFromPost = function(request, response) {
     var id = String(request.params.id);
-    this.log("Got update request for device ID %s", id);
+    this.log("POST update request for device ID %s:\n%s", id, request.body);
     var accessory = this.accessoryMap.get(id);
     if (accessory) {
         // TODO - use request.body after confirming contents w/CFW
@@ -337,6 +340,7 @@ Indigo2Platform.prototype.updateAccessoryFromPost = function(request, response) 
         }.bind(this));
     }
     else {
+        this.log("ERROR: Unknown device ID %s", id);
         response.sendStatus(404);
     }
 };
@@ -347,13 +351,13 @@ Indigo2Platform.prototype.updateAccessoryFromPost = function(request, response) 
 //
 // platform: the HomeKit platform
 // serviceType: the constructor for the type of HAP service to create
-// deviceURL: the path of the RESTful call for this device, relative to the base URL in the configuration, starting with a /
+// deviceURL: the path of the RESTful call for this device, starting with a /
 // id: the unique identifier of the device
 // objectType: the type of Indigo object (e.g. "Device", "Action", "Variable")
-// name: the name of the device
-// characteristics: the json array of characteristics for this device
+// name: the unique name of the device
+// characteristicsJSON: the JSON array of characteristics for this device
 //
-function Indigo2Accessory(platform, serviceType, deviceURL, id, objectType, name, characteristics) {
+function Indigo2Accessory(platform, serviceType, deviceURL, id, objectType, name, characteristicsJSON) {
     this.platform = platform;
     this.log = platform.log;
     this.serviceType = serviceType;
@@ -361,7 +365,7 @@ function Indigo2Accessory(platform, serviceType, deviceURL, id, objectType, name
     this.id = id;
     this.objectType = objectType;
     this.name = name;
-    this.characteristics = {};
+    this.characteristicValueCache = new Map();
 
     Accessory.call(this, name, uuid.generate(String(id)));
 
@@ -379,49 +383,56 @@ function Indigo2Accessory(platform, serviceType, deviceURL, id, objectType, name
     }
 
     this.service = this.addService(serviceType, name);
-    characteristics.forEach(this.addCharacteristic.bind(this));
+    characteristicsJSON.forEach(this.addCharacteristic.bind(this));
 }
 
 // Adds a characteristic to the accessory
-// characteristic: JSON describing the characteristic to add
-Indigo2Accessory.prototype.addCharacteristic = function(characteristic) {
-    var name = characteristic.name;
+// characteristicJSON: JSON describing the characteristic to add - requires name and value attributes, with optional readonly attribute
+Indigo2Accessory.prototype.addCharacteristic = function(characteristicJSON) {
+    var name = characteristicJSON.name;
     if (! name) {
-        this.log("ERROR: Device %s missing Characteristic name", this.id);
+        this.log("%s: ERROR: Missing Characteristic name", this.name);
         return;
     }
     name = String(name);
 
-    var characteristicType = Characteristic[name];
-    if (! characteristicType) {
-        this.log("ERROR: Device %s has unknown Characteristic name: %s", this.id, name);
+    var characteristicClass = Characteristic[name];
+    if (! characteristicClass) {
+        this.log("%s: ERROR: Unknown Characteristic class name: %s", this.name, name);
         return;
     }
 
-    var c = this.service.getCharacteristic(characteristicType);
-    if (! c) {
-        this.log("ERROR: Device %s - error adding Characteristic name: %s", this.id, name);
+    var characteristic = this.service.getCharacteristic(characteristicClass);
+    if (! characteristic) {
+        this.log("%s: ERROR: Unable to get Characteristic class name: %s", this.name, name);
         return;
     }
 
-    this.characteristics[name] = characteristic;
-
-    c.on('get', this.createGetter(name).bind(this));
-    if (! characteristic.readonly) {
-        c.on('set', this.createSetter(name).bind(this));
+    var value = characteristicJSON.value;
+    if (value === undefined || value === null) {
+        this.log("%s: ERROR: Missing value for Characteristic %s", this.name, name);
+        return;
     }
+
+    characteristic.on('get', this.createGetter(name).bind(this));
+
+    var readonly = characteristicJSON.readonly;
+    if (! readonly) {
+        characteristic.on('set', this.createSetter(name).bind(this));
+    }
+
+    // TODO - debug logging
+    // this.log("%s: Added characteristic %s: value=%s, readonly=%s", this.name, name, value, readonly);
+    this.characteristicValueCache.set(name, new Indigo2CachedCharacteristicValue(this, name, value, readonly, characteristic));
 };
-
-// A set context that indicates this is from an update made by this plugin, so do not call the Indigo RESTful API with a put request
-Indigo2Accessory.REFRESH_CONTEXT = 'refresh';
 
 // Returns a function to get the current value of a characteristic
 // characteristicName: The name of the characteristic
 Indigo2Accessory.prototype.createGetter = function(characteristicName) {
     return function(callback) {
-        var characteristic = this.characteristics[characteristicName];
-        if (characteristic) {
-            var value = characteristic.value;
+        var cachedCharacteristicValue = this.getCachedCharacteristicValue(characteristicName);
+        if (cachedCharacteristicValue) {
+            var value = cachedCharacteristicValue.getValue();
             if (value !== undefined && value !== null) {
                 this.log("%s: get(%s) => %s", this.name, characteristicName, value);
                 if (callback) {
@@ -436,7 +447,7 @@ Indigo2Accessory.prototype.createGetter = function(characteristicName) {
             }
         }
         else {
-            this.log("ERROR: %s: get for unknown characteristic %s", this.name, characteristicName);
+            this.log("%s: ERROR: get for unknown characteristic %s", this.name, characteristicName);
             if (callback) {
                 callback("Unknown characteristic " + characteristicName);
             }
@@ -448,14 +459,21 @@ Indigo2Accessory.prototype.createGetter = function(characteristicName) {
 // characteristicName: The name of the characteristic
 Indigo2Accessory.prototype.createSetter = function(characteristicName) {
     return function(value, callback, context) {
-        var characteristic = this.characteristics[characteristicName];
-        if (characteristic) {
-            this.log("%s: set(%s, %s)", this.name, characteristicName, value);
-            var url = this.deviceURL + "&cmd=setCharacteristic&" + characteristicName + "=" + String(value);
-            this.indigoRequest(url, callback);
+        var cachedCharacteristicValue = this.getCachedCharacteristicValue(characteristicName);
+        if (cachedCharacteristicValue) {
+            var oldValue = cachedCharacteristicValue.getValue();
+            if (value !== oldValue) {
+                this.log("%s: set(%s) %s -> %s", this.name, characteristicName, oldValue, value);
+                cachedCharacteristicValue.setValue(value);
+                var url = this.deviceURL + "&cmd=setCharacteristic&" + characteristicName + "=" + String(value);
+                this.indigoRequest(url, callback);
+            }
+            else if (callback) {
+                callback();
+            }
         }
         else {
-            this.log("ERROR: %s: set for unknown characteristic %s", this.name, characteristicName);
+            this.log("%s: ERROR: set for unknown characteristic %s", this.name, characteristicName);
             if (callback) {
                 callback("Unknown characteristic " + characteristicName);
             }
@@ -468,37 +486,46 @@ Indigo2Accessory.prototype.getServices = function() {
     return this.services;
 };
 
+// Returns the cached characteristic value, or undefined if there is no cached value for characteristicName
+Indigo2Accessory.prototype.getCachedCharacteristicValue = function(characteristicName) {
+    return this.characteristicValueCache.get(characteristicName);
+};
+
 // Updates the Accessory's characteristic values, notifying HomeKit of any changes
-// characteristics: JSON array of characteristics from the Indigo RESTful API
-Indigo2Accessory.prototype.updateCharacteristics = function(characteristics) {
-    if (Array.isArray(characteristics)) {
-        for (var characteristic in characteristics) {
-            var name = characteristic.name;
-            if (name) {
-                var newValue = characteristic.value;
-                var old = this.characteristics[name];
-                var oldValue;
-                if (old) {
-                    oldValue = old.value;
-                }
-                this.characteristics[name] = characteristic;
-                if (oldValue != newValue) {
-                    var characteristicType = Characteristic[name];
-                    if (characteristicType) {
-                        var c = this.service.getCharacteristic(characteristicType);
-                        if (c) {
-                            this.log("%s: %s: %s -> %s", this.name, name, oldValue, newValue);
-                            c.updateValue(newValue);
-                        } else {
-                            this.log("%s: ERROR: Unable to get Characteristic named %s", this.name, name);
-                        }
-                    }
-                    else {
-                        this.log("%s: ERROR: Unknown Characteristic name: %s", this.name, name);
-                    }
-                }
+// characteristicsJSON: JSON array of characteristics from the Indigo RESTful API, each with name and value attributes
+Indigo2Accessory.prototype.updateCharacteristicValues = function(characteristicsJSON) {
+    if (Array.isArray(characteristicsJSON)) {
+        characteristicsJSON.forEach(this.updateCharacteristicValue.bind(this));
+    } else {
+        this.log("%s: ERROR: updateCharacteristicValues: not an array: %s", this.name, JSON.stringify(characteristicsJSON));
+    }
+};
+
+// Updates an Accessory's characteristic value, notifying HomeKit of any changes
+// characteristicJSON: JSON dictionary from the Indigo RESTful API, with required name and value attributes
+Indigo2Accessory.prototype.updateCharacteristicValue = function(characteristicJSON) {
+    var name = characteristicJSON.name;
+    if (name) {
+        var cachedCharacteristicValue = this.getCachedCharacteristicValue(name);
+        if (cachedCharacteristicValue) {
+            var oldValue = cachedCharacteristicValue.getValue();
+            var newValue = characteristicJSON.value;
+
+            if (newValue === undefined || newValue === null) {
+                this.log("%s: ERROR: updateCharacteristicValue: Invalid value %s for characteristic %s", this.name, newValue, name);
+            }
+            if (oldValue !== newValue) {
+                this.log("%s: updateCharacteristicValue(%s): %s -> %s", this.name, name, oldValue, newValue);
+                cachedCharacteristicValue.setValue(newValue);
+                cachedCharacteristicValue.getCharacteristic().updateValue(newValue);
             }
         }
+        else {
+            this.log("%s: ERROR: updateCharacteristicValue: Unknown characteristic %s", this.name, name);
+        }
+    }
+    else {
+        this.log("%s: ERROR: updateCharacteristicValue: Missing characteristic name: %s", this.name, JSON.stringify(characteristicJSON));
     }
 };
 
@@ -512,15 +539,10 @@ Indigo2Accessory.prototype.indigoRequest = function(url, callback) {
                     callback(error);
                 }
             }
-            else if (Array.isArray(json.hkcharacteristics)) {
-                this.updateCharacteristics(json.hkcharacteristics);
+            else {
+                this.updateCharacteristicValues(json.hkcharacteristics);
                 if (callback) {
                     callback();
-                }
-            }
-            else {
-                if (callback) {
-                    callback("Invalid response to request - missing hkcharacteristics")
                 }
             }
         }.bind(this)
@@ -533,4 +555,28 @@ Indigo2Accessory.prototype.indigoRequest = function(url, callback) {
 Indigo2Accessory.prototype.refresh = function(callback) {
     this.log("%s: refresh()", this.name);
     this.indigoRequest(this.deviceURL + "&cmd=getInfo", callback);
+};
+
+
+//
+// Cached Characteristic Value
+//
+function Indigo2CachedCharacteristicValue(accessory, name, value, readonly, characteristic) {
+    this.accessory = accessory;
+    this.name = name;
+    this.value = value;
+    this.readonly = readonly;
+    this.characteristic = characteristic;
+}
+
+Indigo2CachedCharacteristicValue.prototype.getValue = function() {
+    return this.value;
+};
+
+Indigo2CachedCharacteristicValue.prototype.setValue = function(newValue) {
+    this.value = newValue;
+};
+
+Indigo2CachedCharacteristicValue.prototype.getCharacteristic = function() {
+    return this.characteristic;
 };
