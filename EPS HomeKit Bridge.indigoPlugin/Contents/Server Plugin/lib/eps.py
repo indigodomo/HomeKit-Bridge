@@ -124,6 +124,11 @@ class eps:
 				self.logger.threaddebug("Loading RESTful api server library")
 				from apienh import api
 				self.api = api (self)	
+				
+			if lib == "homekit":
+				self.logger.threaddebug("Loading HomeKit api server library")
+				from homekit import HomeKit
+				self.homekit = HomeKit (self)
 											
 			if lib == "conditions":
 				self.logger.threaddebug("Loading conditions library")

@@ -504,7 +504,7 @@ class service_GarageDoorOpener ():
 				dev = indigo.devices[self.devId]
 		
 				# Insteon Multi I/O controller
-				if "protocol" in dir(dev) and dev.protocol == "Insteon" and dev.model == "I/O-Linc Controller":
+				if "protocol" in dir(dev) and unicode(dev.protocol) == "Insteon" and dev.model == "I/O-Linc Controller":
 					if "binaryInput1" in dev.states and "CurrentDoorState" not in characterDict: 
 						characterDict["CurrentDoorState"] = 1 # Open
 						if not dev.states["binaryInput1"]: characterDict["CurrentDoorState"] = 0 # Closed

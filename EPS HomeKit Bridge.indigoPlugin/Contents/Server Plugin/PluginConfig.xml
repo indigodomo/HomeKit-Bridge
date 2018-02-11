@@ -41,5 +41,9 @@
 	</Field>   	
    	
    	<Field id="sep_ifttt" type="separator" hidden="true"/>
+   	
+   	<Field type="textfield" id="apiport" defaultValue="8558" hidden="false">
+		<Label>Enhanced API port:</Label>
+	</Field>
 
 </PluginConfig>
