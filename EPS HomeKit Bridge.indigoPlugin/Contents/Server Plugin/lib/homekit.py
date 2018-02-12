@@ -24,7 +24,7 @@ class HomeKit:
 	#
 	# Either map to the requested service class or figure out what this devices should be autodetected as
 	#
-	def getServiceObject (self, objId, serviceClass = None, autoDetect = False, loadOptional = False, characterDict = {}, deviceActions = []):
+	def getServiceObject (self, objId, serverId = 0, serviceClass = None, autoDetect = False, loadOptional = False, characterDict = {}, deviceActions = []):
 		try:
 			# Get all classes in this module
 			clsmembers = inspect.getmembers(sys.modules[__name__], inspect.isclass)
@@ -38,7 +38,7 @@ class HomeKit:
 			for cls in clsmembers:
 				if cls[0] == serviceClass:
 					cclass = cls[1]
-					serviceObj = cclass(self.factory, objId, characterDict, deviceActions, loadOptional)
+					serviceObj = cclass(self.factory, objId, serverId, characterDict, deviceActions, loadOptional)
 					break
 					
 			if serviceObj is None: return None
@@ -105,6 +105,9 @@ class HomeKit:
 				
 				else:
 					return "service_MotionSensor"
+					
+			elif "supportsCoolSetpoint" in dir(dev):
+				return "service_Thermostat"
 				
 			else:
 				# Fallback but only if there is an onstate, otherwise we return an unknown
@@ -115,6 +118,8 @@ class HomeKit:
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
+	
+	
 	
 	
 	################################################################################
@@ -191,23 +196,73 @@ class HomeKit:
 			self.logger.error (ext.getException(e))	
 			
 		return serviceObj
+		
+	#
+	# Check for the presence of a state in indigo device and characteristic in the service and set the value if it's not been set
+	#
+	def _setServiceValueFromState (self, serviceObj, dev, stateName, characteristic, value = None):
+		try:
+			if stateName in dev.states and characteristic not in serviceObj.characterDict: 
+				if value is not None: 
+					serviceObj.characterDict[characteristic] = value
+				else:
+					serviceObj.characterDict[characteristic] = dev.states[stateName]
+				
+			return serviceObj		
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+		return serviceObj	
+		
+	#
+	# Auto convert temperature based on settings
+	#
+	def setTemperatureValue (self, serviceObj, value):
+		try:
+			if serviceObj.serverId != 0:
+				server = indigo.devices[serviceObj.serverId]
+				if "tempunits" in server.pluginProps:
+					# If our source is celsius then that's what HomeKit wants, just return it
+					if server.pluginProps["tempunits"] == "c": return value
+					
+					# If our source is fahrenheit then we need to convert it
+					value = float(value)
+					value = (value - 32) / 1.8000
+					return round(value, 2)
+					
+					return (round(((value - 32.0) * 5.0 / 9.0) * 10.0) / 10.0)# - .5 # -1 to adjust it to be correct?
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))			
 			
 	# ==============================================================================
 	# FAN V2 DEFAULTS
 	# ==============================================================================
 	def _setIndigoDefaultValues_Fanv2 (self, serviceObj, definedActions, dev):	
-		try:	
-			serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "Active", self._homeKitBooleanAttribute (dev, "onState"))
-			serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "CurrentFanState", self._homeKitBooleanAttribute (dev, "onState") + 1)
-			serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "TargetFanState", 0)
-			serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "speedLevel", "RotationSpeed")
+		try:
+			if type(dev) == indigo.SpeedControlDevice:
+				serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "Active", self._homeKitBooleanAttribute (dev, "onState"))
+				serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "CurrentFanState", self._homeKitBooleanAttribute (dev, "onState") + 1)
+				serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "TargetFanState", 0)
+				serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "speedLevel", "RotationSpeed")
 				
-			if "TargetFanState" not in definedActions:
-				serviceObj.actions.append (HomeKitAction("Active", "equal", 0, "device.turnOff", [serviceObj.objId], 0, {serviceObj.objId: "attr_onState"}))
-				serviceObj.actions.append (HomeKitAction("Active", "equal", 1, "device.turnOn", [serviceObj.objId], 0, {serviceObj.objId: "attr_onState"}))
+				if "TargetFanState" not in definedActions:
+					serviceObj.actions.append (HomeKitAction("Active", "equal", 0, "device.turnOff", [serviceObj.objId], 0, {serviceObj.objId: "attr_onState"}))
+					serviceObj.actions.append (HomeKitAction("Active", "equal", 1, "device.turnOn", [serviceObj.objId], 0, {serviceObj.objId: "attr_onState"}))
 				
-			if "RotationSpeed" not in definedActions:
-				serviceObj.actions.append (HomeKitAction("RotationSpeed", "between", 0, "speedcontrol.setSpeedLevel", [serviceObj.objId, "=value="], 100, {serviceObj.objId: "attr_speedLevel"}))
+				if "RotationSpeed" not in definedActions:
+					serviceObj.actions.append (HomeKitAction("RotationSpeed", "between", 0, "speedcontrol.setSpeedLevel", [serviceObj.objId, "=value="], 100, {serviceObj.objId: "attr_speedLevel"}))
+
+			if type(dev) == indigo.ThermostatDevice:
+				serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "fanIsOn", "Active", self._homeKitBooleanAttribute (dev, "fanIsOn"))
+				serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "fanIsOn", "CurrentFanState", self._homeKitBooleanAttribute (dev, "fanIsOn") + 1)
+				serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "fanIsOn", "TargetFanState", 0)
+				
+				if "TargetFanState" not in definedActions:
+					serviceObj.actions.append (HomeKitAction("Active", "equal", 0, "thermostat.setFanMode", [serviceObj.objId, indigo.kFanMode.Auto], 0, {serviceObj.objId: "attr_fanIsOn"}))
+					serviceObj.actions.append (HomeKitAction("Active", "equal", 1, "thermostat.setFanMode", [serviceObj.objId, indigo.kFanMode.AlwaysOn], 0, {serviceObj.objId: "attr_fanMode"}))
+				
 
 			return serviceObj
 		
@@ -365,7 +420,70 @@ class HomeKit:
 			self.logger.error (ext.getException(e))	
 			return serviceObj		
 
+	# ==============================================================================
+	# THERMOSTAT DEFAULTS
+	# ==============================================================================
+	def _setIndigoDefaultValues_Thermostat (self, serviceObj, definedActions, dev):	
+		try:
+			targettemp = 0
+			
+			if "TemperatureDisplayUnits" not in serviceObj.characterDict and serviceObj.serverId != 0:
+				server = indigo.devices[serviceObj.serverId]
+				if "tempunits" in server.pluginProps:
+					if server.pluginProps["tempunits"] == "c":
+						serviceObj.characterDict["TemperatureDisplayUnits"] = 0
+					else:
+						serviceObj.characterDict["TemperatureDisplayUnits"] = 1
+						
+				else:
+					serviceObj.characterDict["TemperatureDisplayUnits"] = 0						
 		
+			serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "hvacMode", "CurrentHeatingCoolingState")
+			if "CurrentHeatingCoolingState" in serviceObj.characterDict: 
+				if str(serviceObj.characterDict["CurrentHeatingCoolingState"]) == "Heat": # Standard Indigo thermostat
+					serviceObj.characterDict["CurrentHeatingCoolingState"] = 1
+				elif str(serviceObj.characterDict["CurrentHeatingCoolingState"]) == "Cool": 
+					serviceObj.characterDict["CurrentHeatingCoolingState"] = 2
+				else:
+					serviceObj.characterDict["CurrentHeatingCoolingState"] = 0 # Off
+					
+			if "TargetHeatingCoolingState" not in serviceObj.characterDict and "CurrentHeatingCoolingState" in serviceObj.characterDict: serviceObj.characterDict["TargetHeatingCoolingState"] = serviceObj.characterDict["CurrentHeatingCoolingState"]
+			
+			#serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "TargetHeatingCoolingState", self._homeKitBooleanAttribute (dev, "onState"))
+			serviceObj = self._setServiceValueFromState (serviceObj, dev, "temperatureInput1", "CurrentTemperature", self.setTemperatureValue(serviceObj, dev.states["temperatureInput1"]))
+			
+			if "CurrentHeatingCoolingState" in serviceObj.characterDict and serviceObj.characterDict["CurrentHeatingCoolingState"] == 2: 
+				serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "coolSetpoint", "TargetTemperature", self.setTemperatureValue(serviceObj, dev.coolSetpoint))
+			else:
+				serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "heatSetpoint", "TargetTemperature", self.setTemperatureValue(serviceObj, dev.heatSetpoint))
+			
+			serviceObj = self._setServiceValueFromState (serviceObj, dev, "humidityInput1", "CurrentRelativeHumidity")
+			#serviceObj = self._setServiceValueFromState (serviceObj, dev, "humidityInput1", "TargetRelativeHumidity") # Only if they can set humidity
+			#serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "coolSetpoint", "CoolingThresholdTemperature", self.setTemperatureValue(serviceObj, dev.coolSetpoint))
+			#serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "heatSetpoint", "HeatingThresholdTemperature", self.setTemperatureValue(serviceObj, dev.heatSetpoint))
+			
+			if "TargetTemperature" not in definedActions:
+				serviceObj.actions.append (HomeKitAction("TargetTemperature", "between", 0.0, "homekit.commandSetTargetThermostatTemperature", [serviceObj.objId, serviceObj.serverId, "=value="], 100.0, {serviceObj.objId: "attr_coolSetpoint"}))
+			
+			if "TargetHeatingCoolingState" not in definedActions: # Using various states/attribs for watching instead of using stubs since we have 4 of these
+				serviceObj.actions.append (HomeKitAction("TargetHeatingCoolingState", "equal", 0, "thermostat.setHvacMode", [serviceObj.objId, indigo.kHvacMode.Off], 0, {serviceObj.objId: "attr_heatSetpoint"}))
+				serviceObj.actions.append (HomeKitAction("TargetHeatingCoolingState", "equal", 1, "thermostat.setHvacMode", [serviceObj.objId, indigo.kHvacMode.Heat], 0, {serviceObj.objId: "state_temperatureInput1"}))
+				serviceObj.actions.append (HomeKitAction("TargetHeatingCoolingState", "equal", 2, "thermostat.setHvacMode", [serviceObj.objId, indigo.kHvacMode.Cool], 0, {serviceObj.objId: "state_humidityInput1"}))
+				serviceObj.actions.append (HomeKitAction("TargetHeatingCoolingState", "equal", 3, "thermostat.setHvacMode", [serviceObj.objId, indigo.kHvacMode.HeatCool], 0, {serviceObj.objId: "attr_hvacMode"}))
+
+			
+
+			# Stubs so we monitor for state changes
+			#serviceObj.actions.append (HomeKitAction("STUB", "equal", True, "NULL", [serviceObj.objId], 0, {serviceObj.objId: "attr_heatSetpoint"}))
+			#serviceObj.actions.append (HomeKitAction("STUB", "equal", True, "NULL", [serviceObj.objId], 0, {serviceObj.objId: "state_temperatureInput1"}))
+			#serviceObj.actions.append (HomeKitAction("STUB", "equal", True, "NULL", [serviceObj.objId], 0, {serviceObj.objId: "state_humidityInput1"}))
+			#serviceObj.actions.append (HomeKitAction("STUB", "equal", True, "NULL", [serviceObj.objId], 0, {serviceObj.objId: "attr_hvacMode"}))
+			
+			return serviceObj
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			return serviceObj			
 
 ################################################################################
 # BASE SERVICE CLASS THAT ALL SERVICE CLASSES INHERIT
@@ -377,7 +495,7 @@ class Service (object):
 	#
 	# Initialize the class (Won't happen unless called from child)
 	#
-	def __init__ (self, factory, type, desc, objId, deviceCharacteristics, deviceActions, loadOptional):
+	def __init__ (self, factory, type, desc, objId, serverId, deviceCharacteristics, deviceActions, loadOptional):
 		self.logger = logging.getLogger ("Plugin.HomeKit.Service." + type)
 		self.factory = factory
 		
@@ -392,6 +510,7 @@ class Service (object):
 			self.actions = []	
 			self.characterDict = {}
 			self.loadOptional = loadOptional # Create attributes for the optional fields
+			self.serverId = serverId
 			
 			# We have to append from here, if we were to set self.actions equal an outside list it would share among all instances of this class
 			for d in deviceActions:
@@ -648,6 +767,9 @@ class HomeKitAction ():
 			elif type(self.whenvalue) == int:
 				value = int(value)
 				
+			elif type(self.whenvalue) == float:
+				value = float(value)
+				
 			else:
 				self.logger.error ("Unknown value for processAction: {}".format(str(type(self.whenvalue)).replace("<type '", "").replace("'>", "")))
 				return False
@@ -675,6 +797,10 @@ class HomeKitAction ():
 				
 					cmd = self.command.split(".")
 					func = indigo
+					if self.command[0:8] == "homekit.":
+						func = self
+						cmd = self.command.replace("homekit.", "")
+						cmd = cmd.split(".")
 				
 					for c in cmd:
 						func = getattr(func, c)
@@ -699,6 +825,42 @@ class HomeKitAction ():
 		
 		return True			
 		
+	################################################################################
+	# COMMAND STUBS
+	################################################################################
+	
+	#
+	# Change thermostat temperature
+	#
+	def commandSetTargetThermostatTemperature (self, devId, serverId, targetTemperature):
+		try:
+			server = indigo.devices[serverId]
+			dev = indigo.devices[devId]
+			if type(dev) != indigo.ThermostatDevice:
+				self.logger.error ("Attempting to run {} as a thermostat with thermostat commands but it is not a thermostat".format(dev.name))
+				return
+			
+			if "tempunits" in server.pluginProps:
+				# If our source is celsius then that's what HomeKit wants, just return it
+				if server.pluginProps["tempunits"] == "c":
+					value = targetTemperature
+				else:				
+					# If our source is fahrenheit then we need to convert it
+					value = float(targetTemperature)
+					value = (value * 1.8000) + 32
+					value = round(value, 0) # We fahrenheit users never use fractions - if someone requests it in the future we can add an option
+				
+			if unicode(dev.hvacMode) == "Heat":			
+				#indigo.server.log ("Set heat set point of {} on server {} to {}".format(str(devId), str(serverId), str(value)))
+				indigo.thermostat.setHeatSetpoint (devId, value)
+				
+			if unicode(dev.hvacMode) == "Cool":			
+				#indigo.server.log ("Set cool set point of {} on server {} to {}".format(str(devId), str(serverId), str(value)))
+				indigo.thermostat.setCoolSetpoint (devId, value)
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+
 ################################################################################
 # HOMEKIT SERVICES
 #
@@ -713,11 +875,11 @@ class Dummy (Service):
 	#
 	# Initialize the class
 	#
-	def __init__ (self, factory, objId, characterDict = {}, deviceActions = [], loadOptional = False):
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "Dummy"
 		desc = "Invalid"
 	
-		super(Dummy, self).__init__ (factory, type, desc, objId, characterDict, deviceActions, loadOptional)
+		super(Dummy, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = ["On"]
 		self.optional = []
@@ -725,7 +887,7 @@ class Dummy (Service):
 		super(Dummy, self).setAttributes ()
 				
 		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
-		self.logger.warning ('{} has no automatic conversion to HomeKit and will not be usable unless custom mapped'.format(self.alias.value))	
+		#self.logger.warning ('{} has no automatic conversion to HomeKit and will not be usable unless custom mapped'.format(self.alias.value))	
 
 # ==============================================================================
 # FAN V2
@@ -735,11 +897,11 @@ class service_Fanv2 (Service):
 	#
 	# Initialize the class
 	#
-	def __init__ (self, factory, objId, characterDict = {}, deviceActions = [], loadOptional = False):
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "Fanv2"
 		desc = "Fan Version 2"
 	
-		super(service_Fanv2, self).__init__ (factory, type, desc, objId, characterDict, deviceActions, loadOptional)
+		super(service_Fanv2, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = ["Active"]
 		self.optional = ["CurrentFanState", "TargetFanState", "LockPhysicalControls", "Name", "RotationDirection", "RotationSpeed", "SwingMode"]
@@ -756,11 +918,11 @@ class service_GarageDoorOpener (Service):
 	#
 	# Initialize the class
 	#
-	def __init__ (self, factory, objId, characterDict = {}, deviceActions = [], loadOptional = False):
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "GarageDoorOpener"
 		desc = "Garage Door Opener"
 	
-		super(service_GarageDoorOpener, self).__init__ (factory, type, desc, objId, characterDict, deviceActions, loadOptional)
+		super(service_GarageDoorOpener, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = ["CurrentDoorState", "TargetDoorState", "ObstructionDetected"]
 		self.optional = ["LockCurrentState", "LockTargetState", "Name"]
@@ -777,11 +939,11 @@ class service_Lightbulb (Service):
 	#
 	# Initialize the class
 	#
-	def __init__ (self, factory, objId, characterDict = {}, deviceActions = [], loadOptional = False):
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "Lightbulb"
 		desc = "Lightbulb"
 	
-		super(service_Lightbulb, self).__init__ (factory, type, desc, objId, characterDict, deviceActions, loadOptional)
+		super(service_Lightbulb, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = ["On"]
 		self.optional = ["Brightness", "Hue", "Saturation", "Name", "ColorTemperature"]
@@ -798,11 +960,11 @@ class service_MotionSensor (Service):
 	#
 	# Initialize the class
 	#
-	def __init__ (self, factory, objId, characterDict = {}, deviceActions = [], loadOptional = False):
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "MotionSensor"
 		desc = "Motion Sensor"
 	
-		super(service_MotionSensor, self).__init__ (factory, type, desc, objId, characterDict, deviceActions, loadOptional)
+		super(service_MotionSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = ["MotionDetected"]
 		self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name"]
@@ -819,11 +981,11 @@ class service_Outlet (Service):
 	#
 	# Initialize the class
 	#
-	def __init__ (self, factory, objId, characterDict = {}, deviceActions = [], loadOptional = False):
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "Outlet"
 		desc = "Outlet"
 	
-		super(service_Outlet, self).__init__ (factory, type, desc, objId, characterDict, deviceActions, loadOptional)
+		super(service_Outlet, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = ["On", "OutletInUse"]
 						
@@ -839,11 +1001,11 @@ class service_LockMechanism (Service):
 	#
 	# Initialize the class
 	#
-	def __init__ (self, factory, objId, characterDict = {}, deviceActions = [], loadOptional = False):
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "LockMechanism"
 		desc = "Lock Mechanism"
 	
-		super(service_LockMechanism, self).__init__ (factory, type, desc, objId, characterDict, deviceActions, loadOptional)
+		super(service_LockMechanism, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = ["LockCurrentState", "LockTargetState"]
 		self.optional = ["Name"]
@@ -860,17 +1022,38 @@ class service_Switch (Service):
 	#
 	# Initialize the class
 	#
-	def __init__ (self, factory, objId, characterDict = {}, deviceActions = [], loadOptional = False):
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "Switch"
 		desc = "Switch"
 	
-		super(service_Switch, self).__init__ (factory, type, desc, objId, characterDict, deviceActions, loadOptional)
+		super(service_Switch, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = ["On"]
 		
 		super(service_Switch, self).setAttributes ()
 				
 		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))
+		
+# ==============================================================================
+# THERMOSTAT
+# ==============================================================================
+class service_Thermostat (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "Thermostat"
+		desc = "Thermostat"
+	
+		super(service_Thermostat, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = ["CurrentHeatingCoolingState", "TargetHeatingCoolingState", "CurrentTemperature", "TargetTemperature", "TemperatureDisplayUnits"]
+		self.optional = ["CurrentRelativeHumidity", "TargetRelativeHumidity", "CoolingThresholdTemperature", "HeatingThresholdTemperature", "Name"]
+		
+		super(service_Thermostat, self).setAttributes ()
+				
+		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
 	
 		
@@ -920,6 +1103,19 @@ class characteristic_ColorTemperature:
 		self.notify = True	
 		
 # ==============================================================================
+# COOLING THRESHOLD TEMPERATURE
+# ==============================================================================		
+class characteristic_CoolingThresholdTemperature:
+	def __init__(self):
+		self.value = 0.0
+		self.maxValue = 35
+		self.minValue = 10
+		self.minStep = 0.1
+
+		self.readonly = False
+		self.notify = True			
+		
+# ==============================================================================
 # CURRENT DOOR STATE
 # ==============================================================================
 class characteristic_CurrentDoorState:	
@@ -946,6 +1142,59 @@ class characteristic_CurrentFanState:
 		
 		self.readonly = True
 		self.notify = True		
+		
+# ==============================================================================
+# CURRENT HEATING/COOLING STATE
+# ==============================================================================
+class characteristic_CurrentHeatingCoolingState:	
+	def __init__(self):
+		self.value = 0 # off [heat, cool]
+		self.maxValue = 2
+		self.minValue = 0
+		
+		self.validValues = [0, 1, 2]
+		
+		self.readonly = True
+		self.notify = True		
+		
+# ==============================================================================
+# CURRENT RELATIVE HUMIDITY
+# ==============================================================================		
+class characteristic_CurrentRelativeHumidity:
+	def __init__(self):
+		self.value = 0.0
+		self.maxValue = 100
+		self.minValue = 0
+		self.minStep = 1
+
+		self.readonly = True
+		self.notify = True			
+		
+# ==============================================================================
+# CURRENT TEMPERATURE
+# ==============================================================================		
+class characteristic_CurrentTemperature:
+	def __init__(self):
+		self.value = 0.0
+		self.maxValue = 100
+		self.minValue = 0
+		self.minStep = 0.1
+
+		self.readonly = True
+		self.notify = True		
+		
+# ==============================================================================
+# HEATING THRESHOLD TEMPERATURE
+# ==============================================================================		
+class characteristic_HeatingThresholdTemperature:
+	def __init__(self):
+		self.value = 0.0
+		self.maxValue = 25
+		self.minValue = 0
+		self.minStep = 0.1
+
+		self.readonly = False
+		self.notify = True			
 		
 # ==============================================================================
 # HUE
@@ -1195,3 +1444,59 @@ class characteristic_TargetFanState:
 		
 		self.readonly = False
 		self.notify = True
+		
+# ==============================================================================
+# TARGET HEATING/COOLING STATE
+# ==============================================================================
+class characteristic_TargetHeatingCoolingState:	
+	def __init__(self):
+		self.value = 0 # off [heat, cool, auto]
+		self.maxValue = 3
+		self.minValue = 0
+		
+		self.validValues = [0, 1, 2, 3]
+		
+		self.readonly = False
+		self.notify = True		
+		
+# ==============================================================================
+# TARGET TEMPERATURE
+# ==============================================================================		
+class characteristic_TargetTemperature:
+	def __init__(self):
+		self.value = 0.0
+		self.maxValue = 35
+		self.minValue = 10
+		self.minStep = 0.1
+
+		self.readonly = False
+		self.notify = True			
+
+# ==============================================================================
+# TARGET RELATIVE HUMIDITY
+# ==============================================================================		
+class characteristic_TargetRelativeHumidity:
+	def __init__(self):
+		self.value = 0.0
+		self.maxValue = 100
+		self.minValue = 0
+		self.minStep = 1
+
+		self.readonly = False
+		self.notify = True	
+		
+# ==============================================================================
+# TEMPERATURE DISPLAY UNITS
+# ==============================================================================
+class characteristic_TemperatureDisplayUnits:	
+	def __init__(self):
+		self.value = 0 # celsius [fahrenheit]
+		self.maxValue = 1
+		self.minValue = 0
+		
+		self.validValues = [0, 1]
+		
+		self.readonly = False
+		self.notify = True		
+				
+				

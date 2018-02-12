@@ -1,26 +1,43 @@
 Release Notes
 ==========
 
+Version 0.4.0 (Beta 4)
+==========
+* New device type added: [Thermostat](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Integration#thermostat) 
+* Added temperature display configuration option to server dialog for any temperature device, but specifically thermostats
+* Fixed Action Group execution issues from HomeKit by making the response instant and then calling back HomeKit after a few seconds to toggle the switch to the off position - making it a true momentary switch
+* Expanded the HomeKit service calls to include the reference server ID to allow for the ability to add additional server configuration options that pass through to devices, such as temperature format
+* Disabled the automatic server wizard until it can be reimagined in a more optimized way, it had a 50/50 shot of timing out while calculating and that wouldn't make anything easier supporting users.  It'll be back soon.
+
+Known Issues
+---------------
+* Able to add multiples of the same device but that will cause HomeKit to crash if they are on the same server (perhaps even multiples since it all dumps to HomeKit), need to enforce only adding one of any device but also modify HomeKit to allow this under some circumstances like the fan of an included thermostat since they need to be separate devices
+* Need to remove API port from the plugin config and autodetect it instead when building the server configuration
+* Creating additional servers is not incrementing the user name and then not showing up in Homebridge as a result (reported by Autolog http://forums.indigodomo.com/viewtopic.php?p=154501#p154501)
+* Complications spinning up a second server (http://forums.indigodomo.com/viewtopic.php?p=154391#p154391).  BETA TESTERS: PLEASE TEST ADDING MULTIPLE SERVERS.
+* Brand new install with brand new server is still not auto starting the server after config close (reported by Autolog, but he was on 0.1.1 and this was fixed in 0.1.2 so it may not be an issue after all, still needs tested to absolutely certain so it was added to the testing issue on Git)
+* Possible feedback loop because when I update HomeKit it causes you to send a request to Indigo, which changes the device and that prompts the plugin to then contact you to let you know that the device was updated.  I’ll have to figure out a creative way to work around that.
+* Possible minor race condition (it could be attributed to an experimental version of HBB running) but sometimes commands from HomeKit will cause a series of concurrent thread issues over multiple plugins, indicating that Indigo is too busy to answer, this recovers after a few seconds
+* The current API is not locked to Localhost but will need to be prior to being publicly released for security purposes
+* A failed Homebridge start can cause a minor race condition where HB will continuously try to restart itself, the current solution to this if it happens is to remove the serverId folder under ~/.HomeKit-Bridge so that the restarts cannot be processed.  This is fine because the plugin will regenerate that folder automatically when you turn on your server device.  This has been countered by extra safeguards in server startup and plugin shutdown but it's a HB issue that still needs resolved.
+* Changing the port on a running server will result in the plugin reporting that the port is in use when it's only in use by the currently running server (resolve by stopping the server before attempting to manually change any HB settings)
+* If saving the server after adding an object the HomeKit name/type may still show on the form but the Device/Action is set to Fill as it should be
+
+Homebridge Issues
+---------------
+* Garage doors never even make a request to Indigo at all
+
+Wish List
+---------------
+* Autolog suggestion: http://forums.indigodomo.com/viewtopic.php?p=154506#p154506
+* Add a feature to read in HBB and Alexa items to build a cache of already used alias names
+
+
 Version 0.3.0 (Beta 3)
 ==========
 * Total rewrite of the HomeKit integration library once it became apparent that it was going to be a runaway train once all HomeKit device types were added, this streamlines and makes it much easier to manage
 * Added new Automatic Server Wizard that will automatically create servers for ALL devices in Indigo and automatically manage them from that point forward.  This beta is being released a little early to fix a bug so this isn't fully functional in that it won't create servers but you can see how the process is going to work.
 * Put API Port back into the plugin prefs as it is required to build the config (reported by FlyingDiver)
-
-Known Issues
----------------
-* Autolog suggestion: http://forums.indigodomo.com/viewtopic.php?p=154506#p154506
-* Creating additional servers is not incrementing the user name and then not showing up in Homebridge as a result (reported by Autolog http://forums.indigodomo.com/viewtopic.php?p=154501#p154501)
-* Need to add a forced update if the action times out (10 second API call limit) so that HomeKit always reflects whatever happened in Indigo because even though it didn't respond in time it may have actually done its job
-* Complications spinning up a second server (http://forums.indigodomo.com/viewtopic.php?p=154391#p154391).  BETA TESTERS: PLEASE TEST ADDING MULTIPLE SERVERS.
-* Brand new install with brand new server is still not auto starting the server after config close (reported by Autolog, but he was on 0.1.1 and this was fixed in 0.1.2 so it may not be an issue after all, still needs tested to absolutely certain so it was added to the testing issue on Git)
-* Possible feedback loop because when I update HomeKit it causes you to send a request to Indigo, which changes the device and that prompts the plugin to then contact you to let you know that the device was updated.  I’ll have to figure out a creative way to work around that.
-* Possible minor race condition (it could be attributed to an experimental version of HBB running) but sometimes commands from HomeKit will cause a series of concurrent thread issues over multiple plugins, indicating that Indigo is too busy to answer, this recovers after a few seconds
-* Indigo server information is still being collected in the plugin config but is no longer used or needed and should be removed since don't talk to the Indigo API any longer
-* The current API is not locked to Localhost but will need to be prior to being publicly released for security purposes
-* A failed Homebridge start can cause a minor race condition where HB will continuously try to restart itself, the current solution to this if it happens is to remove the serverId folder under ~/.HomeKit-Bridge so that the restarts cannot be processed.  This is fine because the plugin will regenerate that folder automatically when you turn on your server device.  This has been countered by extra safeguards in server startup and plugin shutdown but it's a HB issue that still needs resolved.
-* Changing the port on a running server will result in the plugin reporting that the port is in use when it's only in use by the currently running server (resolve by stopping the server before attempting to manually change any HB settings)
-* If saving the server after adding an object the HomeKit name/type may still show on the form but the Device/Action is set to Fill as it should be
 
 Version 0.2.0 (Beta 2)
 ==========

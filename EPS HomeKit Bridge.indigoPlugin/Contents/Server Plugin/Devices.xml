@@ -46,6 +46,15 @@
 				<Label>HB callback:</Label>
 			</Field>
 			
+			<Field type="menu" id="tempunits" defaultValue="c" visibleBindingId="configOption" visibleBindingValue="config">
+                <Label>Source temps are:</Label>
+                <List>
+                	<Option value="f">Fahrenheit</Option>
+                    <Option value="c">Celsius</Option>
+                </List>
+                <CallbackMethod>formFieldChanged</CallbackMethod>
+            </Field>
+			
 			<Field type="textfield" id="accessoryNamePrefix" defaultValue="" visibleBindingId="configOption" visibleBindingValue="config" >
 				<Label>Prefix:</Label>
 			</Field>

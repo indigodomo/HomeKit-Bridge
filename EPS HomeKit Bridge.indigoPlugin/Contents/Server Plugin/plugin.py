@@ -25,6 +25,7 @@ import socket # port checking
 import requests # for sending forced updates to HB-Indigo (POST JSON)
 import math # for server wizard
 import collections # dict sorting for server wizard
+import thread # homebridge callbacks on actions
 
 #from lib.httpsvr import httpServer
 #hserver = httpServer(None)
@@ -131,8 +132,11 @@ class Plugin(indigo.PluginBase):
 			#x = eps.homekit.getServiceObject (1010303036, "service_Switch")
 			#indigo.server.log (unicode(x))
 			
-			x = eps.homekit.getHomeKitServices ()
+			x = eps.homekit.getServiceObject (954521198, 0, "service_Thermostat")
 			indigo.server.log (unicode(x))
+			
+			#x = eps.homekit.getHomeKitServices ()
+			#indigo.server.log (unicode(x))
 			
 			
 			pass
@@ -326,7 +330,7 @@ class Plugin(indigo.PluginBase):
 					
 					#hk = getattr (hkapi, r["hktype"]) # Find the class matching the selection
 					#obj = hk (int(r["id"]), {}, [], True)
-					obj = eps.homekit.getServiceObject (r["id"], r["hktype"], False, True)
+					obj = eps.homekit.getServiceObject (r["id"], serverId, r["hktype"], False, True)
 			
 					updateRequired = False		
 					for a in obj.actions:
@@ -436,7 +440,7 @@ class Plugin(indigo.PluginBase):
 						r = eps.jstash.getRecordWithFieldEquals (includedActions, "id", devId)
 						isAction = True
 					
-					obj = eps.homekit.getServiceObject (r["id"], r["hktype"], False,  True)
+					obj = eps.homekit.getServiceObject (r["id"], serverId, r["hktype"], False,  True)
 					
 					# Loop through actions to see if any of them are in the query
 					processedActions = {}
@@ -473,7 +477,8 @@ class Plugin(indigo.PluginBase):
 						time.sleep (1) # For good measure
 							
 					else:
-						time.sleep (5) # Give it time to run
+						#time.sleep (2) # Give it time to run
+						pass # Let it instant-report success 
 					
 					r = self.buildHKAPIDetails (devId, serverId, isAction)		
 					return "text/css",	json.dumps(r, indent=4)
@@ -551,7 +556,7 @@ class Plugin(indigo.PluginBase):
 				self.logger.error ("Server '{}' device '{}' is trying to reference a HomeKit class of {} that isn't defined.".format(indigo.devices[serverId].name, r["alias"], r["hktype"]))
 				return []
 			
-			obj = eps.homekit.getServiceObject (r["id"], r["hktype"], False, True)
+			obj = eps.homekit.getServiceObject (r["id"], serverId, r["hktype"], False, True)
 			#indigo.server.log(unicode(obj))
 			
 			# Fix up for output
@@ -590,7 +595,8 @@ class Plugin(indigo.PluginBase):
 			# This will only come up if an action group was turned on and then called down to here so this should be safe, but we need to now
 			# notify Homebridge that the action has completed and to get the false value
 			if runningAction:
-				self.serverSendObjectUpdateToHomebridge (indigo.devices[int(serverId)], r["id"])
+				#self.serverSendObjectUpdateToHomebridge (indigo.devices[int(serverId)], r["id"])
+				thread.start_new_thread(self.timedCallbackToURL, (serverId, r["id"], 2))
 			
 			return r
 		
@@ -598,6 +604,17 @@ class Plugin(indigo.PluginBase):
 			self.logger.error (ext.getException(e))			
 			
 		return []
+		
+	#
+	# Run in a thread, this will run the URL in the specified seconds
+	#
+	def timedCallbackToURL (self, serverId, devId, waitSeconds):
+		try:
+			if waitSeconds > 0: time.sleep(waitSeconds)
+			self.serverSendObjectUpdateToHomebridge (indigo.devices[int(serverId)], devId)
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
 	
 	################################################################################
 	# GENERAL METHODS
@@ -985,6 +1002,14 @@ class Plugin(indigo.PluginBase):
 	#
 	def wizardServerBuilder (self, valuesDict):	
 		try:
+			# Run through all of our own servers to build a list of device ID's that we won't use elsewhere
+			inuse = []
+			for dev in indigo.devices.iter(self.pluginId + ".Server"):
+				if "excludedDevices" in dev.pluginProps:
+					excludedDevices = json.loads(dev.pluginProps["excludedDevices"])
+					for r in excludedDevices:
+						inuse.append (r["id"])
+		
 			# Menu items won't have valuesDict on load and will error out, set defaults
 			method = "homekit"
 			if "method" in valuesDict: method = valuesDict["method"]
@@ -1009,8 +1034,24 @@ class Plugin(indigo.PluginBase):
 			unusablePlugins = indigo.List()
 			
 			if "wizard" not in valuesDict or ("wizard" in valuesDict and valuesDict["wizard"] == "folder"):
-				return {}
+				# Create the folders and then change the wizard type so it processes all devices below
+				hbbdevices = False # This doesn't apply to this method
+				
+				for f in indigo.devices.folders:
+					listName = f.name + " Devices"
+					
+					typeDict = collections.OrderedDict(sorted(typeDict.items()))
+				
+					thisList = []
+					if listName in typeDict: thisList = typeDict[listName]
 			
+					#thisList.append(v["devId"])
+			
+					typeDict[listName] = thisList
+					
+				valuesDict["wizard"] = "folderdevices"
+				
+				
 			if "wizard" in valuesDict and valuesDict["wizard"] == "alexa":
 				itemcount = 0
 				for dev in indigo.devices.iter("com.indigodomo.opensource.alexa-hue-bridge.emulatedHueBridge"):
@@ -1022,9 +1063,10 @@ class Plugin(indigo.PluginBase):
 					#indigo.server.log (unicode(alexaDevices))
 					
 					for k, v in alexaDevices.iteritems():
+						if int(v["devId"]) in inuse: continue # Don't add anything we have a manual sever for
 						#indigo.server.log ("{}: {}".format(v["devId"], v["devName"]))
 					
-						typeDict = collections.OrderedDict(sorted(typeDict.items()))
+						#typeDict = collections.OrderedDict(sorted(typeDict.items()))
 					
 						thisList = []
 						if listName in typeDict: thisList = typeDict[listName]
@@ -1035,8 +1077,10 @@ class Plugin(indigo.PluginBase):
 						
 				if itemcount == 0: return {}
 			
-			if "wizard" in valuesDict and valuesDict["wizard"] == "type":
+			if "wizard" in valuesDict and (valuesDict["wizard"] == "type" or valuesDict["wizard"] == "folderdevices" or valuesDict["wizard"] == "all"):
 				for dev in indigo.devices:
+					if dev.id in inuse: continue # Don't add anything we have a manual sever for
+					
 					# Devices we'll ignore entirely
 					if dev.pluginId == "com.eps.indigoplugin.homebridge" and dev.deviceTypeId == "Homebridge-Server": continue
 					if dev.pluginId == "com.eps.indigoplugin.homebridge" and dev.deviceTypeId == "Homebridge-Guest": continue
@@ -1046,10 +1090,13 @@ class Plugin(indigo.PluginBase):
 					if hbbaliases and dev.pluginId == "com.eps.indigoplugin.homebridge" and dev.deviceTypeId == "Homebridge-Alias":
 						continue
 
+					obj = eps.homekit.getServiceObject (dev.id, 0, None, True, True)
+					
 					listName = "Unknown"
-				
-					obj = eps.homekit.getServiceObject (dev.id, None, True, True)
-					if method == "homekit": listName = obj.desc + " Devices"
+					if valuesDict["wizard"] == "type" and method == "homekit": listName = obj.desc + " Devices"
+					if valuesDict["wizard"] == "folderdevices":	listName = indigo.devices.folders[dev.folderId].name + " Devices"
+					if valuesDict["wizard"] == "all": listName = "Indigo Devices"
+					
 					if obj.desc == "Invalid": 
 						listName = "- UNUSABE DEVICES (See Log) -"
 						hasUnusable = True
@@ -1061,11 +1108,11 @@ class Plugin(indigo.PluginBase):
 					if hbbdevices and dev.pluginId == "com.eps.indigoplugin.homebridge":
 						if dev.deviceTypeId == "Homebridge-Wrapper": 
 							listName = "HBB Wrappers"
-							if method == "homekit": listName = "HBB Lightbulb Devices"
+							if valuesDict["wizard"] == "type" and method == "homekit": listName = "HBB Lightbulb Devices"
 						
 						if dev.deviceTypeId == "Homebridge-Alias": 
 							listName = "HBB Aliases" # If they are excluded it won't make it here anyway
-							if method == "homekit": listName = "HBB Lightbulb Devices"
+							if valuesDict["wizard"] == "type" and method == "homekit": listName = "HBB Lightbulb Devices"
 						
 						
 					if security:
@@ -1073,7 +1120,7 @@ class Plugin(indigo.PluginBase):
 						if obj.type == "GarageDoorOpener" or obj.type == "LockMechanism":
 							listName = "- SECURITY DEVICES -"	
 						
-					typeDict = collections.OrderedDict(sorted(typeDict.items()))
+					#typeDict = collections.OrderedDict(sorted(typeDict.items()))
 					
 					thisList = []
 					if listName in typeDict: thisList = typeDict[listName]
@@ -1087,25 +1134,36 @@ class Plugin(indigo.PluginBase):
 					self.logger.warning ("\nYou have unusable HomeKit devices.  These will still be added to a server but that server cannot be started.\nIf a future plugin update can map them they will be automatically moved to their appropriate server.")
 					self.logger.debug ("\nThe following plugin devices are included in this list:\n{}".format(unicode(unusablePlugins)))
 						
-				# Add our overflow device in case the counts don't meet minimum requirements
-				typeDict["Miscellaneous Overflow"] = []
+			# Add our overflow device in case the counts don't meet minimum requirements
+			typeDict["Miscellaneous Overflow"] = []
+		
+			newTypeDict = {}
 			
-				for k, v in typeDict.iteritems():
-					if securitydevice and security and (k == "Relay Devices" or k == "Switch Devices"):
-						# Append a fake number to change the count of switches
-						v.append (1)
+			for k, v in typeDict.iteritems():
+				if securitydevice and security and (k == "Relay Devices" or k == "Switch Devices"):
+					# Append a fake number to change the count of switches
+					v.append (1)
+				
+				# If we don't meet the minimum count requirement then move it to the miscellaneous server and skip
+				if k != "Miscellaneous Overflow" and k != "- SECURITY DEVICES -" and len(v) < mincount:
+					newlist = typeDict["Miscellaneous Overflow"]
+					for devId in v:
+						newlist.append (devId)
 					
-					# If we don't meet the minimum count requirement then move it to the miscellaneous server and skip
-					if k != "Miscellaneous Overflow" and k != "- SECURITY DEVICES -" and len(v) < mincount:
-						newlist = typeDict["Miscellaneous Overflow"]
-						for devId in v:
-							newlist.append (devId)
-						
-						typeDict["Miscellaneous Overflow"] = newlist
-					
-						continue
-					
-					if len(v) == 0: continue # Mostly only happens with Miscellaneous if there's nothing to put there
+					typeDict["Miscellaneous Overflow"] = newlist
+				
+					continue
+				
+				if len(v) == 0: continue # Mostly only happens with Miscellaneous if there's nothing to put there
+				
+				# If we get to here add it to the new typedict, we'll add misc after
+				newTypeDict[k] = v
+				
+			if "Miscellaneous Overflow" in typeDict:
+				if len(typeDict["Miscellaneous Overflow"]) > 0: newTypeDict["Miscellaneous Overflow"] = typeDict["Miscellaneous Overflow"]
+				
+			typeDict = newTypeDict
+			typeDict = collections.OrderedDict(sorted(typeDict.items()))
 				
 			return typeDict
 		
@@ -1117,13 +1175,15 @@ class Plugin(indigo.PluginBase):
 	#
 	def wizardListMethodDeviceTypes (self, args, valuesDict):	
 		try:
-			ret = [("default", "No data")]
-			retList = [("none", "No compatible device found to create servers for")]
+			ret = [("none", "No compatible device found to create servers for")]
+			retList = []
 			
 			# Prepare the log output
 			logStr = "SERVER DETAILS\n"
 			
 			typeDict = self.wizardServerBuilder (valuesDict)
+			if len(typeDict) == 0: return ret
+			
 			for k, v in typeDict.iteritems():
 				if len(v) == 0: continue
 					
@@ -1469,7 +1529,7 @@ class Plugin(indigo.PluginBase):
 	def serverGetHomeKitObjectFromFormData (self, valuesDict):
 		try:
 			# Pull the HK object from the selected type and device so we can see if the required settings are set
-			obj = eps.homekit.getServiceObject (r["id"], r["hktype"], False, True)
+			obj = eps.homekit.getServiceObject (r["id"], 0, r["hktype"], False, True)
 			return obj
 			
 		except Exception as e:
@@ -1575,7 +1635,7 @@ class Plugin(indigo.PluginBase):
 								#device["url"] = "/HomeKit?cmd=setCharacteristic&objId={}&serverId={}".format(str(dev.id), str(serverId))	
 								#device["url"] = "/HomeKit?objId={}&serverId={}".format(str(dev.id), str(serverId))	
 								#obj = hkapi.automaticHomeKitDevice (indigo.devices[int(dev.id)], True)
-								obj = eps.homekit.getServiceObject (dev.id, None, True, True)
+								obj = eps.homekit.getServiceObject (dev.id, serverId, None, True, True)
 								device['hktype'] = "service_" + obj.type # Set to the default type
 								includeList.append (device)
 								total = total + 1
@@ -1699,7 +1759,7 @@ class Plugin(indigo.PluginBase):
 				
 				# So long as we are not in edit mode then pull the HK defaults for this device and populate it
 				if not valuesDict["editActive"]:
-					obj = eps.homekit.getServiceObject (valuesDict["device"], None, True, True)
+					obj = eps.homekit.getServiceObject (valuesDict["device"], devId, None, True, True)
 					#obj = hkapi.automaticHomeKitDevice (indigo.devices[int(valuesDict["device"])], True)
 					#valuesDict = self.serverFormFieldChanged_RefreshHKDef (valuesDict, obj) # For our test when we were defining the HK object here
 					valuesDict["hkType"] = "service_" + obj.type # Set to the default type		
@@ -1727,7 +1787,7 @@ class Plugin(indigo.PluginBase):
 				if not valuesDict["editActive"]:
 					# Actions are always switches by default
 					#obj = hkapi.automaticHomeKitDevice (indigo.actionGroups[int(valuesDict["action"])], True)
-					obj = eps.homekit.getServiceObject (valuesDict["action"], None, True, True)
+					obj = eps.homekit.getServiceObject (valuesDict["action"], devId, None, True, True)
 					#valuesDict = self.serverFormFieldChanged_RefreshHKDef (valuesDict, obj) # For our test when we were defining the HK object here
 					valuesDict["hkType"] = "service_" + obj.type # Set to the default type		
 					
