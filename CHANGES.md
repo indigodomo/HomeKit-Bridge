@@ -1,13 +1,11 @@
 Release Notes
 ==========
 
-Version 0.4.0 (Beta 4)
+Version 0.5.0 (Beta 5)
 ==========
-* New device type added: [Thermostat](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Integration#thermostat) 
-* Added temperature display configuration option to server dialog for any temperature device, but specifically thermostats
-* Fixed Action Group execution issues from HomeKit by making the response instant and then calling back HomeKit after a few seconds to toggle the switch to the off position - making it a true momentary switch
-* Expanded the HomeKit service calls to include the reference server ID to allow for the ability to add additional server configuration options that pass through to devices, such as temperature format
-* Disabled the automatic server wizard until it can be reimagined in a more optimized way, it had a 50/50 shot of timing out while calculating and that wouldn't make anything easier supporting users.  It'll be back soon.
+* Added new combobox action item in the server called "Delete and Exclude" that allows you to not only delete an item from the list but to also exclude it from all future lists (manageable from the menu), this in direct response to [the complaint from Different Computers](http://forums.indigodomo.com/viewtopic.php?p=154621#p154621) regarding his frustrations with the way device inclusion works
+* Added new combobox action item in the server called "Delete and Hide" that allows you to not only delete an item from the list but to hide it for the remainder of the time you have the server dialog open, allowing you to re-fill as needed.  The cache will clear once the dialog is cancelled or saved so that the object you hid will be available again
+* Added new menu option to [Manage Hidden Objects](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Hidden-Objects-Management) 
 
 Known Issues
 ---------------
@@ -26,12 +24,20 @@ Known Issues
 Homebridge Issues
 ---------------
 * Garage doors never even make a request to Indigo at all
+* Change UUID creation to allow for multiple same devices, perhaps only if a special key is passed
 
 Wish List
 ---------------
 * Autolog suggestion: http://forums.indigodomo.com/viewtopic.php?p=154506#p154506
 * Add a feature to read in HBB and Alexa items to build a cache of already used alias names
 
+Version 0.4.0 (Beta 4)
+==========
+* New device type added: [Thermostat](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Integration#thermostat) 
+* Added temperature display configuration option to server dialog for any temperature device, but specifically thermostats
+* Fixed Action Group execution issues from HomeKit by making the response instant and then calling back HomeKit after a few seconds to toggle the switch to the off position - making it a true momentary switch
+* Expanded the HomeKit service calls to include the reference server ID to allow for the ability to add additional server configuration options that pass through to devices, such as temperature format
+* Disabled the automatic server wizard until it can be reimagined in a more optimized way, it had a 50/50 shot of timing out while calculating and that wouldn't make anything easier supporting users.  It'll be back soon.
 
 Version 0.3.0 (Beta 3)
 ==========

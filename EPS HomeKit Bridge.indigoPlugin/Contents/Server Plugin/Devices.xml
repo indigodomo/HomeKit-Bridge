@@ -164,6 +164,8 @@
                 <List>
                     <Option value="edit">Edit</Option>
                     <Option value="delete">Delete</Option>
+                    <Option value="hide">Delete and Hide</Option>
+                    <Option value="remove">Delete and Exclude</Option>
                 </List>
             </Field>
 			

@@ -1,6 +1,79 @@
 <?xml version="1.0"?>
 <!-- EPS (ColoradoFourWheeler) Plugin -->
 <MenuItems>
+	<MenuItem id="hiddenItemManager">
+    	<Name>Manage Hidden Objects</Name>
+    	<ConfigUI>
+    		<Field type="label" id="lbl_select" >
+				<Label>Select any Indigo items that you do not want to be shown in ANY HomeKit Bridge dialog for use with HomeKit.  You can use standard Mac controls such as CMD-CLICK, SHIFT-CLICK and CONTROL-CLICK for your selection, when ready click Hide These Items below.
+				</Label>
+			</Field>
+			
+    		<Field type="menu" id="objectType" defaultValue="device" >
+				<Label>Hide objects:</Label>
+				<List>
+					<Option value="device">Device</Option>
+					<Option value="action">Action Group</Option>
+				</List>
+				<CallbackMethod>hiddenObjectsFormFieldChanged</CallbackMethod>
+			</Field>
+    	
+	    	<Field type="list" id="objectList" rows="10" alwaysUseInDialogHeightCalc="true" >
+				<Label>Objects:</Label>
+				<List class="self" filter="#plugin#[index=deviceList, callback=hiddenObjectSelectList, ref=hideWrappedItems]" method="getCustomList" dynamicReload="true" />
+			</Field>
+			
+			<Field type="label" id="lbl_sep_1" >
+				<Label>
+				</Label>
+			</Field>
+			
+			<Field type="button" id="hide" >
+				<Label> </Label>
+				<Title>Hide These Items </Title>
+				<CallbackMethod>hiddenObjectsHideTheseItems</CallbackMethod>
+			</Field>
+			
+			<Field type="separator" id="sep_select"  />
+
+			<Field type="label" id="lbl_hidden" >
+				<Label>This list represents items you have hidden, select any items that you want to show again and click the Show These Items button.
+				</Label>
+			</Field>
+			
+			<Field type="menu" id="listSort" defaultValue="sortbyname" >
+                <Label>Sort:</Label>
+                <List>
+                    <Option value="sortbyname">Object Name</Option>
+                    <Option value="sortbytype">Object Type and Name</Option>
+                </List>
+                <CallbackMethod>hiddenObjectsFormFieldChanged</CallbackMethod>
+            </Field>
+            
+            <Field type="label" id="lbl_sep_2" >
+				<Label>
+				</Label>
+			</Field>
+
+			<Field type="list" id="hideList" rows="10" alwaysUseInDialogHeightCalc="true" >
+				<Label>Hidden:</Label>
+				<List class="self" filter="#plugin#[index=deviceList, callback=hiddenObjectItemsList, ref=hideWrappedItems]" method="getCustomList" dynamicReload="true" />
+			</Field>
+			
+			<Field type="label" id="lbl_sep_3" >
+				<Label>
+				</Label>
+			</Field>
+			
+			<Field type="button" id="show" >
+				<Label> </Label>
+				<Title>Show These Items </Title>
+				<CallbackMethod>hiddenObjectsShowTheseItems</CallbackMethod>
+			</Field>
+			
+		</ConfigUI>
+    </MenuItem>
+    
 
 
 	<MenuItem id="performanceOptions">

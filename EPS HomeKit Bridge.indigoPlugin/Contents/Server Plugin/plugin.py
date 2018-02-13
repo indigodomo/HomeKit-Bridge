@@ -992,6 +992,164 @@ class Plugin(indigo.PluginBase):
 			return None
 			
 		return rec
+		
+	################################################################################
+	# HIDDEN ITEMS MANAGEMENT
+	################################################################################
+	
+	#
+	# All hidden actions
+	#
+	def hiddenObjectItemsList (self, args, valuesDict):
+		ret = [("default", "No data")]
+		
+		try:
+			if "hiddenIds" in self.pluginPrefs:
+				hidden = json.loads (self.pluginPrefs["hiddenIds"])
+			else:
+				hidden = []
+				
+			if len(hidden) == 0: return [("default", "You have not hidden any Indigo objects from HomeKit Bridge")]
+				
+			retList = []
+			includedObjects = []
+			
+			for objId in hidden:
+				d = {}
+				
+				if objId in indigo.devices:
+					name = indigo.devices[objId].name
+					object = "Device"
+				elif objId in indigo.actionGroups:
+					name = indigo.actionGroups[objId].name	
+					object = "Action"
+				
+				d["id"] = objId
+				d["sortbyname"] = name.lower()
+				d["name"] = name
+				d["object"] = object
+				
+				name = "{0}: {1}".format(object, name)
+				d["sortbytype"] = name.lower()
+				
+				includedObjects.append (d)
+				
+			if "listSort" in valuesDict:
+				includedObjects = eps.jstash.sortStash (includedObjects, valuesDict["listSort"])
+			else:
+				includedObjects = eps.jstash.sortStash (includedObjects, "sortbyname")
+				
+			for d in includedObjects:
+				name = d["name"]
+				name = "{0}: {1}".format(d["object"], name)
+				
+				retList.append ( (str(d["id"]), name) )	
+				
+			return retList
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			return ret		
+			
+	#
+	# All hidden actions
+	#
+	def hiddenObjectSelectList (self, args, valuesDict):
+		ret = [("default", "No data")]
+		
+		objectType = "device"
+		if "objectType" in valuesDict: objectType = valuesDict["objectType"]
+		
+		try:
+			if "hiddenIds" in self.pluginPrefs:
+				hidden = json.loads (self.pluginPrefs["hiddenIds"])
+			else:
+				hidden = []
+				
+			retList = []
+
+			if objectType == "device":			
+				for dev in indigo.devices:
+					if dev.id in hidden: continue
+					retList.append ( (str(dev.id), dev.name) )
+			
+			if objectType == "action":
+				for dev in indigo.actionGroups:
+					if dev.id in hidden: continue
+					retList.append ( (str(dev.id), dev.name) )
+				
+			return retList
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			return ret			
+			
+	#
+	# Hidden actions form field change
+	#
+	def hiddenObjectsFormFieldChanged (self, valuesDict, typeId):	
+		try:
+			errorsDict = indigo.Dict()		
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+		return (valuesDict, errorsDict)		
+		
+	#
+	# Hide objects button
+	#
+	def hiddenObjectsHideTheseItems (self, valuesDict, typeId):
+		try:
+			errorsDict = indigo.Dict()
+			
+			if len(valuesDict["objectList"]) == 0:
+				errorsDict["showAlertText"] = "You must select something to perform an action on it."
+				return (valuesDict, errorsDict)
+				
+			if "hiddenIds" in self.pluginPrefs:
+				hidden = json.loads (self.pluginPrefs["hiddenIds"])
+			else:
+				hidden = []	
+			
+			for id in valuesDict["objectList"]:
+				hidden.append (int(id))
+				
+			self.pluginPrefs["hiddenIds"] = json.dumps (hidden)
+				
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+		return (valuesDict, errorsDict)			
+		
+	#
+	# Un-hide objects button
+	#
+	def hiddenObjectsShowTheseItems (self, valuesDict, typeId):
+		try:
+			errorsDict = indigo.Dict()
+			
+			if len(valuesDict["hideList"]) == 0:
+				errorsDict["showAlertText"] = "You must select something to perform an action on it."
+				return (valuesDict, errorsDict)
+				
+			if "hiddenIds" in self.pluginPrefs:
+				hidden = json.loads (self.pluginPrefs["hiddenIds"])
+			else:
+				hidden = []	
+			
+			newhidden = []
+			
+			for id in hidden:
+				if str(id) in valuesDict["hideList"]: continue
+				newhidden.append (int(id))
+			
+			self.pluginPrefs["hiddenIds"] = json.dumps (newhidden)
+				
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+		return (valuesDict, errorsDict)					
 	
 	################################################################################
 	# WIZARD METHODS
@@ -1289,6 +1447,16 @@ class Plugin(indigo.PluginBase):
 			valuesDict = self.serverCheckForJSONKeys (valuesDict)	
 			includedDevices = json.loads(valuesDict["includedDevices"])
 			
+			if "hiddenIds" in self.pluginPrefs:
+				hidden = json.loads (self.pluginPrefs["hiddenIds"])
+			else:
+				hidden = []
+				
+			if "hiddenIds" in valuesDict:
+				for objId in json.loads(valuesDict["hiddenIds"]):
+					hidden.append (int(objId)) # so it gets excluded below with the global hide
+
+					
 			retList = []
 			
 			# Add our custom options
@@ -1298,6 +1466,7 @@ class Plugin(indigo.PluginBase):
 			retList = eps.ui.addLine (retList)
 			
 			for dev in indigo.devices:
+				if dev.id in hidden: continue
 				name = dev.name
 				
 				# Homebridge Buddy Legacy support
@@ -1328,6 +1497,15 @@ class Plugin(indigo.PluginBase):
 		ret = [("default", "No data")]
 		
 		try:
+			if "hiddenIds" in self.pluginPrefs:
+				hidden = json.loads (self.pluginPrefs["hiddenIds"])
+			else:
+				hidden = []
+				
+			if "hiddenIds" in valuesDict:
+				for objId in json.loads(valuesDict["hiddenIds"]):
+					hidden.append (int(objId)) # so it gets excluded below with the global hide
+				
 			retList = []
 			
 			# Add our custom options
@@ -1337,6 +1515,7 @@ class Plugin(indigo.PluginBase):
 			retList = eps.ui.addLine (retList)
 			
 			for dev in indigo.actionGroups:
+				if dev.id in hidden: continue
 				retList.append ( (str(dev.id), dev.name) )
 				
 			return retList
@@ -1402,73 +1581,7 @@ class Plugin(indigo.PluginBase):
 			self.logger.error (ext.getException(e))	
 			return ret		
 			
-	
-	#
-	# Run action on device(s) or action(s) selected in list
-	#
-	def serverButtonRunAction (self, valuesDict, devId, typeId):	
-		try:
-			errorsDict = indigo.Dict()
-			includedDevices = json.loads(valuesDict["includedDevices"])
-			includedActions = json.loads(valuesDict["includedActions"])
-			
-			if len(valuesDict["deviceList"]) == 0:
-				errorsDict["showAlertText"] = "You must select something to perform an action on it."
-				return (valuesDict, errorsDict)
-				
-			if valuesDict["objectAction"] == "delete":
-				deleted = 0
-				for id in valuesDict["deviceList"]:
-					includedDevices = eps.jstash.removeRecordFromStash (includedDevices, "id", int(id))
-					includedActions = eps.jstash.removeRecordFromStash (includedActions, "id", int(id))
-					deleted = deleted + 1
-					
-				errorsDict["showAlertText"] = "You removed {0} items and can add up to {1} more.".format(str(deleted), str(99 - len(includedDevices) - len(includedActions)))
-				valuesDict["deviceLimitReached"] = False # Since removing even just one guarantees we aren't at the limit yet
-				
-			if valuesDict["objectAction"] == "edit":
-				if len(valuesDict["deviceList"]) > 1:	
-					errorsDict["showAlertText"] = "You can only edit one device at a time, you selected multiple devices."
-					return (valuesDict, errorsDict)
-				
-				else:
-					isAction = False
-					r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", int(valuesDict["deviceList"][0]))
-					if r is None:
-						r = eps.jstash.getRecordWithFieldEquals (includedActions, "id", int(valuesDict["deviceList"][0]))
-						if r is not None: isAction = True
-										
-					if r is not None:
-						# Remove from our list since technically we are removing and readding rather than editing
-						includedDevices = eps.jstash.removeRecordFromStash (includedDevices, "id", int(valuesDict["deviceList"][0]))
-						includedActions = eps.jstash.removeRecordFromStash (includedActions, "id", int(valuesDict["deviceList"][0]))
-						
-						if not isAction: 
-							valuesDict["objectType"] = "device"
-							valuesDict["device"] = str(r["id"])
-							
-						if isAction: 
-							valuesDict["objectType"] = "action"
-							valuesDict["action"] = str(r["id"])
-						
-						valuesDict["name"] = r["name"]
-						valuesDict["alias"] = r["alias"]
-						#valuesDict["typename"] = r["typename"]
-						#valuesDict["type"] = r["type"]
-						valuesDict["hktype"] = r["hktype"]
-						valuesDict["hkStatesJSON"] = r["char"]
-						valuesDict["hkActionsJSON"] = r["action"]
-						valuesDict["deviceOrActionSelected"] = True
-						valuesDict["deviceLimitReached"] = False # Since we only allow 99 we are now at 98 and valid again
-						valuesDict["editActive"] = True # Disable fields so the user knows they are in edit mode
 
-			valuesDict['includedDevices'] = json.dumps(includedDevices)
-			valuesDict['includedActions'] = json.dumps(includedActions)								
-			
-		except Exception as e:
-			self.logger.error (ext.getException(e))	
-	
-		return (valuesDict, errorsDict)	
 		
 	#
 	# Get the JSON stash list for the object type, return the list on saveAndReturn to write it to valuesDict and return all
@@ -1535,7 +1648,108 @@ class Plugin(indigo.PluginBase):
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
 			
+	#
+	# Run action on device(s) or action(s) selected in list
+	#
+	def serverButtonRunAction (self, valuesDict, devId, typeId):	
+		try:
+			errorsDict = indigo.Dict()
+			includedDevices = json.loads(valuesDict["includedDevices"])
+			includedActions = json.loads(valuesDict["includedActions"])
+			
+			if len(valuesDict["deviceList"]) == 0:
+				errorsDict["showAlertText"] = "You must select something to perform an action on it."
+				return (valuesDict, errorsDict)
+				
+			if valuesDict["objectAction"] == "delete":
+				deleted = 0
+				for id in valuesDict["deviceList"]:
+					includedDevices = eps.jstash.removeRecordFromStash (includedDevices, "id", int(id))
+					includedActions = eps.jstash.removeRecordFromStash (includedActions, "id", int(id))
+					deleted = deleted + 1
+					
+				errorsDict["showAlertText"] = "You removed {0} items and can add up to {1} more.".format(str(deleted), str(99 - len(includedDevices) - len(includedActions)))
+				valuesDict["deviceLimitReached"] = False # Since removing even just one guarantees we aren't at the limit yet
+				
+			if valuesDict["objectAction"] == "remove":	
+				deleted = 0
+				if "hiddenIds" in self.pluginPrefs:
+					hidden = json.loads (self.pluginPrefs["hiddenIds"])
+				else:
+					hidden = []
+				
+				for id in valuesDict["deviceList"]:
+					includedDevices = eps.jstash.removeRecordFromStash (includedDevices, "id", int(id))
+					includedActions = eps.jstash.removeRecordFromStash (includedActions, "id", int(id))
+					deleted = deleted + 1
+					hidden.append (int(id))
+					
+				self.pluginPrefs["hiddenIds"] = json.dumps(hidden)
+					
+				errorsDict["showAlertText"] = "You removed {0} items and can add up to {1} more.\n\nThe devices you removed will be hidden from ALL devices from now on until you stop hiding them, which you can do from the plugin menu.\n\nNote that even if you cancel this form these devices will remain hidden and will have to be unhidden if you want to see them again.".format(str(deleted), str(99 - len(includedDevices) - len(includedActions)))
+				valuesDict["deviceLimitReached"] = False # Since removing even just one guarantees we aren't at the limit yet
+				
+			if valuesDict["objectAction"] == "hide":	
+				deleted = 0
+				if "hiddenIds" in valuesDict:
+					hidden = json.loads (valuesDict["hiddenIds"])
+				else:
+					hidden = []
+				
+				for id in valuesDict["deviceList"]:
+					includedDevices = eps.jstash.removeRecordFromStash (includedDevices, "id", int(id))
+					includedActions = eps.jstash.removeRecordFromStash (includedActions, "id", int(id))
+					deleted = deleted + 1
+					hidden.append (int(id))
+					
+				valuesDict["hiddenIds"] = json.dumps(hidden)
+					
+				errorsDict["showAlertText"] = "You removed {0} items and can add up to {1} more.\n\nThe devices you removed will be hidden for the remainder of the time this window is open, meaning if you save or cancel this form then these items will appear on the list again when you reopen this server configuration.".format(str(deleted), str(99 - len(includedDevices) - len(includedActions)))
+				valuesDict["deviceLimitReached"] = False # Since removing even just one guarantees we aren't at the limit yet	
+				
+			if valuesDict["objectAction"] == "edit":
+				if len(valuesDict["deviceList"]) > 1:	
+					errorsDict["showAlertText"] = "You can only edit one device at a time, you selected multiple devices."
+					return (valuesDict, errorsDict)
+				
+				else:
+					isAction = False
+					r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", int(valuesDict["deviceList"][0]))
+					if r is None:
+						r = eps.jstash.getRecordWithFieldEquals (includedActions, "id", int(valuesDict["deviceList"][0]))
+						if r is not None: isAction = True
+										
+					if r is not None:
+						# Remove from our list since technically we are removing and readding rather than editing
+						includedDevices = eps.jstash.removeRecordFromStash (includedDevices, "id", int(valuesDict["deviceList"][0]))
+						includedActions = eps.jstash.removeRecordFromStash (includedActions, "id", int(valuesDict["deviceList"][0]))
+						
+						if not isAction: 
+							valuesDict["objectType"] = "device"
+							valuesDict["device"] = str(r["id"])
+							
+						if isAction: 
+							valuesDict["objectType"] = "action"
+							valuesDict["action"] = str(r["id"])
+						
+						valuesDict["name"] = r["name"]
+						valuesDict["alias"] = r["alias"]
+						#valuesDict["typename"] = r["typename"]
+						#valuesDict["type"] = r["type"]
+						valuesDict["hktype"] = r["hktype"]
+						valuesDict["hkStatesJSON"] = r["char"]
+						valuesDict["hkActionsJSON"] = r["action"]
+						valuesDict["deviceOrActionSelected"] = True
+						valuesDict["deviceLimitReached"] = False # Since we only allow 99 we are now at 98 and valid again
+						valuesDict["editActive"] = True # Disable fields so the user knows they are in edit mode
 
+			valuesDict['includedDevices'] = json.dumps(includedDevices)
+			valuesDict['includedActions'] = json.dumps(includedActions)								
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+	
+		return (valuesDict, errorsDict)	
 	
 	#
 	# Add device or action
@@ -1910,6 +2124,10 @@ class Plugin(indigo.PluginBase):
 				
 				# Re-catalog the server just to be safe
 				self._catalogServerDevices (server)
+				
+			# No matter what happens, if we are hiding objects for this session only then remove that cache now
+			if "hiddenIds" in valuesDict:
+				del valuesDict["hiddenIds"]
 						
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
