@@ -1,23 +1,9 @@
 Release Notes
 ==========
 
-Version 0.6.0 (Beta 6)
+Version 0.6.1 (Beta 6.1)
 ==========
-* Device FIXED: Garage Door - Homebridge is hyper sensitive to read/write access, the targetstate was set as readonly and that caused Homekit to not even attempt to send a change order
-* Added new feature: [Complications](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Complications) - this is experimental and only in use for thermostats at the moment but will come into play with sprinklers too in the near future since each valve is its own device
-* Added startup warning box if the user is hiding any Indigo items to let them know that there are hidden items that can be managed from the plugin - this to head off any possible future support headaches about someone who incorrectly hides something or hides it and forgets but then asks why the device isn't showing up on their lists anymore.  Also [updated the Wiki to prevent unneeded support requests](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/FAQ#why-do-i-get-a-hidden-items-warning-when-i-start-homekit-bridge)
-* Added object type of "Homebridge Buddy Wrappers", "Homebridge Buddy Aliases" and "Homebridge Buddy Devices" to the hidden objects manager
-* Added ability to translate a dimmer or relay to a fan type (i.e., bathroom fan wall switch can be represented as a fan in HomeKit)
-* Major overhaul of how the plugin translates everything to HomeKit, now allows for a much wider array of device mappings and to onboard new services and characteristics many times faster
-* Added special abilities on outlets that if they support power metering that it will represet if there is a load on the outlet or not (a HomeKit feature) using that data, if there is no power metering ability then it will always represent the on state of the outlet
-* Added config option to plugin preferences to set the threshold for when HomeKit will indicate that a battery level is low (i.e., at 20%), this will only be valid on HomeKit devices that support a battery low indicator and Indigo devices that have a battery
-* Added config options to enable/disable complications (experimental)
-* Removed debugging code from startup that would add a debug message regarding adding a value to an invalid Indigo object, it was NOT an error but running as designed only that it should not be running on startup it is meant to run when discovering devices on a new server
-* Fundamental change in passing ID's to Homebridge, instead of the device ID the plugin now passes an encrypted unique key, this allows us to create complications where multiples of the same device can be synchronized to Homebridge with different functions
-* Fixed bug where when using the FILL option on devices or actions that it was possible to get the same stash key
-* Fixed known issue: Able to add multiples of the same device but that will cause HomeKit to crash if they are on the same server (perhaps even multiples since it all dumps to HomeKit), need to enforce only adding one of any device but also modify HomeKit to allow this under some circumstances like the fan of an included thermostat since they need to be separate devices
-* Fixed Homebridge issue: Change UUID creation to allow for multiple same devices
-* Fixed Homebridge issue: Garage doors never even make a request to Indigo at all
+* Added check for Nest states if user has a Nest so that there's no error when Nest does it's 40 million state updates a minute...
 
 Known Issues
 ---------------
@@ -41,8 +27,25 @@ Wish List
 ---------------
 * Autolog suggestion: http://forums.indigodomo.com/viewtopic.php?p=154506#p154506
 * Add a feature to read in HBB and Alexa items to build a cache of already used alias names
-* Add a startup warning regarding how many objects are being hidden from the plugin as a reminder to the end user
-* Add complications ability so a single device can create multiple homekit devices (i.e., thermostat + thermostat fan)
+
+
+Version 0.6.0 (Beta 6)
+==========
+* Device FIXED: Garage Door - Homebridge is hyper sensitive to read/write access, the targetstate was set as readonly and that caused Homekit to not even attempt to send a change order
+* Added new feature: [Complications](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Complications) - this is experimental and only in use for thermostats at the moment but will come into play with sprinklers too in the near future since each valve is its own device
+* Added startup warning box if the user is hiding any Indigo items to let them know that there are hidden items that can be managed from the plugin - this to head off any possible future support headaches about someone who incorrectly hides something or hides it and forgets but then asks why the device isn't showing up on their lists anymore.  Also [updated the Wiki to prevent unneeded support requests](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/FAQ#why-do-i-get-a-hidden-items-warning-when-i-start-homekit-bridge)
+* Added object type of "Homebridge Buddy Wrappers", "Homebridge Buddy Aliases" and "Homebridge Buddy Devices" to the hidden objects manager
+* Added ability to translate a dimmer or relay to a fan type (i.e., bathroom fan wall switch can be represented as a fan in HomeKit)
+* Major overhaul of how the plugin translates everything to HomeKit, now allows for a much wider array of device mappings and to onboard new services and characteristics many times faster
+* Added special abilities on outlets that if they support power metering that it will represet if there is a load on the outlet or not (a HomeKit feature) using that data, if there is no power metering ability then it will always represent the on state of the outlet
+* Added config option to plugin preferences to set the threshold for when HomeKit will indicate that a battery level is low (i.e., at 20%), this will only be valid on HomeKit devices that support a battery low indicator and Indigo devices that have a battery
+* Added config options to enable/disable complications (experimental)
+* Removed debugging code from startup that would add a debug message regarding adding a value to an invalid Indigo object, it was NOT an error but running as designed only that it should not be running on startup it is meant to run when discovering devices on a new server
+* Fundamental change in passing ID's to Homebridge, instead of the device ID the plugin now passes an encrypted unique key, this allows us to create complications where multiples of the same device can be synchronized to Homebridge with different functions
+* Fixed bug where when using the FILL option on devices or actions that it was possible to get the same stash key
+* Fixed known issue: Able to add multiples of the same device but that will cause HomeKit to crash if they are on the same server (perhaps even multiples since it all dumps to HomeKit), need to enforce only adding one of any device but also modify HomeKit to allow this under some circumstances like the fan of an included thermostat since they need to be separate devices
+* Fixed Homebridge issue: Change UUID creation to allow for multiple same devices
+* Fixed Homebridge issue: Garage doors never even make a request to Indigo at all
 
 Version 0.5.0 (Beta 5)
 ==========

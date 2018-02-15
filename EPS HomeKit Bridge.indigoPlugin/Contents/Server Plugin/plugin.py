@@ -336,9 +336,10 @@ class Plugin(indigo.PluginBase):
 				wecareabout = ["coolSetpoint", "hvacMode", "temperatures", "heatSetpoint", "humidities"]
 				youshallnotpass = True
 				for w in wecareabout:
-					o = getattr(origDev, w)
-					n = getattr(newDev, w)
-					if o != n: youshallnotpass = False
+					if w in dir(origDev):
+						o = getattr(origDev, w)
+						n = getattr(newDev, w)
+						if o != n: youshallnotpass = False
 					
 				if youshallnotpass: return
 				
