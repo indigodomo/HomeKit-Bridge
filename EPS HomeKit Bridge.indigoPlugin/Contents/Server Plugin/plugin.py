@@ -111,29 +111,33 @@ class Plugin(indigo.PluginBase):
 			#eps.api.stopServer ()
 			#eps.api.run (self.pluginPrefs.get('apiport', '8558'))
 			
-			#x = eps.homekit.getServiceObject (141323225, "service_Fanv2")
+			#x = eps.homekit.getServiceObject (141323225, 1794022133, "service_Fanv2")
 			#indigo.server.log (unicode(x))
 			
-			#x = eps.homekit.getServiceObject (361446525, "service_GarageDoorOpener")
+			#x = eps.homekit.getServiceObject (361446525, 1794022133, "service_Fanv2")
 			#indigo.server.log (unicode(x))
 			
-			#x = eps.homekit.getServiceObject (182494986, "service_Lightbulb")
+			#x = eps.homekit.getServiceObject (361446525, 1794022133, "service_GarageDoorOpener")
 			#indigo.server.log (unicode(x))
 			
-			#x = eps.homekit.getServiceObject (762522700, "service_MotionSensor")
+			#x = eps.homekit.getServiceObject (182494986, 1794022133, "service_Lightbulb")
 			#indigo.server.log (unicode(x))
 			
-			#x = eps.homekit.getServiceObject (145155245, "service_Outlet")
+			#x = eps.homekit.getServiceObject (762522700, 1794022133, "service_MotionSensor")
 			#indigo.server.log (unicode(x))
 			
-			#x = eps.homekit.getServiceObject (174276019, "service_LockMechanism")
+			#x = eps.homekit.getServiceObject (145155245, 1794022133, "service_Outlet")
 			#indigo.server.log (unicode(x))
 			
-			#x = eps.homekit.getServiceObject (1010303036, "service_Switch")
+			#x = eps.homekit.getServiceObject (174276019, 1794022133, "service_LockMechanism")
 			#indigo.server.log (unicode(x))
 			
-			x = eps.homekit.getServiceObject (954521198, 0, "service_Thermostat")
-			indigo.server.log (unicode(x))
+			#x = eps.homekit.getServiceObject (1010303036, 1794022133, "service_Switch")
+			#indigo.server.log (unicode(x))
+			#indigo.server.log (unicode(dir(x)))
+			
+			#x = eps.homekit.getServiceObject (954521198, 1794022133, "service_Thermostat")
+			#indigo.server.log (unicode(x))
 			
 			#x = eps.homekit.getHomeKitServices ()
 			#indigo.server.log (unicode(x))
@@ -178,12 +182,22 @@ class Plugin(indigo.PluginBase):
 			
 			#self.devTest()
 			
-			self.serverListHomeKitDeviceTypes (None, None)
+			#self.serverListHomeKitDeviceTypes (None, None)
 				
 			if len(self.SERVERS) == 0:
 				self.logger.info ("No servers detected, creating your first HomeKit server (NOT YET IMPLEMENTED)")
 				
-			
+			if "hiddenIds" in self.pluginPrefs:
+				hidden = json.loads (self.pluginPrefs["hiddenIds"])
+				plural = ""
+				if len(hidden) > 1: plural = "s"
+				
+				msg = eps.ui.debugHeader ("HOMEKIT BRIDGE HIDDEN ITEMS WARNING")
+				msg += eps.ui.debugLine ("You have {} Indigo item{} being hidden, you can manage these ".format(str(len(hidden)), plural))
+				msg += eps.ui.debugLine ("from the plugin menu.")
+				msg += eps.ui.debugHeaderEx ()
+				
+				self.logger.warning (msg)
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -316,8 +330,21 @@ class Plugin(indigo.PluginBase):
 	#
 	def onAfter_nonpluginDeviceUpdated (self, origDev, newDev):
 		try:
+			# If this is the stupid NEST thermostat that updates every damn second then ignore most changes
+			if newDev.pluginId == "com.corporatechameleon.nestplugBeta":
+				self.logger.debug ("Idiotic NEST plugin updating 8-12 states every 1 second, ignoring")
+				wecareabout = ["coolSetpoint", "hvacMode", "temperatures", "heatSetpoint", "humidities"]
+				youshallnotpass = True
+				for w in wecareabout:
+					o = getattr(origDev, w)
+					n = getattr(newDev, w)
+					if o != n: youshallnotpass = False
+					
+				if youshallnotpass: return
+				
 			#indigo.server.log (newDev.name)
 			if newDev.id in self.SERVER_ID:
+				self.logger.debug ("Indigo device {} changed and is linked to HomeKit, checking if that change impacts HomeKit".format(newDev.name))
 				devId = newDev.id
 				for serverId in self.SERVER_ID[devId]:
 					valuesDict = self.serverCheckForJSONKeys (indigo.devices[serverId].pluginProps)	
@@ -348,7 +375,9 @@ class Plugin(indigo.PluginBase):
 												break # We don't need to check anything else, if one thing needs an update then we need an update
 												
 					if updateRequired:
-						self.serverSendObjectUpdateToHomebridge (indigo.devices[serverId], newDev.id)
+						self.logger.debug ("Device {} had an update that HomeKit needs to know about".format(obj.alias.value))
+						#self.serverSendObjectUpdateToHomebridge (indigo.devices[serverId], newDev.id)
+						self.serverSendObjectUpdateToHomebridge (indigo.devices[serverId], r["jkey"])
 					
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -480,12 +509,13 @@ class Plugin(indigo.PluginBase):
 						#time.sleep (2) # Give it time to run
 						pass # Let it instant-report success 
 					
-					r = self.buildHKAPIDetails (devId, serverId, isAction)		
+					r = self.buildHKAPIDetails (devId, serverId, r["jkey"], isAction)		
 					return "text/css",	json.dumps(r, indent=4)
 				
 				if "cmd" in query and query["cmd"][0] == "getInfo":
 					if "objId" in query:
 						devId = int(query["objId"][0])
+						jkey = query["jkey"][0]
 			
 						serverId = 0
 						#if devId in self.SERVER_ID: 
@@ -500,7 +530,7 @@ class Plugin(indigo.PluginBase):
 							msg["message"] = "Server ID was not passed to query, unable to process"
 							return "text/css",	json.dumps(msg, indent=4)
 						
-						r = self.buildHKAPIDetails (devId, serverId)
+						r = self.buildHKAPIDetails (devId, serverId, jkey)
 						return "text/css",	json.dumps(r, indent=4)
 						
 				if "cmd" in query and query["cmd"][0] == "deviceList":
@@ -515,11 +545,11 @@ class Plugin(indigo.PluginBase):
 						
 						ret = []
 						for d in includedDevices:
-							r = self.buildHKAPIDetails (d["id"], serverId)
+							r = self.buildHKAPIDetails (d["id"], serverId, d["jkey"])
 							if r is not None and len(r) > 0: ret.append (r)
 							
 						for a in includedActions:
-							r = self.buildHKAPIDetails (a["id"], serverId)
+							r = self.buildHKAPIDetails (a["id"], serverId, a["jkey"])
 							if r is not None and len(r) > 0: ret.append (r)	
 						
 						return "text/css",	json.dumps(ret, indent=4)
@@ -540,14 +570,15 @@ class Plugin(indigo.PluginBase):
 	#
 	# Build HK API details for object ID
 	#
-	def buildHKAPIDetails (self, objId, serverId, runningAction = False):
+	def buildHKAPIDetails (self, objId, serverId, jkey, runningAction = False):
 		try:
 			valuesDict = self.serverCheckForJSONKeys (indigo.devices[serverId].pluginProps)	
 			includedDevices = json.loads(valuesDict["includedDevices"])
 			includedActions = json.loads(valuesDict["includedActions"])
 			
-			r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", objId)
-			if r is None: r = eps.jstash.getRecordWithFieldEquals (includedActions, "id", objId)
+			r = eps.jstash.getRecordWithFieldEquals (includedDevices, "jkey", jkey)
+			#if r is None: r = eps.jstash.getRecordWithFieldEquals (includedActions, "id", objId)
+			if r is None: r = eps.jstash.getRecordWithFieldEquals (includedActions, "jkey", jkey)
 			
 			# Create an HK object so we can get all default data
 			self.logger.threaddebug ("Looking for HomeKit class {}".format(r["hktype"]))
@@ -559,20 +590,33 @@ class Plugin(indigo.PluginBase):
 			obj = eps.homekit.getServiceObject (r["id"], serverId, r["hktype"], False, True)
 			#indigo.server.log(unicode(obj))
 			
+			# Add model and firmware
+			if r["object"] != "Action":
+				r["type"] = indigo.devices[r["id"]].model
+				r["versByte"] = indigo.devices[r["id"]].pluginId
+			else:
+				r["type"] = "Action Group"
+				r["versByte"] = ""
+			
 			# Fix up for output
 			r["hkservice"] = r["hktype"].replace("service_", "")
 			del r["hktype"]
-			del r["jkey"]
-			del r["type"]
+			#del r["jkey"]
+			#del r["type"]
 			del r["char"]
 			
 			# Add the callback
-			r["url"] = "/HomeKit?objId={}&serverId={}".format(str(objId), str(serverId))	
+			r["url"] = "/HomeKit?objId={}&serverId={}&jkey={}".format(str(objId), str(serverId), jkey)	
 			
 			# Fix characteristics for readability
 			charList = []
 			for charName, charValue in obj.characterDict.iteritems():
 				charItem = {}
+				
+				if charName not in dir(obj):
+					self.logger.error ("Unable to find attribute {} in {}: {}".format(charName, obj.alias.value, unicode(obj)))
+					continue
+					
 				characteristic = getattr (obj, charName)
 				charItem["name"] = charName
 				charItem["value"] = charValue
@@ -596,7 +640,13 @@ class Plugin(indigo.PluginBase):
 			# notify Homebridge that the action has completed and to get the false value
 			if runningAction:
 				#self.serverSendObjectUpdateToHomebridge (indigo.devices[int(serverId)], r["id"])
-				thread.start_new_thread(self.timedCallbackToURL, (serverId, r["id"], 2))
+				#thread.start_new_thread(self.timedCallbackToURL, (serverId, r["id"], 2))
+				thread.start_new_thread(self.timedCallbackToURL, (serverId, r["jkey"], 2))
+			
+			# Before we return r, use the jstash ID for our ID instead of the Indigo ID
+			r["deviceId"] = r["id"] # So we still have it
+			r["id"] = r["jkey"]
+			del r["jkey"]
 			
 			return r
 		
@@ -888,6 +938,9 @@ class Plugin(indigo.PluginBase):
 			rec["char"]			= {}	# HomeKit characteristics [hkchar] for the advanced properties editor
 			rec["action"]		= {}	# HomeKit action map [hkaction] for the advanced properties editor
 			rec["url"]			= ""	# The Homebridge callback URL to change characteristics
+			rec["hktype"]		= ""	# The HomeKit API class
+			rec["link"]			= []	# List of other added devices this is linked to
+			rec["complex"]		= False	# If this device is the primary device in a complication
 			
 			eps.jstash.createRecordDefinition ("item", rec)
 			
@@ -1075,6 +1128,21 @@ class Plugin(indigo.PluginBase):
 			
 			if objectType == "action":
 				for dev in indigo.actionGroups:
+					if dev.id in hidden: continue
+					retList.append ( (str(dev.id), dev.name) )
+					
+			if objectType == "hbb":
+				for dev in indigo.devices.iter("com.eps.indigoplugin.homebridge"):
+					if dev.id in hidden: continue
+					retList.append ( (str(dev.id), dev.name) )
+					
+			if objectType == "hbbwrapper":
+				for dev in indigo.devices.iter("com.eps.indigoplugin.homebridge.Homebridge-Wrapper"):
+					if dev.id in hidden: continue
+					retList.append ( (str(dev.id), dev.name) )
+					
+			if objectType == "hbbalias":
+				for dev in indigo.devices.iter("com.eps.indigoplugin.homebridge.Homebridge-Alias"):
 					if dev.id in hidden: continue
 					retList.append ( (str(dev.id), dev.name) )
 				
@@ -1467,6 +1535,7 @@ class Plugin(indigo.PluginBase):
 			
 			for dev in indigo.devices:
 				if dev.id in hidden: continue
+				devId = dev.id
 				name = dev.name
 				
 				# Homebridge Buddy Legacy support
@@ -1476,13 +1545,25 @@ class Plugin(indigo.PluginBase):
 					elif dev.deviceTypeId == "Homebridge-Alias":
 						name += " => [HBB " + dev.ownerProps["treatAs"].upper() + " Alias]"
 				
-				if "filterIncluded" in valuesDict and valuesDict["filterIncluded"]:
-					# Only include devices that are not already
-					r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", dev.id)
-					if r is None:
-						retList.append ( (str(dev.id), name) )
+				#if type(dev) == indigo.ThermostatDevice:
+				#	# Add one device for the thermostat and one for the fan
+				#	retList.append ( (str(devId + .1), name + " (Thermostat)") )
+				#	retList.append ( (str(devId + .2), name + " (Fan)") )
+					
 				else:
-					retList.append ( (str(dev.id), name) )
+								
+					# HomeKit doesn't allow the same ID more than once and the only way WE will allow it is
+					# via a complication or customization
+					#r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", dev.id)
+					#	if r is None:
+				
+					if "filterIncluded" in valuesDict and valuesDict["filterIncluded"]:
+						# Only include devices that are not already
+						r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", devId)
+						if r is None:
+							retList.append ( (str(devId), name) )
+					else:
+						retList.append ( (str(devId), name) )
 			
 			return retList
 		
@@ -1523,7 +1604,6 @@ class Plugin(indigo.PluginBase):
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
 			return ret	
-			
 			
 	#
 	# All devices stored in our server JSON data
@@ -1873,6 +1953,76 @@ class Plugin(indigo.PluginBase):
 		return (valuesDict, errorsDict)		
 		
 	#
+	# Check for and return an array of complications for a device or return empty list if no complications
+	#
+	def serverCheckForComplications (self, devId, alias = None):
+		try:
+			ret = []
+			if int(devId) not in indigo.devices: return ret
+			
+			dev = indigo.devices[int(devId)]
+			
+			# Built-In
+			if type(dev) == indigo.ThermostatDevice:
+				r = self.createJSONItemRecord (dev, alias)
+				r["hktype"] = "service_Thermostat"
+				r["suffix"] = "" # Don't suffix the 1st item because it should show as the user wants it
+
+				ret.append(r)
+				
+				time.sleep(.5) # To make sure our jkey is unique
+
+				r = self.createJSONItemRecord (dev, alias)
+				r["hktype"] = "service_Fanv2"
+				r["suffix"] = "Fan"
+
+				ret.append(r)
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+		return ret		
+		
+	#
+	# Add a complication to the devices
+	#
+	def serverAddComplicationToConfig (self, valuesDict, includeList):
+		try:
+			c = self.serverCheckForComplications (valuesDict["device"], valuesDict["alias"])	
+			if len(c) == 0: return (False, valuesDict, includeList)
+			
+			if len(c) > 0:
+				includedDevices = json.loads(valuesDict["includedDevices"])
+				includedActions = json.loads(valuesDict["includedActions"])
+				
+				# Build list of all 
+				link = []
+				for r in c:
+					link.append (r["jkey"])
+					
+				# They have already been warned, now just add the device
+				if len(includedDevices) + len(includedActions) < (100 - len(c)):
+					for i in range (0, len(c)):
+						#r = eps.jstash.getRecordWithFieldEquals (includeList, "alias", "{} ({})".format(device["alias"], c[i]["suffix"]))
+						device = c[i]
+						device['hktype'] = c[i]["hktype"]
+						device["link"] = link
+						
+						if i != 0: device['alias'] = "{} ({})".format(device["alias"], c[i]["suffix"])
+						if i == 0: device["complex"] = True	
+						
+						includeList.append (device)
+						#indigo.server.log(unicode(device))
+						
+					return (True, valuesDict, includeList)
+					
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+		return (False, valuesDict, includeList)
+		
+	#
 	# Add individual object type
 	#
 	def serverButtonAddDeviceOrAction_Object (self, valuesDict, errorsDict, thistype, serverId):	
@@ -1905,6 +2055,13 @@ class Plugin(indigo.PluginBase):
 			else:
 				dev = indigo.actionGroups[int(valuesDict["action"])]
 				
+			# Check for and process complications
+			if "enableComplications" in self.pluginPrefs and self.pluginPrefs["enableComplications"]:
+				(complex, valuesDict, includeList) = self.serverAddComplicationToConfig (valuesDict, includeList)
+				if complex:
+					valuesDict = self.getIncludeStashList (thistype, valuesDict, includeList)
+					return (valuesDict, errorsDict)
+
 			device = self.createJSONItemRecord (dev, valuesDict["alias"])
 			#indigo.server.log(unicode(device))
 			
@@ -1917,7 +2074,6 @@ class Plugin(indigo.PluginBase):
 				return (valuesDict, errorsDict)
 			
 			if device is not None: 
-				
 				r = eps.jstash.getRecordWithFieldEquals (includeList, "alias", device["alias"])
 				if r is None:					
 					#device['treatas'] = valuesDict["treatAs"] # Homebridge Buddy Legacy
@@ -1926,18 +2082,18 @@ class Plugin(indigo.PluginBase):
 					#device["url"] = "/HomeKit?objId={}&serverId={}".format(str(dev.id), str(serverId))	
 					#device["char"] = valuesDict["hkStatesJSON"]
 					#device["action"] = valuesDict["hkActionsJSON"]
-					
+				
 					total = total + 1			
 					includeList.append (device)
-					
+				
 					valuesDict = self.getIncludeStashList (thistype, valuesDict, includeList)
 					return (valuesDict, errorsDict)
-					
+				
 				else:
 					valuesDict["alias"] = device["alias"] # In case they didn't provide an alias
 					errorsDict = eps.ui.setErrorStatus (errorsDict, "A device by that name already exists, please choose a different name.")
 					errorsDict["alias"] = "Duplicate name"
-					
+				
 					valuesDict = self.getIncludeStashList (thistype, valuesDict, includeList)
 					return (valuesDict, errorsDict)
 			
@@ -1958,8 +2114,6 @@ class Plugin(indigo.PluginBase):
 			
 		return (valuesDict, errorsDict)			
 		
-	
-		
 	#
 	# Server form device field changed
 	#
@@ -1977,9 +2131,22 @@ class Plugin(indigo.PluginBase):
 					#obj = hkapi.automaticHomeKitDevice (indigo.devices[int(valuesDict["device"])], True)
 					#valuesDict = self.serverFormFieldChanged_RefreshHKDef (valuesDict, obj) # For our test when we were defining the HK object here
 					valuesDict["hkType"] = "service_" + obj.type # Set to the default type		
-					
-			#if valuesDict["deviceOrActionSelected"]: valuesDict["actionsCommandEnable"] = True # Enable actions		
-		
+			
+					# Check for a complication if we aren't editing
+					if "enableComplications" in self.pluginPrefs and self.pluginPrefs["enableComplications"]:
+						c = self.serverCheckForComplications (valuesDict["device"])	
+						if len(c) > 0:
+							includedDevices = json.loads(valuesDict["includedDevices"])
+							includedActions = json.loads(valuesDict["includedActions"])
+	
+							if len(includedDevices) + len(includedActions) < (100 - len(c)):
+								if self.pluginPrefs["enableComplicationsDialogs"]: errorsDict["showAlertText"] = "This device has a complication and needs multiple devices to be added to HomeKit in order to have as much control in HomeKit as you do in Indigo.  Adding this device will create {} devices.\n\nThis is only a notice, no action is needed.\n\nYou can control this message as well as how you want the plugin to deal with complications from the plugin preferences on the plugin menu.".format(str(len(c)))
+							else:
+								if self.pluginPrefs["enableComplicationsDialogs"]: errorsDict["showAlertText"] = "This device has a complication and needs multiple devices to be added to HomeKit in order to have as much control in HomeKit as you do in Indigo.  Adding this device will create {} devices.  This will take you past the 99 device limit of the server.\n\nThe complication cannot be used unless you remove devices or add this device to a different server.\n\nYou can control this message as well as how you want the plugin to deal with complications from the plugin preferences on the plugin menu.".format(str(len(c)))
+							
+							r = c[0]
+							valuesDict["hkType"] = r["hktype"]
+						
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
 			
@@ -2003,7 +2170,9 @@ class Plugin(indigo.PluginBase):
 					#obj = hkapi.automaticHomeKitDevice (indigo.actionGroups[int(valuesDict["action"])], True)
 					obj = eps.homekit.getServiceObject (valuesDict["action"], devId, None, True, True)
 					#valuesDict = self.serverFormFieldChanged_RefreshHKDef (valuesDict, obj) # For our test when we were defining the HK object here
-					valuesDict["hkType"] = "service_" + obj.type # Set to the default type		
+					valuesDict["hkType"] = "service_" + obj.type # Set to the default type	
+					
+				
 					
 			#if valuesDict["deviceOrActionSelected"]: valuesDict["actionsCommandEnable"] = True # Enable actions		
 		

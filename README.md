@@ -11,9 +11,9 @@ Supported Native Devices (Meaning Direct From Indigo to HomeKit Integration)
 * Lock
 * Fan (Beta 1)
 * Motion Sensor (Beta 2)
-* Garage Door Opener (Beta 2 but not fully operational, requires Homebridge fix)
+* Garage Door Opener (Beta 2, Fixed in Beta 6)
 * Action Groups (Beta 1, Finalized in Beta 4)
-* Thermostats (Beta 4)
+* Thermostat (Beta 4)
 
 Current BETA Testing Limitations (ALPHA is complete)
 ---------------

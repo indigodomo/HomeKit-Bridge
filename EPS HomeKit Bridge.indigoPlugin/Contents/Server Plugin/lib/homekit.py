@@ -151,7 +151,9 @@ class HomeKit:
 		try:
 			definedActions = []
 			for a in serviceObj.actions:
-				definedActions.append (a["name"])
+				#definedActions.append (a["name"])
+				definedActions.append (a.characteristic)
+				
 				
 			if serviceObj.objId in indigo.actionGroups:
 				# Always a switch object so set switch defaults
@@ -234,20 +236,20 @@ class HomeKit:
 					return (round(((value - 32.0) * 5.0 / 9.0) * 10.0) / 10.0)# - .5 # -1 to adjust it to be correct?
 		
 		except Exception as e:
-			self.logger.error (ext.getException(e))			
+			self.logger.error (ext.getException(e))		
 			
 	# ==============================================================================
 	# FAN V2 DEFAULTS
 	# ==============================================================================
-	def _setIndigoDefaultValues_Fanv2 (self, serviceObj, definedActions, dev):	
+	def _setIndigoDefaultValues_Fanv2xxx (self, serviceObj, definedActions, dev):	
 		try:
 			if type(dev) == indigo.SpeedControlDevice:
 				serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "Active", self._homeKitBooleanAttribute (dev, "onState"))
-				serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "CurrentFanState", self._homeKitBooleanAttribute (dev, "onState") + 1)
-				serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "TargetFanState", 0)
+				#serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "CurrentFanState", self._homeKitBooleanAttribute (dev, "onState") + 1)
+				#serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "TargetFanState", 0) # Not supported
 				serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "speedLevel", "RotationSpeed")
 				
-				if "TargetFanState" not in definedActions:
+				if "Active" not in definedActions:
 					serviceObj.actions.append (HomeKitAction("Active", "equal", 0, "device.turnOff", [serviceObj.objId], 0, {serviceObj.objId: "attr_onState"}))
 					serviceObj.actions.append (HomeKitAction("Active", "equal", 1, "device.turnOn", [serviceObj.objId], 0, {serviceObj.objId: "attr_onState"}))
 				
@@ -256,13 +258,37 @@ class HomeKit:
 
 			if type(dev) == indigo.ThermostatDevice:
 				serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "fanIsOn", "Active", self._homeKitBooleanAttribute (dev, "fanIsOn"))
-				serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "fanIsOn", "CurrentFanState", self._homeKitBooleanAttribute (dev, "fanIsOn") + 1)
-				serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "fanIsOn", "TargetFanState", 0)
+				#serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "fanIsOn", "CurrentFanState", self._homeKitBooleanAttribute (dev, "fanIsOn") + 1)
+				#serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "fanIsOn", "TargetFanState", 0)
 				
-				if "TargetFanState" not in definedActions:
+				#if "TargetFanState" not in definedActions:
+				#	serviceObj.actions.append (HomeKitAction("TargetFanState", "equal", 0, "thermostat.setFanMode", [serviceObj.objId, indigo.kFanMode.Auto], 0, {serviceObj.objId: "attr_fanIsOn"}))
+				#	serviceObj.actions.append (HomeKitAction("TargetFanState", "equal", 1, "thermostat.setFanMode", [serviceObj.objId, indigo.kFanMode.AlwaysOn], 0, {serviceObj.objId: "attr_fanMode"}))
+				
+				if "Active" not in definedActions:
 					serviceObj.actions.append (HomeKitAction("Active", "equal", 0, "thermostat.setFanMode", [serviceObj.objId, indigo.kFanMode.Auto], 0, {serviceObj.objId: "attr_fanIsOn"}))
 					serviceObj.actions.append (HomeKitAction("Active", "equal", 1, "thermostat.setFanMode", [serviceObj.objId, indigo.kFanMode.AlwaysOn], 0, {serviceObj.objId: "attr_fanMode"}))
 				
+			if type(dev) == indigo.RelayDevice:
+				serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "Active", self._homeKitBooleanAttribute (dev, "onState"))
+				#serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "CurrentFanState", self._homeKitBooleanAttribute (dev, "onState") + 1)
+				#serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "TargetFanState", 1)
+				
+				if "Active" not in definedActions:
+					serviceObj.actions.append (HomeKitAction("Active", "equal", 0, "device.turnOff", [serviceObj.objId], 0, {serviceObj.objId: "attr_onState"}))
+					serviceObj.actions.append (HomeKitAction("Active", "equal", 1, "device.turnOn", [serviceObj.objId], 0, {serviceObj.objId: "attr_onState"}))
+
+			if type(dev) == indigo.DimmerDevice:
+				serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "Active", self._homeKitBooleanAttribute (dev, "onState"))
+				serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "brightness", "RotationSpeed")
+				
+				if "Active" not in definedActions:
+					serviceObj.actions.append (HomeKitAction("Active", "equal", 0, "device.turnOff", [serviceObj.objId], 0, {serviceObj.objId: "attr_onState"}))
+					serviceObj.actions.append (HomeKitAction("Active", "equal", 1, "device.turnOn", [serviceObj.objId], 0, {serviceObj.objId: "attr_onState"}))
+
+				if "RotationSpeed" not in definedActions:
+					serviceObj.actions.append (HomeKitAction("RotationSpeed", "between", 0, "dimmer.setBrightness", [serviceObj.objId, "=value="], 100, {serviceObj.objId: "attr_brightness"}))
+
 
 			return serviceObj
 		
@@ -273,7 +299,7 @@ class HomeKit:
 	# ==============================================================================
 	# GARAGE DOOR OPENER DEFAULTS
 	# ==============================================================================
-	def _setIndigoDefaultValues_GarageDoorOpener (self, serviceObj, definedActions, dev):	
+	def _setIndigoDefaultValues_GarageDoorOpenerxxx (self, serviceObj, definedActions, dev):	
 		try:
 			# Insteon Multi I/O controller
 			if "protocol" in dir(dev) and unicode(dev.protocol) == "Insteon" and dev.model == "I/O-Linc Controller":
@@ -285,15 +311,15 @@ class HomeKit:
 					serviceObj.characterDict["TargetDoorState"] = 1 # Open
 					if not dev.states["binaryInput1"]: serviceObj.characterDict["TargetDoorState"] = 0 # Closed	
 					
-				if "ObstructionDetected" not in serviceObj.characterDict: serviceObj.characterDict["ObstructionDetected"] = 0 # Unsupported but it's required right now
+				if "ObstructionDetected" not in serviceObj.characterDict: serviceObj.characterDict["ObstructionDetected"] = False # Unsupported but it's required right now
 			
-				if "CurrentDoorState" not in definedActions:
-					serviceObj.actions.append (HomeKitAction("CurrentDoorState", "equal", 0, "iodevice.setBinaryOutput", [serviceObj.objId, 1, True], 0, {serviceObj.objId: "state_binaryInput1"}))
-					serviceObj.actions.append (HomeKitAction("CurrentDoorState", "equal", 1, "iodevice.setBinaryOutput", [serviceObj.objId, 1, True], 0, {serviceObj.objId: "state_binaryInput1"}))
+				#if "CurrentDoorState" not in definedActions:
+				#	serviceObj.actions.append (HomeKitAction("CurrentDoorState", "equal", 0, "iodevice.setBinaryOutput", [serviceObj.objId, 1, True], 0, {serviceObj.objId: "state_binaryInput1"}))
+				#	serviceObj.actions.append (HomeKitAction("CurrentDoorState", "equal", 1, "iodevice.setBinaryOutput", [serviceObj.objId, 1, True], 0, {serviceObj.objId: "state_binaryInput1"}))
 					
 				if "TargetDoorState" not in definedActions:
-					serviceObj.actions.append (HomeKitAction("TargetDoorState", "equal", 0, "iodevice.setBinaryOutput", [serviceObj.objId, 1, True], 0, {serviceObj.objId: "state_binaryInput1"}))
-					serviceObj.actions.append (HomeKitAction("TargetDoorState", "equal", 1, "iodevice.setBinaryOutput", [serviceObj.objId, 1, True], 0, {serviceObj.objId: "state_binaryInput1"}))	
+					serviceObj.actions.append (HomeKitAction("TargetDoorState", "equal", 0, "iodevice.setBinaryOutput", [serviceObj.objId, 0, True], 0, {serviceObj.objId: "state_binaryInput1"}))
+					serviceObj.actions.append (HomeKitAction("TargetDoorState", "equal", 1, "iodevice.setBinaryOutput", [serviceObj.objId, 0, True], 0, {serviceObj.objId: "state_binaryInput1"}))	
 		
 			return serviceObj
 		
@@ -305,7 +331,7 @@ class HomeKit:
 	# ==============================================================================
 	# LIGHTBULB DEFAULTS
 	# ==============================================================================
-	def _setIndigoDefaultValues_Lightbulb (self, serviceObj, definedActions, dev):	
+	def _setIndigoDefaultValues_Lightbulbxxx (self, serviceObj, definedActions, dev):	
 		try:
 			serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "On")
 			serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "brightness", "Brightness")
@@ -326,7 +352,7 @@ class HomeKit:
 	# ==============================================================================
 	# MOTION SENSOR DEFAULTS
 	# ==============================================================================
-	def _setIndigoDefaultValues_MotionSensor (self, serviceObj, definedActions, dev):	
+	def _setIndigoDefaultValues_MotionSensorxxx (self, serviceObj, definedActions, dev):	
 		try:
 			serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "MotionDetected")
 			
@@ -367,7 +393,7 @@ class HomeKit:
 	# ==============================================================================
 	# OUTLET DEFAULTS
 	# ==============================================================================
-	def _setIndigoDefaultValues_Outlet (self, serviceObj, definedActions, dev):	
+	def _setIndigoDefaultValues_Outletxxx (self, serviceObj, definedActions, dev):	
 		try:
 			serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "On")
 			serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "OutletInUse")
@@ -385,7 +411,7 @@ class HomeKit:
 	# ==============================================================================
 	# LOCK MECHANISM DEFAULTS
 	# ==============================================================================
-	def _setIndigoDefaultValues_LockMechanism (self, serviceObj, definedActions, dev):	
+	def _setIndigoDefaultValues_LockMechanismxxx (self, serviceObj, definedActions, dev):	
 		try:
 			serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "LockCurrentState", self._homeKitBooleanAttribute (dev, "onState"))
 			serviceObj = self._setServiceValueFromAttribute (serviceObj, dev, "onState", "LockTargetState", self._homeKitBooleanAttribute (dev, "onState"))
@@ -403,7 +429,7 @@ class HomeKit:
 	# ==============================================================================
 	# SWITCH DEFAULTS
 	# ==============================================================================
-	def _setIndigoDefaultValues_Switch (self, serviceObj, definedActions, dev):	
+	def _setIndigoDefaultValues_Switchxxx (self, serviceObj, definedActions, dev):	
 		try:
 			if "onState" in dir(dev) and "On" not in serviceObj.characterDict: 
 				serviceObj.characterDict["On"] = dev.onState	
@@ -495,12 +521,12 @@ class Service (object):
 	#
 	# Initialize the class (Won't happen unless called from child)
 	#
-	def __init__ (self, factory, type, desc, objId, serverId, deviceCharacteristics, deviceActions, loadOptional):
-		self.logger = logging.getLogger ("Plugin.HomeKit.Service." + type)
+	def __init__ (self, factory, hktype, desc, objId, serverId, deviceCharacteristics, deviceActions, loadOptional):
+		self.logger = logging.getLogger ("Plugin.HomeKit.Service." + hktype)
 		self.factory = factory
 		
 		try:
-			self.type = type
+			self.type = hktype
 			self.desc = desc
 			self.objId = objId
 			self.required = []
@@ -511,6 +537,14 @@ class Service (object):
 			self.characterDict = {}
 			self.loadOptional = loadOptional # Create attributes for the optional fields
 			self.serverId = serverId
+			self.indigoType = "Unable to detect"
+			
+			# Get the indigo class for this object
+			if objId in indigo.devices:
+				#indigo.server.log("adding device type {}".format(indigo.devices[objId].name))
+				self.indigoType = str(type(indigo.devices[objId])).replace("<class '", "").replace("'>", "")
+			elif objId in indigo.actionGroups:
+				self.indigoType = "indigo.actionGroup"
 			
 			# We have to append from here, if we were to set self.actions equal an outside list it would share among all instances of this class
 			for d in deviceActions:
@@ -532,6 +566,7 @@ class Service (object):
 		ret += "\talias : {0}\n".format(self.alias.value)
 		ret += "\tmodel : {0}\n".format(self.model.value)
 		ret += "\tsubModel : {0}\n".format(self.subModel.value)
+		ret += "\tindigoType : {0}\n".format(self.indigoType)
 		
 		ret += "\ttype : {0}\n".format(self.type)
 		ret += "\tdesc : {0}\n".format(self.desc)
@@ -539,11 +574,20 @@ class Service (object):
 		
 		ret += "\trequired : (List)\n"
 		for i in self.required:
-			ret += "\t\t{0}\n".format(i)
+			if i in dir(self):
+				obj = getattr(self, i)
+				ret += "\t\t{0} : {1}\n".format(i, unicode(obj.value))
+			else:
+				ret += "\t\t{0}\n".format(i)
+
 		
 		ret += "\toptional : (List)\n"
 		for i in self.optional:
-			ret += "\t\t{0}\n".format(i)
+			if i in dir(self):
+				obj = getattr(self, i)
+				ret += "\t\t{0} : {1}\n".format(i, unicode(obj.value))
+			else:
+				ret += "\t\t{0}\n".format(i)
 		
 		ret += "\tnative : {0}\n".format(unicode(self.native))
 		
@@ -635,6 +679,350 @@ class Service (object):
 			self.logger.error (ext.getException(e))	
 			
 	#
+	# Set device attributes from the required and optional parameters
+	#
+	def setAttributesv2 (self):
+		try:
+			# Use the previous method for actions since it handles it well
+			if self.indigoType == "indigo.actionGroup": 
+				# All action groups are switches, period, never anything else regardless of what someone may call them
+				setattr (self, "On", characteristic_On())
+				if "On" not in self.characterDict: self.characterDict["On"] = False
+				if "On" not in self.actions:
+					self.actions.append (HomeKitAction("On", "equal", True, "actionGroup.execute", [self.objId], 0, {}))
+					
+				return
+				
+			if self.objId == 0: return # We'll error out all over the place when we do fake instantiation for getting service defaults
+			
+			# Build a list of all classes in this module and turn it into a dict for lookup
+			clsmembers = inspect.getmembers(sys.modules[__name__], inspect.isclass)
+			classes = {}
+			for cls in clsmembers:
+				classes[cls[0]] = cls[1]
+
+			# Add all required characteristics
+			self.detCharacteristicValues (classes, self.requiredv2)
+			
+			# Add all optional characteristics
+			self.detCharacteristicValues (classes, self.optionalv2, True)
+					
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e))		
+			
+	#
+	# Set device attribute from service definition fields
+	#
+	def detCharacteristicValues (self, classes, sourceDict, isOptional = False):
+		try:
+			for characteristic, getters in sourceDict.iteritems():
+				# While working on this, back out if there's no type
+				if "indigoType" not in dir(self): 
+					return
+				
+				# See if this type is in the getters
+				getter = None
+				if self.indigoType in getters:
+					getter = getters[self.indigoType]
+				elif "*" in getters:
+					getter = getters["*"]
+					
+				if getter is None: 
+					if isOptional: 
+						continue # Nothing to do
+					else:
+						getter =  "attr_STUB" # we MUST pass all required items, so force this through the works and we'll continue out after it creates our attribute
+				
+				# See if this characteristic can get a value at all
+				hasvalue = False
+				if getter[0:5] == "attr_":
+					if getter.replace("attr_", "") in dir(indigo.devices[self.objId]): hasvalue = True
+					
+				if getter[0:6] == "state_":
+					obj = indigo.devices[self.objId]
+					if "states" in dir(obj) and getter.replace("state_", "") in obj.states: hasvalue = True
+					
+				if getter[0:8] == "special_":
+					hasvalue = True # Always force these through
+					
+				# Exit now if it's optional fields and we dont want them
+				if isOptional:
+					if characteristic in self.characterDict or self.loadOptional or hasvalue:
+						pass
+					else:
+						return
+			
+				# Create the characteristic as an attribute
+				classname = "characteristic_{}".format(characteristic)
+				if classname in classes:
+					self.logger.threaddebug ("Adding {} attribute to {}".format(characteristic, self.alias.value))
+					cclass = classes[classname]
+					setattr (self, characteristic, cclass())
+					
+					if getter == "attr_STUB":
+						# Add the default value to the characterdict so it passes through to the API and then exit out
+						if characteristic not in self.characterDict: self.characterDict[characteristic] = getattr (self, characteristic).value
+						continue
+					
+				if getter[0:5] == "attr_":
+					if getter.replace("attr_", "") in dir(indigo.devices[self.objId]): 
+						obj = indigo.devices[self.objId]
+						obj = getattr (obj, getter.replace("attr_", ""))
+						self.setAttributeValue (characteristic, obj)
+						if characteristic not in self.characterDict: self.characterDict[characteristic] = getattr (self, characteristic).value
+						
+						# Since we are here we can calculate the actions needed to change this attribute
+						self.calculateDefaultActionsForAttribute (getter.replace("attr_", ""), characteristic)
+						
+				elif getter[0:6] == "state_":
+					obj = indigo.devices[self.objId]
+					if "states" in dir(obj) and getter.replace("state_", "") in obj.states: 
+						if "states" in dir(obj) and getter.replace("state_", "") in obj.states:
+							self.setAttributeValue (characteristic, obj.states[getter.replace("state_", "")])
+							if characteristic not in self.characterDict: self.characterDict[characteristic] = getattr (self, characteristic).value
+							
+							# Since we are here we can calculate the actions needed to change this attribute
+							self.calculateDefaultActionsForState (getter.replace("state_", ""), characteristic)
+							
+				else:
+					# If we have a battery level then add this value
+					if getter == "special_lowbattery":
+						obj = indigo.devices[self.objId]
+						if "batteryLevel" in dir(obj) and "lowbattery" in self.factory.plugin.pluginPrefs:
+							lowbattery = int(self.factory.plugin.pluginPrefs["lowbattery"])
+							if lowbattery > 0: lowbattery = lowbattery / 100
+							if obj.batteryLevel < ((100 * lowbattery) + 1): 
+								self.setAttributeValue (characteristic, 1)
+								self.characterDict[characteristic] = 1
+							else:
+								self.setAttributeValue (characteristic, 0)
+								self.characterDict[characteristic] = 0
+								
+							# So we get notified of any changes, add a trigger for this in actions, it won't do anything other than monitor
+							self.actions.append (HomeKitAction(characteristic, "equal", False, "device.turnOff", [self.objId], 0, {self.objId: "attr_batteryLevel"}))
+						
+						else:
+							self.characterDict[characteristic] = 0
+						
+					# Mostly for outlets, will read a load if supported and report as in use or will default to the onState
+					if getter == "special_inuse":
+						obj = indigo.devices[self.objId]
+						if "energyCurLevel" in dir(obj) and obj.energyCurLevel is not None:
+							# It supports energy reporting
+							if obj.energyCurLevel > 0:
+								self.setAttributeValue (characteristic, True)
+								self.characterDict[characteristic] = True
+							else:
+								self.setAttributeValue (characteristic, False)
+								self.characterDict[characteristic] = False
+						else:
+							if "onState" in dir(obj) and obj.onState:
+								self.setAttributeValue (characteristic, True)
+								self.characterDict[characteristic] = True
+							else:
+								self.setAttributeValue (characteristic, False)
+								self.characterDict[characteristic] = False
+							
+							
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))		
+
+			
+	#
+	# Calculate default actions based on the attribute value that is being changed
+	#
+	def calculateDefaultActionsForAttribute (self, attrib, characteristic):
+		try:
+			if characteristic in self.actions: return # The user has passed their own actions
+			if characteristic not in dir(self): return # We need to reference the details, it should have been created by now
+			
+			a = getattr (self, characteristic)
+			invalidType = False
+			
+			if a.readonly: 
+				self.logger.threaddebug ("Not setting a default action for {} because that characteristic is read only".format(characteristic))
+				return # There are no actions for readonly characteristics, why add unnecessary data?
+			
+			# Define some defaults
+			minValue = 0
+			maxValue = 100
+			minStep = 1
+			trueValue = True
+			falseValue = False
+			method = "UNKNOWN"
+			if "minValue" in dir(a): minValue = a.minValue
+			if "maxValue" in dir(a): maxValue = a.maxValue
+			if "minStep" in dir(a): minStep = a.minStep
+			
+			# Determine which data method the characteristic is using (T/F, 0/1, Range)
+			if type(a.value) == bool:
+				method = "TF"
+				
+			elif "validValues" in dir(a) and len(a.validValues) == 2:
+				method = "01"
+				trueValue = 1
+				falseValue = 0
+								
+			elif "validValues" in dir(a) and len(a.validValues) > 2:
+				method = "RANGE"
+				
+			elif "validValues" not in dir(a) and "minValue" in dir(a):
+				method = "RANGE"
+			
+			# MOST DEVICES
+			if attrib == "onState":	
+				if method == "TF" or method == "01":			
+					self.actions.append (HomeKitAction(characteristic, "equal", falseValue, "device.turnOff", [self.objId], 0, {self.objId: "attr_onState"}))
+					self.actions.append (HomeKitAction(characteristic, "equal", trueValue, "device.turnOn", [self.objId], 0, {self.objId: "attr_onState"}))
+		
+				elif method == "RANGE":
+					self.actions.append (HomeKitAction(characteristic, "equal", minValue, "device.turnOff", [self.objId], 0, {self.objId: "attr_onState"}))
+					self.actions.append (HomeKitAction(characteristic, "between", minValue + minStep, "device.turnOn", [self.objId], maxValue, {self.objId: "attr_onState"}))	
+					
+				else:
+					invalidType = True
+			
+			# DIMMERS
+			elif attrib == "brightness":
+				cmd = "dimmer.setBrightness"
+				if method == "TF" or method == "01":		
+					self.actions.append (HomeKitAction(characteristic, "equal", falseValue, cmd, [self.objId, 0], 0, {self.objId: "attr_brightness"}))
+					self.actions.append (HomeKitAction(characteristic, "equal", trueValue, cmd, [self.objId, 100], 0, {self.objId: "attr_brightness"}))
+			
+				elif method == "RANGE":
+					self.actions.append (HomeKitAction(characteristic, "between", minValue, cmd, [self.objId, "=value="], maxValue, {self.objId: "attr_brightness"}))
+				
+				else:
+					invalidType = True
+			
+			# SPEED CONTROL	
+			elif attrib == "speedLevel":
+				cmd = "speedcontrol.setSpeedLevel"
+				if method == "TF" or method == "01":		
+					self.actions.append (HomeKitAction(characteristic, "equal", falseValue, cmd, [self.objId, 0], 0, {self.objId: "attr_speedLevel"}))
+					self.actions.append (HomeKitAction(characteristic, "equal", trueValue, cmd, [self.objId, 100], 0, {self.objId: "attr_speedLevel"}))
+				
+				elif method == "RANGE":	
+					self.actions.append (HomeKitAction(characteristic, "between", minValue, cmd, [self.objId, "=value="], maxValue, {self.objId: "attr_speedLevel"}))	
+				
+				else:
+					invalidType = True
+			
+			# THERMOSTAT	
+			elif attrib == "fanIsOn":
+				cmd = "thermostat.setFanMode"
+				if method == "TF" or method == "01":	
+					self.actions.append (HomeKitAction(characteristic, "equal", falseValue, cmd, [self.objId, indigo.kFanMode.Auto], 0, {self.objId: "attr_fanIsOn"}))
+					self.actions.append (HomeKitAction(characteristic, "equal", trueValue, cmd, [self.objId, indigo.kFanMode.AlwaysOn], 0, {self.objId: "attr_fanMode"}))
+				
+				elif method == "RANGE":	
+					self.actions.append (HomeKitAction(characteristic, "equal", 0, cmd, [self.objId, indigo.kFanMode.Auto], 0, {self.objId: "attr_fanIsOn"}))
+					self.actions.append (HomeKitAction(characteristic, "between", minValue, cmd, [self.objId, indigo.kFanMode.AlwaysOn], maxValue, {self.objId: "attr_fanMode"}))	
+				
+				else:
+					invalidType = True
+					
+			
+				
+		
+			if invalidType:
+				self.logger.warning ("Unable to create default action for {} attribute '{}', the characteristic '{}' data type is {} and we can't translate to that from '{}'".format(self.alias.value, attrib, characteristic, str(type(a.value)).replace("<type '", "").replace("'>", ""), attrib))
+				return
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+	#
+	# Calculate default actions based on the attribute value that is being changed
+	#
+	def calculateDefaultActionsForState (self, state, characteristic):
+		try:
+			if characteristic in self.actions: return # The user has passed their own actions
+			if characteristic not in dir(self): return # We need to reference the details, it should have been created by now
+			
+			a = getattr (self, characteristic)
+			invalidType = False
+			
+			if a.readonly: 
+				self.logger.threaddebug ("Not setting a default action for {} because that characteristic is read only".format(characteristic))
+				return # There are no actions for readonly characteristics, why add unnecessary data?
+			
+			# Define some defaults
+			minValue = 0
+			maxValue = 100
+			minStep = 1
+			trueValue = True
+			falseValue = False
+			method = "UNKNOWN"
+			if "minValue" in dir(a): minValue = a.minValue
+			if "maxValue" in dir(a): maxValue = a.maxValue
+			if "minStep" in dir(a): minStep = a.minStep
+			
+			# Determine which data method the characteristic is using (T/F, 0/1, Range)
+			if type(a.value) == bool:
+				method = "TF"
+				
+			elif "validValues" in dir(a) and len(a.validValues) == 2:
+				method = "01"
+				trueValue = 1
+				falseValue = 0
+								
+			elif "validValues" in dir(a) and len(a.validValues) > 2:
+				method = "RANGE"
+				
+			elif "validValues" not in dir(a) and "minValue" in dir(a):
+				method = "RANGE"
+			
+			# MULTI-I/O (INPUTOUTPUT)	
+			if state == "binaryOutput1":
+				# NOTE: This is really only tuned to the garage door use of this, actual other uses of this will probably not work using this config since
+				# we use only one command "turn on output" which is what we need to do to both open and close a garage door.  If users need more function
+				# then we'll have to move some or all of this to the functions instead so we can do some tweaking
+				
+				cmd = "iodevice.setBinaryOutput"
+				if method == "TF" or method == "01":	
+					self.actions.append (HomeKitAction(characteristic, "equal", falseValue, cmd, [self.objId, 0, True], 0, {self.objId: "state_binaryOutput1"}))
+					self.actions.append (HomeKitAction(characteristic, "equal", trueValue, cmd, [self.objId, 0, True], 0, {self.objId: "state_binaryOutput1"}))
+				
+				elif method == "RANGE":	
+					self.actions.append (HomeKitAction(characteristic, "equal", 0, cmd, [self.objId, 0, True], 0, {self.objId: "state_binaryOutput1"}))
+					self.actions.append (HomeKitAction(characteristic, "between", minValue, cmd, [self.objId, 0, True], maxValue, {self.objId: "state_binaryOutput1"}))	
+				
+				else:
+					invalidType = True
+					
+			elif state == "binaryInput1":
+				# NOTE: This is really only tuned to the garage door use of this, actual other uses of this will probably not work using this config since
+				# we use only one command "turn on output" which is what we need to do to both open and close a garage door.  If users need more function
+				# then we'll have to move some or all of this to the functions instead so we can do some tweaking
+				
+				cmd = "iodevice.setBinaryOutput"
+				if method == "TF" or method == "01":	
+					self.actions.append (HomeKitAction(characteristic, "equal", falseValue, cmd, [self.objId, 0, True], 0, {self.objId: "state_binaryOutput1"}))
+					self.actions.append (HomeKitAction(characteristic, "equal", trueValue, cmd, [self.objId, 0, True], 0, {self.objId: "state_binaryOutput1"}))
+				
+				elif method == "RANGE":	
+					self.actions.append (HomeKitAction(characteristic, "equal", 0, cmd, [self.objId, 0, True], 0, {self.objId: "state_binaryOutput1"}))
+					self.actions.append (HomeKitAction(characteristic, "between", minValue, cmd, [self.objId, 0, True], maxValue, {self.objId: "state_binaryOutput1"}))	
+				
+				else:
+					invalidType = True		
+					
+			
+				
+		
+			if invalidType:
+				self.logger.warning ("Unable to create default action for {} attribute '{}', the characteristic '{}' data type is {} and we can't translate to that from '{}'".format(self.alias.value, attrib, characteristic, str(type(a.value)).replace("<type '", "").replace("'>", ""), attrib))
+				return
+				
+			#state_binaryOutput1
+			
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e))				
+			
+	#
 	# All devices point back to here to set an attribute value so we can do calculations and keep everything uniform across devices (and less coding)
 	#	
 	def setAttributeValue (self, attribute, value):
@@ -656,7 +1044,7 @@ class Service (object):
 				atype = str(type(obj.value)).replace("<type '", "").replace("'>", "")
 			
 				converted = False
-				if vtype == "bool": converted = convertFromBoolean (attribute, value, atype, vtype, obj)
+				if vtype == "bool": converted = self.convertFromBoolean (attribute, value, atype, vtype, obj)
 				if vtype == "str" and atype == "unicode":
 					obj.value = value
 					converted = True
@@ -665,7 +1053,7 @@ class Service (object):
 					converted = True
 			
 				if not converted:
-					indigo.server.log("Unable to set the value of {} on {} to {} because that attribute requires {} and it was given {}".format(attribute, dev.Alias.value, unicode(value), atype, vtype))
+					indigo.server.log("Unable to set the value of {} on {} to {} because that attribute requires {} and it was given {}".format(attribute, self.alias.value, unicode(value), atype, vtype))
 					return False
 	
 		except Exception as e:
@@ -900,15 +1288,29 @@ class service_Fanv2 (Service):
 	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "Fanv2"
 		desc = "Fan Version 2"
-	
+
 		super(service_Fanv2, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
-		
+	
 		self.required = ["Active"]
 		self.optional = ["CurrentFanState", "TargetFanState", "LockPhysicalControls", "Name", "RotationDirection", "RotationSpeed", "SwingMode"]
-					
-		super(service_Fanv2, self).setAttributes ()
+	
+		self.requiredv2 = {}
+		self.requiredv2["Active"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["CurrentFanState"] = {}
+		self.optionalv2["TargetFanState"] = {}
+		self.optionalv2["LockPhysicalControls"] = {}
+		self.optionalv2["Name"] = {}
+		self.optionalv2["RotationDirection"] = {}
+		self.optionalv2["RotationSpeed"] = {"indigo.DimmerDevice": "attr_brightness", "indigo.SpeedControlDevice": "attr_speedLevel"}
+		self.optionalv2["SwingMode"] = {}
 				
+		super(service_Fanv2, self).setAttributesv2 ()
+		#super(service_Fanv2, self).setAttributes ()
+			
 		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))
+
 		
 # ==============================================================================
 # GARAGE DOOR OPENER
@@ -926,9 +1328,20 @@ class service_GarageDoorOpener (Service):
 		
 		self.required = ["CurrentDoorState", "TargetDoorState", "ObstructionDetected"]
 		self.optional = ["LockCurrentState", "LockTargetState", "Name"]
+		
+		self.requiredv2 = {}
+		self.requiredv2["CurrentDoorState"] = {"*": "attr_onState", "indigo.MultiIODevice": "state_binaryInput1"}
+		self.requiredv2["TargetDoorState"] = {"*": "attr_onState", "indigo.MultiIODevice": "state_binaryInput1"}
+		self.requiredv2["ObstructionDetected"] = {}
+	
+		self.optionalv2 = {}
+		self.optionalv2["LockCurrentState"] = {}
+		self.optionalv2["LockTargetState"] = {}
+		self.optionalv2["Name"] = {}
 					
-		super(service_GarageDoorOpener, self).setAttributes ()
-				
+		super(service_GarageDoorOpener, self).setAttributesv2 ()			
+		#super(service_GarageDoorOpener, self).setAttributes ()
+						
 		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
 # ==============================================================================
@@ -947,8 +1360,19 @@ class service_Lightbulb (Service):
 		
 		self.required = ["On"]
 		self.optional = ["Brightness", "Hue", "Saturation", "Name", "ColorTemperature"]
+		
+		self.requiredv2 = {}
+		self.requiredv2["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["Brightness"] = {"indigo.DimmerDevice": "attr_brightness", "indigo.SpeedControlDevice": "attr_speedLevel"}
+		self.optionalv2["Hue"] = {}
+		self.optionalv2["Saturation"] = {}
+		self.optionalv2["Name"] = {}
+		self.optionalv2["ColorTemperature"] = {}
 					
-		super(service_Lightbulb, self).setAttributes ()
+		super(service_Lightbulb, self).setAttributesv2 ()					
+		#super(service_Lightbulb, self).setAttributes ()
 				
 		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
@@ -968,8 +1392,19 @@ class service_MotionSensor (Service):
 		
 		self.required = ["MotionDetected"]
 		self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name"]
-						
-		super(service_MotionSensor, self).setAttributes ()
+		
+		self.requiredv2 = {}
+		self.requiredv2["MotionDetected"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["StatusActive"] = {}
+		self.optionalv2["StatusFault"] = {}
+		self.optionalv2["StatusTampered"] = {}
+		self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
+		self.optionalv2["Name"] = {}
+					
+		super(service_MotionSensor, self).setAttributesv2 ()				
+		#super(service_MotionSensor, self).setAttributes ()
 				
 		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
@@ -988,8 +1423,15 @@ class service_Outlet (Service):
 		super(service_Outlet, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = ["On", "OutletInUse"]
-						
-		super(service_Outlet, self).setAttributes ()
+		
+		self.requiredv2 = {}
+		self.requiredv2["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+		self.requiredv2["OutletInUse"] = {"*": "special_inuse"}
+	
+		self.optionalv2 = {}
+					
+		super(service_Outlet, self).setAttributesv2 ()							
+		#super(service_Outlet, self).setAttributes ()
 				
 		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
@@ -1009,8 +1451,16 @@ class service_LockMechanism (Service):
 		
 		self.required = ["LockCurrentState", "LockTargetState"]
 		self.optional = ["Name"]
-						
-		super(service_LockMechanism, self).setAttributes ()
+		
+		self.requiredv2 = {}
+		self.requiredv2["LockCurrentState"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+		self.requiredv2["LockTargetState"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["Name"] = {}
+					
+		super(service_LockMechanism, self).setAttributesv2 ()					
+		#super(service_LockMechanism, self).setAttributes ()
 				
 		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))								
 
@@ -1030,7 +1480,13 @@ class service_Switch (Service):
 		
 		self.required = ["On"]
 		
-		super(service_Switch, self).setAttributes ()
+		self.requiredv2 = {}
+		self.requiredv2["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+	
+		self.optionalv2 = {}
+					
+		super(service_Switch, self).setAttributesv2 ()	
+		#super(service_Switch, self).setAttributes ()
 				
 		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))
 		
@@ -1075,7 +1531,7 @@ class characteristic_Active:
 		
 		self.readonly = False
 		self.notify = True
-	
+		
 # ==============================================================================
 # BRIGHTNESS
 # ==============================================================================
@@ -1428,7 +1884,7 @@ class characteristic_TargetDoorState:
 		
 		self.validValues = [0, 1]
 		
-		self.readonly = True
+		self.readonly = False
 		self.notify = True			
 
 # ==============================================================================
@@ -1436,7 +1892,7 @@ class characteristic_TargetDoorState:
 # ==============================================================================
 class characteristic_TargetFanState:	
 	def __init__(self):
-		self.value = 0 # inactive
+		self.value = 0 # manual [auto]
 		self.maxValue = 1
 		self.minValue = 0
 		

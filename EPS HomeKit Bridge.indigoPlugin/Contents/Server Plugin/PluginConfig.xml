@@ -40,7 +40,19 @@
 		<Label>Low Battery Warning %:</Label>
 	</Field>   	
    	
-   	<Field id="sep_ifttt" type="separator" hidden="true"/>
+   	<Field id="sep_ifttt" type="separator" />
+   	
+   	<Field type="checkbox" id="enableComplications" defaultValue="true" >
+		<Label> </Label>
+		<Description>Enable complications</Description>
+	</Field>
+	
+	<Field type="checkbox" id="enableComplicationsDialogs" defaultValue="true" enabledBindingId="enableComplications" >
+		<Label> </Label>
+		<Description>Show complications dialogs</Description>
+	</Field>
+   	
+   	<Field id="sep_complex" type="separator" />
    	
    	<Field type="textfield" id="apiport" defaultValue="8558" hidden="false">
 		<Label>Enhanced API port:</Label>

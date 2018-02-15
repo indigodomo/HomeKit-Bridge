@@ -1,19 +1,22 @@
 <?xml version="1.0"?>
 <!-- EPS (ColoradoFourWheeler) Plugin -->
 <MenuItems>
-	<MenuItem id="hiddenItemManager">
-    	<Name>Manage Hidden Objects</Name>
+	<MenuItem id="excludedItemManager">
+    	<Name>Manage Excluded Objects</Name>
     	<ConfigUI>
     		<Field type="label" id="lbl_select" >
-				<Label>Select any Indigo items that you do not want to be shown in ANY HomeKit Bridge dialog for use with HomeKit.  You can use standard Mac controls such as CMD-CLICK, SHIFT-CLICK and CONTROL-CLICK for your selection, when ready click Hide These Items below.
+				<Label>Select any Indigo items that you do not want to be shown in ANY HomeKit Bridge dialog for use with HomeKit.  You can use standard Mac controls such as CMD-CLICK, SHIFT-CLICK and CONTROL-CLICK for your selection, when ready click Exclude These Items below.
 				</Label>
 			</Field>
 			
     		<Field type="menu" id="objectType" defaultValue="device" >
-				<Label>Hide objects:</Label>
+				<Label>Exclude objects:</Label>
 				<List>
 					<Option value="device">Device</Option>
 					<Option value="action">Action Group</Option>
+					<Option value="hbb">Homebridge Buddy Devices</Option>
+					<Option value="hbbwrapper">Homebridge Buddy Wrappers</Option>
+					<Option value="hbbalias">Homebridge Buddy Aliases</Option>
 				</List>
 				<CallbackMethod>hiddenObjectsFormFieldChanged</CallbackMethod>
 			</Field>
@@ -30,14 +33,14 @@
 			
 			<Field type="button" id="hide" >
 				<Label> </Label>
-				<Title>Hide These Items </Title>
+				<Title>Exclude These Items </Title>
 				<CallbackMethod>hiddenObjectsHideTheseItems</CallbackMethod>
 			</Field>
 			
 			<Field type="separator" id="sep_select"  />
 
 			<Field type="label" id="lbl_hidden" >
-				<Label>This list represents items you have hidden, select any items that you want to show again and click the Show These Items button.
+				<Label>This list represents items you have excluded, select any items that you want to include again and click the Include These Items button.
 				</Label>
 			</Field>
 			
@@ -56,7 +59,7 @@
 			</Field>
 
 			<Field type="list" id="hideList" rows="10" alwaysUseInDialogHeightCalc="true" >
-				<Label>Hidden:</Label>
+				<Label>Excluded:</Label>
 				<List class="self" filter="#plugin#[index=deviceList, callback=hiddenObjectItemsList, ref=hideWrappedItems]" method="getCustomList" dynamicReload="true" />
 			</Field>
 			
@@ -67,7 +70,7 @@
 			
 			<Field type="button" id="show" >
 				<Label> </Label>
-				<Title>Show These Items </Title>
+				<Title>Include These Items </Title>
 				<CallbackMethod>hiddenObjectsShowTheseItems</CallbackMethod>
 			</Field>
 			

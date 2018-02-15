@@ -1,15 +1,27 @@
 Release Notes
 ==========
 
-Version 0.5.0 (Beta 5)
+Version 0.6.0 (Beta 6)
 ==========
-* Added new combobox action item in the server called "Delete and Exclude" that allows you to not only delete an item from the list but to also exclude it from all future lists (manageable from the menu), this in direct response to [the complaint from Different Computers](http://forums.indigodomo.com/viewtopic.php?p=154621#p154621) regarding his frustrations with the way device inclusion works
-* Added new combobox action item in the server called "Delete and Hide" that allows you to not only delete an item from the list but to hide it for the remainder of the time you have the server dialog open, allowing you to re-fill as needed.  The cache will clear once the dialog is cancelled or saved so that the object you hid will be available again
-* Added new menu option to [Manage Hidden Objects](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Hidden-Objects-Management) 
+* Device FIXED: Garage Door - Homebridge is hyper sensitive to read/write access, the targetstate was set as readonly and that caused Homekit to not even attempt to send a change order
+* Added new feature: [Complications](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Complications) - this is experimental and only in use for thermostats at the moment but will come into play with sprinklers too in the near future since each valve is its own device
+* Added startup warning box if the user is hiding any Indigo items to let them know that there are hidden items that can be managed from the plugin - this to head off any possible future support headaches about someone who incorrectly hides something or hides it and forgets but then asks why the device isn't showing up on their lists anymore.  Also [updated the Wiki to prevent unneeded support requests](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/FAQ#why-do-i-get-a-hidden-items-warning-when-i-start-homekit-bridge)
+* Added object type of "Homebridge Buddy Wrappers", "Homebridge Buddy Aliases" and "Homebridge Buddy Devices" to the hidden objects manager
+* Added ability to translate a dimmer or relay to a fan type (i.e., bathroom fan wall switch can be represented as a fan in HomeKit)
+* Major overhaul of how the plugin translates everything to HomeKit, now allows for a much wider array of device mappings and to onboard new services and characteristics many times faster
+* Added special abilities on outlets that if they support power metering that it will represet if there is a load on the outlet or not (a HomeKit feature) using that data, if there is no power metering ability then it will always represent the on state of the outlet
+* Added config option to plugin preferences to set the threshold for when HomeKit will indicate that a battery level is low (i.e., at 20%), this will only be valid on HomeKit devices that support a battery low indicator and Indigo devices that have a battery
+* Added config options to enable/disable complications (experimental)
+* Removed debugging code from startup that would add a debug message regarding adding a value to an invalid Indigo object, it was NOT an error but running as designed only that it should not be running on startup it is meant to run when discovering devices on a new server
+* Fundamental change in passing ID's to Homebridge, instead of the device ID the plugin now passes an encrypted unique key, this allows us to create complications where multiples of the same device can be synchronized to Homebridge with different functions
+* Fixed bug where when using the FILL option on devices or actions that it was possible to get the same stash key
+* Fixed known issue: Able to add multiples of the same device but that will cause HomeKit to crash if they are on the same server (perhaps even multiples since it all dumps to HomeKit), need to enforce only adding one of any device but also modify HomeKit to allow this under some circumstances like the fan of an included thermostat since they need to be separate devices
+* Fixed Homebridge issue: Change UUID creation to allow for multiple same devices
+* Fixed Homebridge issue: Garage doors never even make a request to Indigo at all
 
 Known Issues
 ---------------
-* Able to add multiples of the same device but that will cause HomeKit to crash if they are on the same server (perhaps even multiples since it all dumps to HomeKit), need to enforce only adding one of any device but also modify HomeKit to allow this under some circumstances like the fan of an included thermostat since they need to be separate devices
+* Garage doors using the Insteon Multi I/O kit don't report back correctly because of the long delay in getting the Input1 to respond
 * Need to remove API port from the plugin config and autodetect it instead when building the server configuration
 * Creating additional servers is not incrementing the user name and then not showing up in Homebridge as a result (reported by Autolog http://forums.indigodomo.com/viewtopic.php?p=154501#p154501)
 * Complications spinning up a second server (http://forums.indigodomo.com/viewtopic.php?p=154391#p154391).  BETA TESTERS: PLEASE TEST ADDING MULTIPLE SERVERS.
@@ -23,13 +35,20 @@ Known Issues
 
 Homebridge Issues
 ---------------
-* Garage doors never even make a request to Indigo at all
-* Change UUID creation to allow for multiple same devices, perhaps only if a special key is passed
+* Need type and versByte to recognize
 
 Wish List
 ---------------
 * Autolog suggestion: http://forums.indigodomo.com/viewtopic.php?p=154506#p154506
 * Add a feature to read in HBB and Alexa items to build a cache of already used alias names
+* Add a startup warning regarding how many objects are being hidden from the plugin as a reminder to the end user
+* Add complications ability so a single device can create multiple homekit devices (i.e., thermostat + thermostat fan)
+
+Version 0.5.0 (Beta 5)
+==========
+* Added new combobox action item in the server called "Delete and Exclude" that allows you to not only delete an item from the list but to also exclude it from all future lists (manageable from the menu), this in direct response to [the complaint from Different Computers](http://forums.indigodomo.com/viewtopic.php?p=154621#p154621) regarding his frustrations with the way device inclusion works
+* Added new combobox action item in the server called "Delete and Hide" that allows you to not only delete an item from the list but to hide it for the remainder of the time you have the server dialog open, allowing you to re-fill as needed.  The cache will clear once the dialog is cancelled or saved so that the object you hid will be available again
+* Added new menu option to [Manage Hidden Objects](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Hidden-Objects-Management) 
 
 Version 0.4.0 (Beta 4)
 ==========

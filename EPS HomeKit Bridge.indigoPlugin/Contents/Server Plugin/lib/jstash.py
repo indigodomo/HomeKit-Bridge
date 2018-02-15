@@ -22,6 +22,7 @@ import calendar
 import json # duh
 import hashlib # unique keys
 import operator # sorting
+from random import randint # unique keys
 
 class jstash:
 
@@ -72,7 +73,7 @@ class jstash:
 					
 					if k == "jkey":
 						d = indigo.server.getTime()
-						rec[k] = self.createHashKey (d.strftime("%Y-%m-%d %H:%M:%S %f"))
+						rec[k] = self.createHashKey (d.strftime("%Y-%m-%d %H:%M:%S %f") + str(randint(1000, 1000001)))
 					
 				return rec
 			
