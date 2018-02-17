@@ -22,6 +22,126 @@ class HomeKit:
 		self.factory = factory
 		
 	#
+	# This only gets run manually in code when new devices are added to facilitate the lookup needed for classes
+	#
+	def printClassLookupDict (self):
+		try:
+			clsmembers = inspect.getmembers(sys.modules[__name__], inspect.isclass)
+
+			d = "\n***\n## Services\n\n"
+			
+			d += "**Index**: [INDEX]\n\n***\n\n"
+			index = ""
+
+			for cls in clsmembers:
+				if "service_" in cls[0]:
+					index += "[{}](#{}) | ".format(cls[0].replace("service_", ""), cls[0].replace("service_", "").lower())
+					
+					d += "### {}\n\n".format(cls[0].replace("service_", ""))	
+						
+					cclass = cls[1]
+					obj = cclass(self.factory, 0, 0, {}, [], True)
+					
+					d += "**Device**: {}\n\n".format(unicode(obj.desc))
+					
+					requiredItems = ""
+					optionalItems = ""
+					values = ""
+					
+					if "requiredv2" in dir(obj): 
+						for characteristic, getter in obj.requiredv2.iteritems():
+							requiredItems += "[{}](#{}) | ".format(characteristic, characteristic.lower())
+							
+							values += "* {}: ".format(characteristic)
+							if len(getter) > 0:
+								for devtype, state in getter.iteritems():
+									if "special_" in state:
+										values += "**{}** ({}) | ".format("Calculated", state.replace("special_", "")) 
+									else:
+										values += "**{}** ({}) | ".format(state.replace("attr_", "").replace("state_", ""), devtype.replace("*", "all").replace("indigo.", "")) 
+							else:
+								values += "**TBD** | "
+								
+							values = values[0:len(values) - 3]	
+							values += "\n"
+						
+						
+					if len(requiredItems) > 0:
+						requiredItems = requiredItems[0:len(requiredItems) - 3]
+						
+					d += "**Required**: {}\n\n".format(unicode(requiredItems))
+					
+					if "optionalv2" in dir(obj): 
+						for characteristic, getter in obj.optionalv2.iteritems():
+							optionalItems += "[{}](#{}) | ".format(characteristic, characteristic.lower())
+							
+							values += "* {}: ".format(characteristic)
+							if len(getter) > 0:
+								for devtype, state in getter.iteritems():
+									if "special_" in state:
+										values += "**{}** ({}) | ".format("Calculated", state.replace("special_", "")) 
+									else:
+										values += "**{}** ({}) | ".format(state.replace("attr_", "").replace("state_", ""), devtype.replace("*", "all").replace("indigo.", "")) 
+							else:
+								values += "**TBD** | "
+								
+							values = values[0:len(values) - 3]	
+							values += "\n"
+						
+					if len(optionalItems) > 0:
+						optionalItems = optionalItems[0:len(optionalItems) - 3]
+					
+					if len(optionalItems) > 0:	
+						d += "**Optional**: {}\n\n".format(unicode(optionalItems))
+					else:
+						d += "**Optional**: None\n\n"
+					
+					d += "__Default Indigo Values__:\n\n{}\n\n***\n".format(values)
+					
+			index = index[0:len(index) - 3]
+			d = d.replace("[INDEX]", index)
+					
+			d += "\n\n## Characteristics\n\n"
+			
+			d += "**Index**: [INDEX]\n\n***\n\n"
+			index = ""	
+			
+			for cls in clsmembers:
+				if "characteristic_" in cls[0]:
+					index += "[{}](#{}) | ".format(cls[0].replace("characteristic_", ""), cls[0].replace("characteristic_", "").lower())
+					
+					d += "### {}\n\n".format(cls[0].replace("characteristic_", ""))
+					
+					cclass = cls[1]
+					obj = cclass()
+					
+					if "value" in dir(obj):	d += "\tvalue = {}\n".format(unicode(obj.value))
+					if "maxValue" in dir(obj):	d += "\tmaxValue = {}\n".format(unicode(obj.maxValue))
+					if "minValue" in dir(obj):	d += "\tminValue = {}\n".format(unicode(obj.minValue))
+					
+					if "validValues" in dir(obj):	
+						if "validValuesStr" in dir(obj):	
+							d += "\tvalidValues = {} ({})\n".format(unicode(obj.validValues), unicode(obj.validValuesStr))
+						else:
+							d += "\tvalidValues = {}\n".format(unicode(obj.validValues))
+					
+					if "readonly" in dir(obj):	d += "\treadonly = {}\n".format(unicode(obj.readonly))
+					if "notify" in dir(obj):	d += "\tnotify = {}\n".format(unicode(obj.notify))
+										
+					d += "\n\n***\n"
+					#d += '"' + name.replace("characteristic_", "") + '": ' + name + ", "
+
+			d += "\n"
+			
+			index = index[0:len(index) - 3]
+			d = d.replace("[INDEX]", index)
+								
+			indigo.server.log(unicode(d))
+					
+		except Exception as e:
+			self.logger.error (ext.getException(e))		
+		
+	#
 	# Either map to the requested service class or figure out what this devices should be autodetected as
 	#
 	def getServiceObject (self, objId, serverId = 0, serviceClass = None, autoDetect = False, loadOptional = False, characterDict = {}, deviceActions = []):
@@ -82,6 +202,9 @@ class HomeKit:
 				
 			if dev.pluginId == "com.perceptiveautomation.indigoplugin.zwave" and dev.deviceTypeId == "zwLockType":
 				return "service_LockMechanism"
+				
+			if dev.pluginId == "com.perceptiveautomation.indigoplugin.airfoilpro" and dev.deviceTypeId == "speaker":
+				return "service_Speaker"	
 			
 			elif "brightnessLevel" in dev.states and "brightness" in dir(dev):
 				return "service_Lightbulb"
@@ -538,11 +661,15 @@ class Service (object):
 			self.loadOptional = loadOptional # Create attributes for the optional fields
 			self.serverId = serverId
 			self.indigoType = "Unable to detect"
+			self.pluginType = "Built-In"
+			self.invertOnState = False # This is set by the HTTP utility during processing if the user passed it in the stash
 			
 			# Get the indigo class for this object
 			if objId in indigo.devices:
 				#indigo.server.log("adding device type {}".format(indigo.devices[objId].name))
 				self.indigoType = str(type(indigo.devices[objId])).replace("<class '", "").replace("'>", "")
+				if indigo.devices[objId].pluginId != "":
+					self.pluginType = self.indigoType + "." + indigo.devices[objId].pluginId + "." + indigo.devices[objId].deviceTypeId
 			elif objId in indigo.actionGroups:
 				self.indigoType = "indigo.actionGroup"
 			
@@ -567,6 +694,7 @@ class Service (object):
 		ret += "\tmodel : {0}\n".format(self.model.value)
 		ret += "\tsubModel : {0}\n".format(self.subModel.value)
 		ret += "\tindigoType : {0}\n".format(self.indigoType)
+		ret += "\tpluginType : {0}\n".format(self.pluginType)
 		
 		ret += "\ttype : {0}\n".format(self.type)
 		ret += "\tdesc : {0}\n".format(self.desc)
@@ -725,6 +853,8 @@ class Service (object):
 				getter = None
 				if self.indigoType in getters:
 					getter = getters[self.indigoType]
+				elif self.pluginType in getters:
+					getter = getters[self.pluginType]
 				elif "*" in getters:
 					getter = getters["*"]
 					
@@ -769,8 +899,22 @@ class Service (object):
 					if getter.replace("attr_", "") in dir(indigo.devices[self.objId]): 
 						obj = indigo.devices[self.objId]
 						obj = getattr (obj, getter.replace("attr_", ""))
+						
 						self.setAttributeValue (characteristic, obj)
 						if characteristic not in self.characterDict: self.characterDict[characteristic] = getattr (self, characteristic).value
+						
+						#indigo.server.log ("Alias: {} | Invert: {} | Getter: {}".format(self.alias.value, unicode(self.invertOnState), getter))
+						if self.invertOnState and getter == "attr_onState": # In case we are reversing AND this is the onState attribute
+							self.logger.threaddebug ("Inverting {}".format(self.alias.value))
+							if getattr (self, characteristic).value:
+								self.setAttributeValue (characteristic, False) # Make true false
+							else:
+								self.setAttributeValue (characteristic, True) # Make false true
+							
+							# If we don't set the characterDict value then it won't show in the API
+							self.characterDict[characteristic] = getattr (self, characteristic).value
+						
+						
 						
 						# Since we are here we can calculate the actions needed to change this attribute
 						self.calculateDefaultActionsForAttribute (getter.replace("attr_", ""), characteristic)
@@ -823,6 +967,20 @@ class Service (object):
 							else:
 								self.setAttributeValue (characteristic, False)
 								self.characterDict[characteristic] = False
+								
+					# For inverting an on/off state ATTRIBUTE
+					if getter == "special_invertedOnState":
+						obj = indigo.devices[self.objId]
+						if "onState" in dir(obj):
+							if obj.onState:
+								self.setAttributeValue (characteristic, False)
+								self.characterDict[characteristic] = False 
+							else:
+								self.setAttributeValue (characteristic, True)
+								self.characterDict[characteristic] = True 
+						else:
+							self.setAttributeValue (characteristic, False)
+							self.characterDict[characteristic] = False 
 							
 							
 		except Exception as e:
@@ -986,8 +1144,8 @@ class Service (object):
 					self.actions.append (HomeKitAction(characteristic, "equal", trueValue, cmd, [self.objId, 0, True], 0, {self.objId: "state_binaryOutput1"}))
 				
 				elif method == "RANGE":	
-					self.actions.append (HomeKitAction(characteristic, "equal", 0, cmd, [self.objId, 0, True], 0, {self.objId: "state_binaryOutput1"}))
-					self.actions.append (HomeKitAction(characteristic, "between", minValue, cmd, [self.objId, 0, True], maxValue, {self.objId: "state_binaryOutput1"}))	
+					self.actions.append (HomeKitAction(characteristic, "equal", minValue, cmd, [self.objId, 0, True], 0, {self.objId: "state_binaryOutput1"}))
+					self.actions.append (HomeKitAction(characteristic, "between", minValue + minStep, cmd, [self.objId, 0, True], maxValue, {self.objId: "state_binaryOutput1"}))	
 				
 				else:
 					invalidType = True
@@ -999,16 +1157,41 @@ class Service (object):
 				
 				cmd = "iodevice.setBinaryOutput"
 				if method == "TF" or method == "01":	
-					self.actions.append (HomeKitAction(characteristic, "equal", falseValue, cmd, [self.objId, 0, True], 0, {self.objId: "state_binaryOutput1"}))
-					self.actions.append (HomeKitAction(characteristic, "equal", trueValue, cmd, [self.objId, 0, True], 0, {self.objId: "state_binaryOutput1"}))
+					self.actions.append (HomeKitAction(characteristic, "equal", falseValue, cmd, [self.objId, 0, True], 0, {self.objId: "state_binaryInput1"}))
+					self.actions.append (HomeKitAction(characteristic, "equal", trueValue, cmd, [self.objId, 0, True], 0, {self.objId: "state_binaryInput1"}))
 				
 				elif method == "RANGE":	
-					self.actions.append (HomeKitAction(characteristic, "equal", 0, cmd, [self.objId, 0, True], 0, {self.objId: "state_binaryOutput1"}))
-					self.actions.append (HomeKitAction(characteristic, "between", minValue, cmd, [self.objId, 0, True], maxValue, {self.objId: "state_binaryOutput1"}))	
+					self.actions.append (HomeKitAction(characteristic, "equal", minValue, cmd, [self.objId, 0, True], 0, {self.objId: "state_binaryInput1"}))
+					self.actions.append (HomeKitAction(characteristic, "between", minValue + minStep, cmd, [self.objId, 0, True], maxValue, {self.objId: "state_binaryInput1"}))	
+				
+				else:
+					invalidType = True
+					
+			# Airfoil Speakers (perhaps Sonos, don't have the plugin so don't know)
+			elif state == "status.disconnected":
+				cmd = "homekit.runPluginAction"
+				if method == "TF" or method == "01":	
+					self.actions.append (HomeKitAction(characteristic, "equal", falseValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["connect", self.objId]], 0, {self.objId: "state_status.disconnected"}))
+					self.actions.append (HomeKitAction(characteristic, "equal", trueValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["disconnect", self.objId]], 0, {self.objId: "state_status.disconnected"}))
+				
+				elif method == "RANGE":	
+					self.actions.append (HomeKitAction(characteristic, "equal", minValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["disconnect", self.objId]], 0, {self.objId: "state_status.disconnected"}))
+					self.actions.append (HomeKitAction(characteristic, "between", minValue + minStep, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["connect", self.objId]], maxValue, {self.objId: "state_status.disconnected"}))	
 				
 				else:
 					invalidType = True		
 					
+			elif state == "volume":
+				cmd = "homekit.runPluginAction"
+				if method == "TF" or method == "01":	
+					self.actions.append (HomeKitAction(characteristic, "equal", falseValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setVolume", self.objId, {'volume': 0}]], 0, {self.objId: "state_volume"}))
+					self.actions.append (HomeKitAction(characteristic, "equal", trueValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setVolume", self.objId, {'volume': 50}]], 0, {self.objId: "state_volume"}))
+				
+				elif method == "RANGE":	
+					self.actions.append (HomeKitAction(characteristic, "between", minValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setVolume", self.objId, {'volume': "=value="}]], maxValue, {self.objId: "state_volume"}))	
+				
+				else:
+					invalidType = True
 			
 				
 		
@@ -1140,10 +1323,25 @@ class HomeKitAction ():
 		
 		return ret
 		
-	def run (self, value):
+	def run (self, value, objId, waitForComplete = True):
 		try:
 			# See if the value falls within the actions limitations and if it does then run the associated command
 			#indigo.server.log(unicode(self))
+			
+			# If it's a device grab the last changed value so we can test below for it being updated
+			runStartTime = indigo.server.getTime()
+			
+			# Catalog all monitor items
+			monitors = {}
+			for devId, prop in self.monitors.iteritems():
+				if "attr_" in prop:
+					obj = getattr (indigo.devices[devId], prop.replace("attr_", ""))
+					monitors[devId] = {prop: obj}
+				if "state_" in prop:
+					if "states" in dir(indigo.devices[devId]):
+						obj = indigo.devices[devId]
+						if prop.replace("state_", "") in obj.states:
+							monitors[devId] = {prop: obj.states[prop.replace("state_", "")]}
 		
 			# Get the value type of the value so we can convert from string to that type
 			if type(self.whenvalue) == bool:
@@ -1197,6 +1395,60 @@ class HomeKitAction ():
 						retval = func(*args)
 					else:
 						retval = func()
+						
+					if waitForComplete:
+						# We never do this for action groups, the HTML return will immediately return success so we can do a call back, this is only for devices
+						if "actionGroup" not in self.command:
+							for devId, prop in self.monitors.iteritems():							
+								if devId in indigo.devices: 
+									loopstart = indigo.server.getTime()
+									runcomplete = False
+									failsafe = 0
+							
+									while not runcomplete:
+										failsafe = failsafe + 1
+										if failsafe > 50000:
+											self.logger.error ("While setting the '{}' HomeKit characteristic for '{}' (HomeKit device '{}') the race condition failsafe was engaged, meaning the condition to break out of the action loop was not met.  This is fairly critical, please report to developer!".format(self.characteristic, indigo.devices[int(devId)].name, indigo.devices[int(objId)].name))
+											runcomplete = True
+											break
+								
+										d = dtutil.dateDiff ("seconds", indigo.server.getTime(), loopstart)
+										if d > 25:
+											self.logger.error ("Maximum time exceeded while setting the '{}' HomeKit characteristic for '{}' (HomeKit device '{}'), aborting attempt.  This can happen if you try to set a device to a state is is already in (i.e., turning off a device that is already off).".format(self.characteristic, indigo.devices[int(devId)].name, indigo.devices[int(objId)].name))
+											runcomplete = True
+											break
+								
+										
+										d = dtutil.dateDiff ("seconds", runStartTime, indigo.devices[int(devId)].lastChanged)
+										#indigo.server.log(str(d))
+										if d <= 0:
+											# Something changed, see if it is one of our attributes, ANY attribute change (if there are multiple) will result in success
+											for devId, prop in self.monitors.iteritems():
+												if "attr_" in prop:
+													self.logger.info ("Target device '{}' changed, checking attribute '{}' to see if it was updated".format(indigo.devices[devId].name, prop.replace("attr_", "")))
+													obj = getattr (indigo.devices[devId], prop.replace("attr_", ""))
+													if monitors[devId] != {prop: obj}:
+														self.logger.threaddebug ("Target device '{}' attribute '{}' was updated, the command succeeded".format(indigo.devices[devId].name, prop.replace("attr_", "")))
+														runcomplete = True
+														break
+														
+													self.logger.threaddebug ("Target device '{}' attribute '{}' was not updated, still waiting".format(indigo.devices[devId].name, prop.replace("attr_", "")))
+														
+												if "state_" in prop:
+													if "states" in dir(indigo.devices[devId]):
+														self.logger.threaddebug ("Target device '{}' changed, checking state '{}' to see if it was updated".format(indigo.devices[devId].name, prop.replace("state_", "")))
+														obj = indigo.devices[devId]
+														if prop.replace("state_", "") in obj.states:
+															state = obj.states[prop.replace("state_", "")]
+															if monitors[devId] != {prop: state}:
+																self.logger.threaddebug ("Target device '{}' state '{}' was updated, the command succeeded".format(indigo.devices[devId].name, prop.replace("state_", "")))
+																runcomplete = True
+																break
+															#else:
+															#	self.logger.info ("Target device '{}' state '{}' value '{}' is equal to '{}'".format(indigo.devices[devId].name, prop.replace("state_", ""), unicode({prop: obj.states[prop.replace("state_", "")]}), unicode(monitors[devId])))
+																
+																
+														self.logger.threaddebug ("Target device '{}' state '{}' was not updated, still waiting".format(indigo.devices[devId].name, prop.replace("state_", "")))
 				
 				except Exception as ex:
 					self.logger.error (ext.getException(ex))
@@ -1206,16 +1458,69 @@ class HomeKitAction ():
 			
 			else:
 				return False
-	
+				
+		
 		except Exception as e:
 			self.logger.error (ext.getException(e))
 			return False
 		
 		return True			
 		
+		
 	################################################################################
 	# COMMAND STUBS
 	################################################################################
+	
+	#
+	# Connect to specified plugin and run the actions
+	#
+	def runPluginAction (self, pluginId, value, arguments):
+		try:
+			plugin = indigo.server.getPlugin(pluginId)
+			if plugin.isEnabled():
+				args = []
+				for a in arguments:
+					# Since we are passing arguments in this way make sure we dig into additional lists or dicts
+					if type(a) == list:
+						largs = []
+						for l in a:
+							if unicode(l) == "=value=":
+								largs.append(value)
+							else:
+								largs.append(l)
+								
+						args.append (largs)
+						
+					elif type(a) == dict:
+						dargs = {}
+						for key, d in a.iteritems():
+							if unicode(d) == "=value=":
+								dargs[key] = value
+							else:
+								dargs[key] = d
+
+						args.append (dargs)
+											
+					else:
+						if unicode(a) == "=value=":
+							args.append(value)
+						else:
+							args.append(a)
+							
+				self.logger.threaddebug ("Running plugin action on {} with {}".format(pluginId, unicode(args)))
+				result = plugin.executeAction(*args, waitUntilDone=True)
+				self.logger.threaddebug ("Plugin action return value: " + unicode(result))
+			else:
+				self.logger.error ("Unable to run plugin command because {} is not installed or disabled".format(pluginid))
+				return False
+			
+			#[indigo.devices[self.objId].pluginId, ["disconnect", self.objId]]
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e))
+			return False
+			
+			
 	
 	#
 	# Change thermostat temperature
@@ -1276,6 +1581,38 @@ class Dummy (Service):
 				
 		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
 		#self.logger.warning ('{} has no automatic conversion to HomeKit and will not be usable unless custom mapped'.format(self.alias.value))	
+
+# ==============================================================================
+# CONTACT SENSOR
+# ==============================================================================
+class service_ContactSensor (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "ContactSensor"
+		desc = "Contact Sensor"
+	
+		super(service_ContactSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = ["ContactSensorState"]
+		self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name"]
+		
+		self.requiredv2 = {}
+		self.requiredv2["ContactSensorState"] = {"*": "special_invertedOnState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["StatusActive"] = {}
+		self.optionalv2["StatusFault"] = {}
+		self.optionalv2["StatusTampered"] = {}
+		self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
+		self.optionalv2["Name"] = {}
+					
+		super(service_ContactSensor, self).setAttributesv2 ()				
+		#super(service_MotionSensor, self).setAttributes ()
+				
+		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
 
 # ==============================================================================
 # FAN V2
@@ -1362,10 +1699,10 @@ class service_Lightbulb (Service):
 		self.optional = ["Brightness", "Hue", "Saturation", "Name", "ColorTemperature"]
 		
 		self.requiredv2 = {}
-		self.requiredv2["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+		self.requiredv2["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_status.disconnected"}
 	
 		self.optionalv2 = {}
-		self.optionalv2["Brightness"] = {"indigo.DimmerDevice": "attr_brightness", "indigo.SpeedControlDevice": "attr_speedLevel"}
+		self.optionalv2["Brightness"] = {"indigo.DimmerDevice": "attr_brightness", "indigo.SpeedControlDevice": "attr_speedLevel", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_volume"}
 		self.optionalv2["Hue"] = {}
 		self.optionalv2["Saturation"] = {}
 		self.optionalv2["Name"] = {}
@@ -1373,6 +1710,34 @@ class service_Lightbulb (Service):
 					
 		super(service_Lightbulb, self).setAttributesv2 ()					
 		#super(service_Lightbulb, self).setAttributes ()
+				
+		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		
+# ==============================================================================
+# MICROPHONE
+# ==============================================================================
+class service_Microphone (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "Microphone"
+		desc = "Microphone"
+	
+		super(service_Microphone, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = ["Mute"]
+		
+		self.requiredv2 = {}
+		self.requiredv2["Mute"] = {"*": "attr_onState", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_status.disconnected"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["Volume"] = {"*": "attr_brightness", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_volume"}
+		self.optionalv2["Name"] = {}
+					
+		super(service_Microphone, self).setAttributesv2 ()	
+		#super(service_Switch, self).setAttributes ()
 				
 		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
@@ -1465,6 +1830,34 @@ class service_LockMechanism (Service):
 		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))								
 
 # ==============================================================================
+# SPEAKER
+# ==============================================================================
+class service_Speaker (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "Speaker"
+		desc = "Speaker"
+	
+		super(service_Speaker, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = ["Mute"]
+		
+		self.requiredv2 = {}
+		self.requiredv2["Mute"] = {"*": "attr_onState", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_status.disconnected"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["Volume"] = {"*": "attr_brightness", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_volume"}
+		self.optionalv2["Name"] = {}
+					
+		super(service_Speaker, self).setAttributesv2 ()	
+		#super(service_Switch, self).setAttributes ()
+				
+		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))
+		
+# ==============================================================================
 # SWITCH
 # ==============================================================================
 class service_Switch (Service):
@@ -1488,7 +1881,7 @@ class service_Switch (Service):
 		super(service_Switch, self).setAttributesv2 ()	
 		#super(service_Switch, self).setAttributes ()
 				
-		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))
+		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
 # ==============================================================================
 # THERMOSTAT
@@ -1528,6 +1921,7 @@ class characteristic_Active:
 		self.minValue = 0
 		
 		self.validValues = [0, 1]
+		self.validValuesStr = "[active, inactive]"
 		
 		self.readonly = False
 		self.notify = True
@@ -1559,6 +1953,21 @@ class characteristic_ColorTemperature:
 		self.notify = True	
 		
 # ==============================================================================
+# CONTACT SENSOR STATE
+# ==============================================================================
+class characteristic_ContactSensorState:	
+	def __init__(self):
+		self.value = 0 
+		self.maxValue = 1
+		self.minValue = 0
+		
+		self.validValues = [0, 1]
+		self.validValuesStr = "[contact detected, contact not detected]"
+		
+		self.readonly = False
+		self.notify = True			
+		
+# ==============================================================================
 # COOLING THRESHOLD TEMPERATURE
 # ==============================================================================		
 class characteristic_CoolingThresholdTemperature:
@@ -1581,6 +1990,7 @@ class characteristic_CurrentDoorState:
 		self.minValue = 0
 		
 		self.validValues = [0, 1, 2, 3, 4]
+		self.validValuesStr = "[open, closed, opening, closing, stopped]"
 		
 		self.readonly = True
 		self.notify = True			
@@ -1595,6 +2005,7 @@ class characteristic_CurrentFanState:
 		self.minValue = 0
 		
 		self.validValues = [0, 1, 2]
+		self.validValuesStr = "[inactive, idle, blowing air]"
 		
 		self.readonly = True
 		self.notify = True		
@@ -1609,6 +2020,7 @@ class characteristic_CurrentHeatingCoolingState:
 		self.minValue = 0
 		
 		self.validValues = [0, 1, 2]
+		self.validValuesStr = "[off, heat cool]"
 		
 		self.readonly = True
 		self.notify = True		
@@ -1675,6 +2087,7 @@ class characteristic_LockCurrentState:
 		self.minValue = 0
 		
 		self.validValues = [0, 1, 2, 3]		
+		self.validValuesStr = "[unsecured, secured, jammed, unknown]"
 		
 		self.readonly = True
 		self.notify = True
@@ -1689,6 +2102,7 @@ class characteristic_LockPhysicalControls:
 		self.minValue = 0
 		
 		self.validValues = [0, 1]
+		self.validValuesStr = "[lock disabled, lock enabled]"
 		
 		self.readonly = False
 		self.notify = True		
@@ -1703,6 +2117,7 @@ class characteristic_LockTargetState:
 		self.minValue = 0
 		
 		self.validValues = [0, 1]	
+		self.validValuesStr = "[unsecured, secured]"
 		
 		self.readonly = False
 		self.notify = True		
@@ -1718,6 +2133,18 @@ class characteristic_MotionDetected:
 		
 		self.readonly = True
 		self.notify = False		
+		
+# ==============================================================================
+# MUTE
+# ==============================================================================
+class characteristic_Mute:
+	def __init__(self):
+		self.value = False
+		
+		self.validValues = [True, False]
+		
+		self.readonly = False
+		self.notify = False				
 		
 # ==============================================================================
 # NAME
@@ -1775,6 +2202,7 @@ class characteristic_RotationDirection:
 		self.minValue = 0
 		
 		self.validValues = [0, 1]
+		self.validValuesStr = "[clockwise, counter clockwise]"
 		
 		self.readonly = False
 		self.notify = True		
@@ -1827,6 +2255,7 @@ class characteristic_StatusFault:
 		self.minValue = 0
 		
 		self.validValues = [0, 1]
+		self.validValuesStr = "[no fault, fault]"
 		
 		self.readonly = True
 		self.notify = True			
@@ -1841,6 +2270,7 @@ class characteristic_StatusLowBattery:
 		self.minValue = 0
 		
 		self.validValues = [0, 1]
+		self.validValuesStr = "[normal, low]"
 		
 		self.readonly = True
 		self.notify = True			
@@ -1855,6 +2285,7 @@ class characteristic_StatusTampered:
 		self.minValue = 0
 		
 		self.validValues = [0, 1]
+		self.validValuesStr = "[not tampered, tampered]"
 		
 		self.readonly = True
 		self.notify = True			
@@ -1869,6 +2300,7 @@ class characteristic_SwingMode:
 		self.minValue = 0
 		
 		self.validValues = [0, 1]
+		self.validValuesStr = "[disabled, enabled]"
 		
 		self.readonly = False
 		self.notify = True		
@@ -1883,6 +2315,7 @@ class characteristic_TargetDoorState:
 		self.minValue = 0
 		
 		self.validValues = [0, 1]
+		self.validValuesStr = "[open, closed]"
 		
 		self.readonly = False
 		self.notify = True			
@@ -1897,6 +2330,7 @@ class characteristic_TargetFanState:
 		self.minValue = 0
 		
 		self.validValues = [0, 1]
+		self.validValuesStr = "[manual, auto]"
 		
 		self.readonly = False
 		self.notify = True
@@ -1911,6 +2345,7 @@ class characteristic_TargetHeatingCoolingState:
 		self.minValue = 0
 		
 		self.validValues = [0, 1, 2, 3]
+		self.validValuesStr = "[off, heat, cool, auto]"
 		
 		self.readonly = False
 		self.notify = True		
@@ -1951,8 +2386,20 @@ class characteristic_TemperatureDisplayUnits:
 		self.minValue = 0
 		
 		self.validValues = [0, 1]
+		self.validValuesStr = "[celsius, fahrenheit]"
 		
 		self.readonly = False
 		self.notify = True		
 				
-				
+# ==============================================================================
+# VOLUME
+# ==============================================================================		
+class characteristic_Volume:
+	def __init__(self):
+		self.value = 0
+		self.maxValue = 100
+		self.minValue = 0
+		self.minStep = 1
+
+		self.readonly = False
+		self.notify = True					

@@ -81,25 +81,6 @@ class Plugin(indigo.PluginBase):
 	# we want to intercept and do something with
 	################################################################################	
 	
-	
-	#
-	# This only gets run manually in code when new devices are added to facilitate the lookup needed for classes
-	#
-	def printClassLookupDict (self):
-		try:
-			d = "{"
-			
-			for name in dir(eps.homekit):
-				if "characteristic_" in name:
-					d += '"' + name.replace("characteristic_", "") + '": ' + name + ", "
-
-			d += "}"
-								
-			indigo.server.log(unicode(d))
-					
-		except Exception as e:
-			self.logger.error (ext.getException(e))				
-	
 	#
 	# Development Testing
 	#
@@ -139,6 +120,18 @@ class Plugin(indigo.PluginBase):
 			#x = eps.homekit.getServiceObject (954521198, 1794022133, "service_Thermostat")
 			#indigo.server.log (unicode(x))
 			
+			#x = eps.homekit.getServiceObject (558499318, 1794022133, "service_Speaker")
+			#indigo.server.log (unicode(x))
+			
+			#for a in x.actions:
+				#if a.characteristic == "Mute" and not a.whenvalue:
+				#	a.run ("false", 558499318, False)
+				#	break
+				
+			#	if a.characteristic == "Volume":
+			#		a.run ("75", 558499318, True)
+			#		break
+			
 			#x = eps.homekit.getHomeKitServices ()
 			#indigo.server.log (unicode(x))
 			
@@ -154,7 +147,7 @@ class Plugin(indigo.PluginBase):
 	def onAfter_startup (self):
 		try:
 			# Only uncomment this when new characteristics have been added so the class lookup can be printed
-			#self.printClassLookupDict()
+			#eps.homekit.printClassLookupDict()
 			
 			# Start the httpd listener
 			eps.api.startServer (self.pluginPrefs.get('apiport', '8558'))
@@ -481,35 +474,10 @@ class Plugin(indigo.PluginBase):
 						if a.characteristic in query and a.characteristic not in processedActions: 
 							self.logger.debug ("Received {} in query, setting to {}".format(a.characteristic, query[a.characteristic][0]))
 							#processedActions.append(a.characteristic)
-							ret = a.run (query[a.characteristic][0])
+							ret = a.run (query[a.characteristic][0], r, True)
 							#self.HKREQUESTQUEUE[obj.id] = a.characteristic # It's ok that this overwrites, it's the same
 							if ret: response = True # Only change it if its true, that way we know the operation was a success
-					
-					# Loop for up to 30 seconds (this is in a thread so it won't hurt the plugin or other requests) to wait for
-					# the given command to be completed
-					if not isAction:
-						commandComplete = False
-						commandLoop = 0
-						while not commandComplete:
-							commandLoop = commandLoop + 1
-							if commandLoop > 1000: 
-								self.logger.error ("Attempting to control '{}' from HomeKit and have not gotten a response from the Indigo device for at least 10 seconds, aborting command".format(r["name"]))
-								break # Failsafe
-
-							d = dtutil.dateDiff ("seconds", indigo.server.getTime(), indigo.devices[int(r["id"])].lastChanged)
-							if d == 0 or d == 1 or d == 2: 
-								break # We got there, this is perfect timing
-							elif d < 6:
-								# A bit slow, log it
-								self.logger.warning ("Attempting to control '{}' from HomeKit and we didn't get notified for {} seconds after the action was run, this is a bit slow".format(r["name"], unicode(d)))
-								break
-								
-						time.sleep (1) # For good measure
-							
-					else:
-						#time.sleep (2) # Give it time to run
-						pass # Let it instant-report success 
-					
+										
 					r = self.buildHKAPIDetails (devId, serverId, r["jkey"], isAction)		
 					return "text/css",	json.dumps(r, indent=4)
 				
@@ -589,7 +557,11 @@ class Plugin(indigo.PluginBase):
 				return []
 			
 			obj = eps.homekit.getServiceObject (r["id"], serverId, r["hktype"], False, True)
-			#indigo.server.log(unicode(obj))
+			
+			# Invert if configured
+			if "invert" in r: 
+				obj.invertOnState = r["invert"]
+				if obj.invertOnState: obj.setAttributesv2() # Force it to refresh values so we get our inverted onState
 			
 			# Add model and firmware
 			if r["object"] != "Action":
@@ -598,14 +570,7 @@ class Plugin(indigo.PluginBase):
 			else:
 				r["type"] = "Action Group"
 				r["versByte"] = ""
-			
-			# Fix up for output
-			r["hkservice"] = r["hktype"].replace("service_", "")
-			del r["hktype"]
-			#del r["jkey"]
-			#del r["type"]
-			del r["char"]
-			
+				
 			# Add the callback
 			r["url"] = "/HomeKit?objId={}&serverId={}&jkey={}".format(str(objId), str(serverId), jkey)	
 			
@@ -630,6 +595,14 @@ class Plugin(indigo.PluginBase):
 				
 			r["hkcharacteristics"] = charList
 			
+			# Fix up for output
+			r["hkservice"] = r["hktype"].replace("service_", "")
+			del r["hktype"]
+			#del r["jkey"]
+			#del r["type"]
+			del r["char"]
+			if "invert" in r: del r["invert"]
+			
 			# Fix actions for readability
 			actList = []
 			for a in obj.actions:
@@ -643,6 +616,8 @@ class Plugin(indigo.PluginBase):
 				#self.serverSendObjectUpdateToHomebridge (indigo.devices[int(serverId)], r["id"])
 				#thread.start_new_thread(self.timedCallbackToURL, (serverId, r["id"], 2))
 				thread.start_new_thread(self.timedCallbackToURL, (serverId, r["jkey"], 2))
+				
+			
 			
 			# Before we return r, use the jstash ID for our ID instead of the Indigo ID
 			r["deviceId"] = r["id"] # So we still have it
@@ -850,6 +825,9 @@ class Plugin(indigo.PluginBase):
 			ret = True
 			
 			self.logger.threaddebug ("Verifying that {0} is available".format(port))
+			if str(port) == "":
+				self.logger.warning ("Attempted to verify a null port on portIsOpen, this shouldn't happen.")
+				return False
 			
 			s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -942,6 +920,7 @@ class Plugin(indigo.PluginBase):
 			rec["hktype"]		= ""	# The HomeKit API class
 			rec["link"]			= []	# List of other added devices this is linked to
 			rec["complex"]		= False	# If this device is the primary device in a complication
+			rec["invert"]		= False # If this device will invert it's on/off state (requires that devices has boolean onState attribute
 			
 			eps.jstash.createRecordDefinition ("item", rec)
 			
@@ -1809,18 +1788,28 @@ class Plugin(indigo.PluginBase):
 							valuesDict["objectType"] = "device"
 							valuesDict["device"] = str(r["id"])
 							
+							if "onState" in dir(indigo.devices[int(valuesDict["device"])]):
+								valuesDict["enableOnOffInvert"] = True
+							else:
+								valuesDict["enableOnOffInvert"] = False
+
+							
 						if isAction: 
 							valuesDict["objectType"] = "action"
 							valuesDict["action"] = str(r["id"])
+							valuesDict["enableOnOffInvert"] = False
 						
 						valuesDict["name"] = r["name"]
 						valuesDict["alias"] = r["alias"]
 						#valuesDict["typename"] = r["typename"]
 						#valuesDict["type"] = r["type"]
-						valuesDict["hktype"] = r["hktype"]
+						valuesDict["hkType"] = r["hktype"]
 						valuesDict["hkStatesJSON"] = r["char"]
 						valuesDict["hkActionsJSON"] = r["action"]
 						valuesDict["deviceOrActionSelected"] = True
+						if "invert" in r: valuesDict["invertOnOff"] = r["invert"]
+						
+						
 						valuesDict["deviceLimitReached"] = False # Since we only allow 99 we are now at 98 and valid again
 						valuesDict["editActive"] = True # Disable fields so the user knows they are in edit mode
 
@@ -1959,6 +1948,8 @@ class Plugin(indigo.PluginBase):
 	def serverCheckForComplications (self, devId, alias = None):
 		try:
 			ret = []
+			if str(devId) == "-fill-": return ret
+			if str(devId) == "-line-": return ret
 			if int(devId) not in indigo.devices: return ret
 			
 			dev = indigo.devices[int(devId)]
@@ -2079,6 +2070,7 @@ class Plugin(indigo.PluginBase):
 				if r is None:					
 					#device['treatas'] = valuesDict["treatAs"] # Homebridge Buddy Legacy
 					device['hktype'] = valuesDict["hkType"]
+					if "enableOnOffInvert" in valuesDict and valuesDict["enableOnOffInvert"]: device["invert"] = valuesDict["invertOnOff"]
 					#device["url"] = "/HomeKit?cmd=setCharacteristic&objId={}&serverId={}".format(str(dev.id), str(serverId))
 					#device["url"] = "/HomeKit?objId={}&serverId={}".format(str(dev.id), str(serverId))	
 					#device["char"] = valuesDict["hkStatesJSON"]
@@ -2126,6 +2118,12 @@ class Plugin(indigo.PluginBase):
 			if valuesDict["device"] != "" and valuesDict["device"] != "-fill-" and valuesDict["device"] != "-line-":
 				valuesDict["deviceOrActionSelected"] = True # Enable fields
 				
+				# See if we should show the invert checkbox
+				if "onState" in dir(indigo.devices[int(valuesDict["device"])]):
+					valuesDict["enableOnOffInvert"] = True
+				else:
+					valuesDict["enableOnOffInvert"] = False
+							
 				# So long as we are not in edit mode then pull the HK defaults for this device and populate it
 				if not valuesDict["editActive"]:
 					obj = eps.homekit.getServiceObject (valuesDict["device"], devId, None, True, True)
@@ -2164,6 +2162,7 @@ class Plugin(indigo.PluginBase):
 			# The device changed, if it's not a generic type then fill in defaults
 			if valuesDict["action"] != "" and valuesDict["action"] != "-fill-" and valuesDict["action"] != "-line-":
 				valuesDict["deviceOrActionSelected"] = True # Enable fields
+				valuesDict["enableOnOffInvert"] = False # NEVER show this on Actions
 				
 				# So long as we are not in edit mode then pull the HK defaults for this device and populate it
 				if not valuesDict["editActive"]:
@@ -2262,6 +2261,8 @@ class Plugin(indigo.PluginBase):
 				valuesDict["device"] = "-fill-"
 				valuesDict["action"] = "-fill-"
 				valuesDict["objectType"] = "device"
+				valuesDict["enableOnOffInvert"] = False
+				valuesDict["deviceOrActionSelected"] = False
 				
 				# If the server is running and the ports didn't change then we know we should be OK, otherwise we need to check
 				server = indigo.devices[devId]
@@ -2382,6 +2383,15 @@ class Plugin(indigo.PluginBase):
 	#
 	def serverCommandTurnOn (self, dev):
 		try:
+			# Failsafe check to not attempt to start the server unless we have our ports configured
+			if "pin" not in dev.pluginProps or "port" not in dev.pluginProps or "listenPort" not in dev.pluginProps or "username" not in dev.pluginProps:
+				self.logger.debug ("One or more required fields are missing on '{}' (port, pin, listenPort or usrename), we'll assume it is yet unconfigured and won't error on the user".format(dev.name))
+				return False
+				
+			if dev.pluginProps["pin"] == "" or dev.pluginProps["port"] == "" or dev.pluginProps["listenPort"] == "" or dev.pluginProps["username"] == "":
+				self.logger.debug ("One or more required fields are present but blank on '{}' (port, pin, listenPort or usrename), we'll assume it is yet unconfigured and won't error on the user".format(dev.name))
+				return False
+							
 			return self.shellHBStartServer (dev)
 		
 		except Exception as e:

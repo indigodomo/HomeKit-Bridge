@@ -110,8 +110,17 @@
 			<Field type="menu" id="hkType" defaultValue="none" visibleBindingId="deviceOrActionSelected" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true">
                 <Label>HomeKit Type:</Label>
                 <List class="self" filter="#plugin#[index=hkType, callback=serverListHomeKitDeviceTypes, ref=hideWrappedItems, nocache=true]" method="getCustomList" dynamicReload="true"/>
-                
             </Field>
+            
+            <Field type="checkbox" id="enableOnOffInvert" defaultValue="false" hidden="true">
+				<Label> </Label>
+				<Description>Determines if the invert on/off should be shown - it should only be allowed on devices allowing on/off commands</Description>
+			</Field>
+            
+            <Field type="checkbox" id="invertOnOff" defaultValue="false" visibleBindingId="enableOnOffInvert" visibleBindingValue="true">
+				<Label> </Label>
+				<Description>Invert on/off state</Description>
+			</Field>
             
            <Field type="label" id="lbl_spacer1" visibleBindingId="objectType" visibleBindingValue="device,action" alwaysUseInDialogHeightCalc="true">
 				<Label>
