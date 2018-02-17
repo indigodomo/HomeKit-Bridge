@@ -1030,16 +1030,40 @@ class Service (object):
 			
 			# MOST DEVICES
 			if attrib == "onState":	
-				if method == "TF" or method == "01":			
-					self.actions.append (HomeKitAction(characteristic, "equal", falseValue, "device.turnOff", [self.objId], 0, {self.objId: "attr_onState"}))
-					self.actions.append (HomeKitAction(characteristic, "equal", trueValue, "device.turnOn", [self.objId], 0, {self.objId: "attr_onState"}))
-		
-				elif method == "RANGE":
-					self.actions.append (HomeKitAction(characteristic, "equal", minValue, "device.turnOff", [self.objId], 0, {self.objId: "attr_onState"}))
-					self.actions.append (HomeKitAction(characteristic, "between", minValue + minStep, "device.turnOn", [self.objId], maxValue, {self.objId: "attr_onState"}))	
+				if self.invertOnState:
+					self.logger.debug ("Inverting the action for characteristic {} on '{}'".format(characteristic, self.alias.value))
+					# This attribute is the only thing impacted by this setting but it means we have to reverse the commands because the characteristic
+					# value was reversed in HomeKit.  We need to remove all default actions because they will be replaced here and if we don't we'll end up
+					# appending the regular and inverted commands together
+					newactions = []
+					for a in self.actions:
+						if not a.default: newactions.append(a)
+						
+					self.actions = newactions
 					
-				else:
-					invalidType = True
+					
+					if method == "TF" or method == "01":	
+						self.actions.append (HomeKitAction(characteristic, "equal", falseValue, "device.turnOn", [self.objId], 0, {self.objId: "attr_onState"}))
+						self.actions.append (HomeKitAction(characteristic, "equal", trueValue, "device.turnOff", [self.objId], 0, {self.objId: "attr_onState"}))
+		
+					elif method == "RANGE":
+						self.actions.append (HomeKitAction(characteristic, "equal", minValue, "device.turnOn", [self.objId], 0, {self.objId: "attr_onState"}))
+						self.actions.append (HomeKitAction(characteristic, "between", minValue + minStep, "device.turnOff", [self.objId], maxValue, {self.objId: "attr_onState"}))	
+					
+					else:
+						invalidType = True
+					
+				else:				
+					if method == "TF" or method == "01":			
+						self.actions.append (HomeKitAction(characteristic, "equal", falseValue, "device.turnOff", [self.objId], 0, {self.objId: "attr_onState"}))
+						self.actions.append (HomeKitAction(characteristic, "equal", trueValue, "device.turnOn", [self.objId], 0, {self.objId: "attr_onState"}))
+		
+					elif method == "RANGE":
+						self.actions.append (HomeKitAction(characteristic, "equal", minValue, "device.turnOff", [self.objId], 0, {self.objId: "attr_onState"}))
+						self.actions.append (HomeKitAction(characteristic, "between", minValue + minStep, "device.turnOn", [self.objId], maxValue, {self.objId: "attr_onState"}))	
+					
+					else:
+						invalidType = True
 			
 			# DIMMERS
 			elif attrib == "brightness":
@@ -1168,18 +1192,33 @@ class Service (object):
 					invalidType = True
 					
 			# Airfoil Speakers (perhaps Sonos, don't have the plugin so don't know)
-			elif state == "status.disconnected":
+			elif state == "status.disconnected": # Speaker or Microphone Control turing MUTE on and off (reversed state)
 				cmd = "homekit.runPluginAction"
+				
 				if method == "TF" or method == "01":	
 					self.actions.append (HomeKitAction(characteristic, "equal", falseValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["connect", self.objId]], 0, {self.objId: "state_status.disconnected"}))
 					self.actions.append (HomeKitAction(characteristic, "equal", trueValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["disconnect", self.objId]], 0, {self.objId: "state_status.disconnected"}))
-				
+			
 				elif method == "RANGE":	
 					self.actions.append (HomeKitAction(characteristic, "equal", minValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["disconnect", self.objId]], 0, {self.objId: "state_status.disconnected"}))
 					self.actions.append (HomeKitAction(characteristic, "between", minValue + minStep, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["connect", self.objId]], maxValue, {self.objId: "state_status.disconnected"}))	
-				
+			
 				else:
 					invalidType = True		
+
+			elif state == "status.connected": # Lightbulb Control turing CONNECT on and off (opposite of normal speaker/microphone control)
+				cmd = "homekit.runPluginAction"
+				if method == "TF" or method == "01":	
+					self.actions.append (HomeKitAction(characteristic, "equal", falseValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["disconnect", self.objId]], 0, {self.objId: "state_status.disconnected"}))
+					self.actions.append (HomeKitAction(characteristic, "equal", trueValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["connect", self.objId]], 0, {self.objId: "state_status.disconnected"}))
+			
+				elif method == "RANGE":	
+					self.actions.append (HomeKitAction(characteristic, "equal", minValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["connect", self.objId]], 0, {self.objId: "state_status.disconnected"}))
+					self.actions.append (HomeKitAction(characteristic, "between", minValue + minStep, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["disconnect", self.objId]], maxValue, {self.objId: "state_status.disconnected"}))	
+			
+				else:
+					invalidType = True		
+
 					
 			elif state == "volume":
 				cmd = "homekit.runPluginAction"
@@ -1280,7 +1319,7 @@ class Service (object):
 # Defines and executes actions associated with a characteristic
 ################################################################################	
 class HomeKitAction ():
-	def __init__(self, characteristic, whenvalueis = "equal", whenvalue = 0, command = "", arguments = [], whenvalue2 = 0, monitors = {}):
+	def __init__(self, characteristic, whenvalueis = "equal", whenvalue = 0, command = "", arguments = [], whenvalue2 = 0, monitors = {}, default = True):
 		try:
 			self.logger = logging.getLogger ("Plugin.HomeKitAction")
 			
@@ -1291,6 +1330,7 @@ class HomeKitAction ():
 			self.command = command
 			self.arguments = arguments
 			self.monitors = monitors # Dict of objId: attr_* | state_* | prop_* that we will monitor for this action - partly for future use if we are tying multiple objects to different properties and actions but also so our subscribe to changes knows what will trigger an update
+			self.default = default # This action is a default action, mostly for if we need to replace default actions for special circumstances like invert
 			
 			# Determine the value data type by creating a mock object
 			clsmembers = inspect.getmembers(sys.modules[__name__], inspect.isclass)
@@ -1425,7 +1465,7 @@ class HomeKitAction ():
 											# Something changed, see if it is one of our attributes, ANY attribute change (if there are multiple) will result in success
 											for devId, prop in self.monitors.iteritems():
 												if "attr_" in prop:
-													self.logger.info ("Target device '{}' changed, checking attribute '{}' to see if it was updated".format(indigo.devices[devId].name, prop.replace("attr_", "")))
+													self.logger.threaddebug ("Target device '{}' changed, checking attribute '{}' to see if it was updated".format(indigo.devices[devId].name, prop.replace("attr_", "")))
 													obj = getattr (indigo.devices[devId], prop.replace("attr_", ""))
 													if monitors[devId] != {prop: obj}:
 														self.logger.threaddebug ("Target device '{}' attribute '{}' was updated, the command succeeded".format(indigo.devices[devId].name, prop.replace("attr_", "")))
@@ -1699,7 +1739,7 @@ class service_Lightbulb (Service):
 		self.optional = ["Brightness", "Hue", "Saturation", "Name", "ColorTemperature"]
 		
 		self.requiredv2 = {}
-		self.requiredv2["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_status.disconnected"}
+		self.requiredv2["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_status.connected"}
 	
 		self.optionalv2 = {}
 		self.optionalv2["Brightness"] = {"indigo.DimmerDevice": "attr_brightness", "indigo.SpeedControlDevice": "attr_speedLevel", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_volume"}

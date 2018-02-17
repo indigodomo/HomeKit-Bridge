@@ -465,18 +465,27 @@ class Plugin(indigo.PluginBase):
 					
 					obj = eps.homekit.getServiceObject (r["id"], serverId, r["hktype"], False,  True)
 					
+					# Invert if configured
+					if "invert" in r: 
+						obj.invertOnState = r["invert"]
+						if obj.invertOnState: obj.setAttributesv2() # Force it to refresh values so we get our inverted action
+					
 					# Loop through actions to see if any of them are in the query
-					processedActions = {}
+					processedActions = []
 					response = False
+					
+					#indigo.server.log(unicode(obj))
 					
 					for a in obj.actions:
 						#indigo.server.log(unicode(a))
 						if a.characteristic in query and a.characteristic not in processedActions: 
-							self.logger.debug ("Received {} in query, setting to {}".format(a.characteristic, query[a.characteristic][0]))
+							self.logger.debug ("Received {} in query, setting to {} using {}".format(a.characteristic, query[a.characteristic][0], a.command))
 							#processedActions.append(a.characteristic)
-							ret = a.run (query[a.characteristic][0], r, True)
+							ret = a.run (query[a.characteristic][0], r["id"], True)
 							#self.HKREQUESTQUEUE[obj.id] = a.characteristic # It's ok that this overwrites, it's the same
-							if ret: response = True # Only change it if its true, that way we know the operation was a success
+							if ret: 
+								response = True # Only change it if its true, that way we know the operation was a success
+								break # we only ever get a single command on each query
 										
 					r = self.buildHKAPIDetails (devId, serverId, r["jkey"], isAction)		
 					return "text/css",	json.dumps(r, indent=4)

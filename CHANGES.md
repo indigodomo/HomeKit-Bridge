@@ -1,29 +1,19 @@
 Release Notes
 ==========
 
-Version 0.7.0 (Beta 7)
+Version 0.8.0 (Beta 8)
 ==========
-* New device type added: [Speaker](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#speaker) - customized to work with Airfoil by default if you choose an airfoil speaker from your list.  Unfortunately after going through all the code to get this working it shows up in HomeKit but is "not yet supported" so we'll have to wait for a HomeKit update - but we'll be ready when HomeKit is.  In the meantime the Airfoil control functionality has been added to Lightbulbs so you can use that to Mute (on/off) and control volume (Brightness)
-* New device type added: [Microphone](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#microphone) - I thought I would get clever and use the microphone device since the definition is identical (mute, volume) but, alas, this too is not yet supported
-* New device type added: [Contact Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#contactsensor) - this is the first device to actively invert the onState of a device, since it's inverted in HomeKit
-* Added Airfoil support despite the setbacks of using Speaker or Microphone, Airfoil can be controlled via a Lightbulb device (On/Off is Mute and Brightness is Volume).  Note that there were a few ways to implement mute and I chose to go with connecting and disconnecting the speaker rather than storing and retrieving the last speaker states
-* Added failsafe for open port checking in case, for whatever reason, a empty string is sent to the port checker as it caused an error [as reported by Coolcaper](http://forums.indigodomo.com/viewtopic.php?p=154850#p154850)
-* Added failsafe for starting the server to make sure pin, port, listenPort and username are all present and populated to prevent any server startup errors on new server creation [as reported by Coolcaper](http://forums.indigodomo.com/viewtopic.php?p=154854#p154854)
-* Added invert option to the server configuration - you can read more about it on the [Server Wiki Page](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Server-Device#including-your-indigo-objects) where it has been updated to explain the new Invert option
-* Added invert ability to Indigo devices that have an onState (dimmers, relays, etc), this will only invert the onState if it's part of the calculation
-* Overhaul of HomeKit-to-Indigo commands, it will now wait for the success of the command up to 25 seconds before aborting, please keep an eye on the log for "Maximum time exceeded while setting the '' HomeKit characteristic for..." errors in the log to see if this is going to cause any problems, this overhaul was in direct result to slow-to-respond devices such as Multi IO controllers that may need some time before a door closes and engages the input sensor control
-* Fixed typo in the device config where when you edit a device it would not properly fill in the HomeKit device type that was saved with the device
-* Fixed bug with complication lookups that would cause an error when selecting FILL or the divider line (oh, the things you don't think to test that make you slap your head and say DOH!  This is why its in beta testing)
-* Fixed known issue: Garage doors using the Insteon Multi I/O kit don't report back correctly because of the long delay in getting the Input1 to respond
-* Fixed known issue: If saving the server after adding an object the HomeKit name/type may still show on the form but the Device/Action is set to Fill as it should be
-* Known issue removed due to no reports of it: Possible feedback loop because when I update HomeKit it causes you to send a request to Indigo, which changes the device and that prompts the plugin to then contact you to let you know that the device was updated.  I’ll have to figure out a creative way to work around that.
-* Known issue removed as it was another plugin causing this (and not HKB or HBB): Possible minor race condition (it could be attributed to an experimental version of HBB running) but sometimes commands from HomeKit will cause a series of concurrent thread issues over multiple plugins, indicating that Indigo is too busy to answer, this recovers after a few seconds
-* Filled wish list item: User requested devices: Door (Open/Close or Contact) Sensor
-* Filled wish list item: Dev device wishlist: Speaker
+* Changed behavior of Airfoil when using a Lightbulb HomeKit type so that On/Off will connect/disconnect the Airfoil speaker instead of using the Speaker control of Mute/Unmute which was exactly opposite
+* Fixed bug on characteristic action execution where the thread debug message indicating it was checking for a status change output to the main console instead of thread debug
+* Fixed bug on characteristic action execution where a run action would error out if it had too many attempts, it should log the message rather than error on the message [reported by Jon](http://forums.indigodomo.com/viewtopic.php?p=154874#p154874)
+* Fixed bug on devices that use the Invert On/Off option where the display was correct but the commands would work only after timing out since the commands were not also getting reversed properly
+* Fixed bug on receiving characteristic changes from HomeKit where the plugin may execute a characteristic change more than once under certain circumstances, possibly reversing the action that was just executed
+* Tested Lightbulb not working for Airfoil control [reported by Jon](http://forums.indigodomo.com/viewtopic.php?p=154874#p154874) but it was working (perhaps as result of the other bug fixes)
 
 Known Issues
 ---------------
 * FRESH INSTALLATION ISSUE: It seems fairly universal that the first server you add does not work until you restart the plugin
+* 
 * After all the code to get the Speaker (also Microphone) device working it shows up in HomeKit but is "not yet supported" so we'll have to wait for a HomeKit update - but we'll be ready when HomeKit is
 * Need to remove API port from the plugin config and autodetect it instead when building the server configuration
 * Creating additional servers is not incrementing the user name and then not showing up in Homebridge as a result (reported by Autolog http://forums.indigodomo.com/viewtopic.php?p=154501#p154501)
@@ -45,12 +35,37 @@ Wish List
 * Autolog suggestion: http://forums.indigodomo.com/viewtopic.php?p=154506#p154506
 * Add a feature to read in HBB and Alexa items to build a cache of already used alias names
 
-Version 0.6.1 (Beta 6.1)
+
+
+Previous Release Notes
 ==========
+
+Version 0.7.0 (Beta 7)
+---------------
+* New device type added: [Speaker](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#speaker) - customized to work with Airfoil by default if you choose an airfoil speaker from your list.  Unfortunately after going through all the code to get this working it shows up in HomeKit but is "not yet supported" so we'll have to wait for a HomeKit update - but we'll be ready when HomeKit is.  In the meantime the Airfoil control functionality has been added to Lightbulbs so you can use that to Mute (on/off) and control volume (Brightness)
+* New device type added: [Microphone](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#microphone) - I thought I would get clever and use the microphone device since the definition is identical (mute, volume) but, alas, this too is not yet supported
+* New device type added: [Contact Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#contactsensor) - this is the first device to actively invert the onState of a device, since it's inverted in HomeKit
+* Added Airfoil support despite the setbacks of using Speaker or Microphone, Airfoil can be controlled via a Lightbulb device (On/Off is Mute and Brightness is Volume).  Note that there were a few ways to implement mute and I chose to go with connecting and disconnecting the speaker rather than storing and retrieving the last speaker states
+* Added failsafe for open port checking in case, for whatever reason, a empty string is sent to the port checker as it caused an error [as reported by Coolcaper](http://forums.indigodomo.com/viewtopic.php?p=154850#p154850)
+* Added failsafe for starting the server to make sure pin, port, listenPort and username are all present and populated to prevent any server startup errors on new server creation [as reported by Coolcaper](http://forums.indigodomo.com/viewtopic.php?p=154854#p154854)
+* Added invert option to the server configuration - you can read more about it on the [Server Wiki Page](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Server-Device#including-your-indigo-objects) where it has been updated to explain the new Invert option
+* Added invert ability to Indigo devices that have an onState (dimmers, relays, etc), this will only invert the onState if it's part of the calculation
+* Overhaul of HomeKit-to-Indigo commands, it will now wait for the success of the command up to 25 seconds before aborting, please keep an eye on the log for "Maximum time exceeded while setting the '' HomeKit characteristic for..." errors in the log to see if this is going to cause any problems, this overhaul was in direct result to slow-to-respond devices such as Multi IO controllers that may need some time before a door closes and engages the input sensor control
+* Fixed typo in the device config where when you edit a device it would not properly fill in the HomeKit device type that was saved with the device
+* Fixed bug with complication lookups that would cause an error when selecting FILL or the divider line (oh, the things you don't think to test that make you slap your head and say DOH!  This is why its in beta testing)
+* Fixed known issue: Garage doors using the Insteon Multi I/O kit don't report back correctly because of the long delay in getting the Input1 to respond
+* Fixed known issue: If saving the server after adding an object the HomeKit name/type may still show on the form but the Device/Action is set to Fill as it should be
+* Known issue removed due to no reports of it: Possible feedback loop because when I update HomeKit it causes you to send a request to Indigo, which changes the device and that prompts the plugin to then contact you to let you know that the device was updated.  I’ll have to figure out a creative way to work around that.
+* Known issue removed as it was another plugin causing this (and not HKB or HBB): Possible minor race condition (it could be attributed to an experimental version of HBB running) but sometimes commands from HomeKit will cause a series of concurrent thread issues over multiple plugins, indicating that Indigo is too busy to answer, this recovers after a few seconds
+* Filled wish list item: User requested devices: Door (Open/Close or Contact) Sensor
+* Filled wish list item: Dev device wishlist: Speaker
+
+Version 0.6.1 (Beta 6.1)
+---------------
 * Added check for Nest states if user has a Nest so that there's no error when Nest does it's 40 million state updates a minute...
 
 Version 0.6.0 (Beta 6)
-==========
+---------------
 * Device FIXED: Garage Door - Homebridge is hyper sensitive to read/write access, the targetstate was set as readonly and that caused Homekit to not even attempt to send a change order
 * Added new feature: [Complications](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Complications) - this is experimental and only in use for thermostats at the moment but will come into play with sprinklers too in the near future since each valve is its own device
 * Added startup warning box if the user is hiding any Indigo items to let them know that there are hidden items that can be managed from the plugin - this to head off any possible future support headaches about someone who incorrectly hides something or hides it and forgets but then asks why the device isn't showing up on their lists anymore.  Also [updated the Wiki to prevent unneeded support requests](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/FAQ#why-do-i-get-a-hidden-items-warning-when-i-start-homekit-bridge)
@@ -68,13 +83,13 @@ Version 0.6.0 (Beta 6)
 * Fixed Homebridge issue: Garage doors never even make a request to Indigo at all
 
 Version 0.5.0 (Beta 5)
-==========
+---------------
 * Added new combobox action item in the server called "Delete and Exclude" that allows you to not only delete an item from the list but to also exclude it from all future lists (manageable from the menu), this in direct response to [the complaint from Different Computers](http://forums.indigodomo.com/viewtopic.php?p=154621#p154621) regarding his frustrations with the way device inclusion works
 * Added new combobox action item in the server called "Delete and Hide" that allows you to not only delete an item from the list but to hide it for the remainder of the time you have the server dialog open, allowing you to re-fill as needed.  The cache will clear once the dialog is cancelled or saved so that the object you hid will be available again
 * Added new menu option to [Manage Hidden Objects](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Hidden-Objects-Management) 
 
 Version 0.4.0 (Beta 4)
-==========
+---------------
 * New device type added: [Thermostat](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#thermostat) 
 * Added temperature display configuration option to server dialog for any temperature device, but specifically thermostats
 * Fixed Action Group execution issues from HomeKit by making the response instant and then calling back HomeKit after a few seconds to toggle the switch to the off position - making it a true momentary switch
@@ -82,13 +97,13 @@ Version 0.4.0 (Beta 4)
 * Disabled the automatic server wizard until it can be reimagined in a more optimized way, it had a 50/50 shot of timing out while calculating and that wouldn't make anything easier supporting users.  It'll be back soon.
 
 Version 0.3.0 (Beta 3)
-==========
+---------------
 * Total rewrite of the HomeKit integration library once it became apparent that it was going to be a runaway train once all HomeKit device types were added, this streamlines and makes it much easier to manage
 * Added new Automatic Server Wizard that will automatically create servers for ALL devices in Indigo and automatically manage them from that point forward.  This beta is being released a little early to fix a bug so this isn't fully functional in that it won't create servers but you can see how the process is going to work.
 * Put API Port back into the plugin prefs as it is required to build the config (reported by FlyingDiver)
 
 Version 0.2.0 (Beta 2)
-==========
+---------------
 * New device type added: [Motion Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#motion-sensor) (note that auto detection may be wonky because there are SOOOOOO many ways to define a motion sensor in Indigo that's a bit hit and miss)
 * New device type added: [Garage Door Opener](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#garagedooropener) (note that this is currently not fully operations, Homebridge problems suspected, watch for future updates)
 * Behind the scenes update to the libraries to no longer do any kind of logging for non plugin devices (it often causes confusion when debug logging is enabled), this will also reduce the footprint of the plugin a bit
@@ -101,7 +116,7 @@ Version 0.2.0 (Beta 2)
 * Added special exception definition for Fibaro FGMS001 sensors since they also have a Tile/Tamper option that if you have that model of sensor it will show the Tilt/Tamper on the icon of the motion sensor
 
 Version 0.1.2 (Beta 1)
-==========
+---------------
 * Hello, I would like to introduce you to the new Fan device!  And it's cool.  WOOT.
 * Fixed issue with Insteon devices not reporting to HomeKit when they have changed
 * Fixed issue where server device would not automatically restart when configuration was changed
@@ -109,14 +124,14 @@ Version 0.1.2 (Beta 1)
 * Running multiple servers should now work fine but will need beta tested to be certain, only limited alpha testing was performed
 
 Version 0.0.7 (Alpha 7)
-==========
+---------------
 * Fixed bug where locks were looking for the wrong value from HomeKit and as a result wouldn't operate properly
 * Changed http server to be multi-threaded after it was apparent that non-concurrent web requests will never work under HomeKit
 * Changed API so that it now will wait until Indigo completes the action before it returns values, insuring that everything is now real-time except actions, that get a 5 second delay instead since there is no way to know if it completes or not (and we wouldn't want to because it could be a 30 minute run for all we know)
 * Both the plugin and NodeJS are proving to be quite stable right now, alpha is complete and closed beta begins
 
 Version 0.0.6 (Alpha 6)
-==========
+---------------
 * Removed the callback URL builder from the server device to instead be dynamic on the API call so it can be easily modified if needed in the future - plus it doesn't need to be saved statically anyway
 * Added Indigo-to-Homebridge callback whenever an included object has a change so that HomeKit will stay up-to-date so long as the server is running when an object change takes place
 * Changed the object indexer so that having one object on multiple servers would be properly indexed
@@ -131,7 +146,7 @@ Version 0.0.6 (Alpha 6)
 * Fixed a few UI inconsistencies
 
 Version 0.0.5 (Alpha 5)
-==========
+---------------
 * Moved server folder from ~/.HomeKit-Bridge to the Indigo plugin preferences folder on the recommendation of Jay from Indigo
 * Fixed possible infinite loop issue where if starting the HB server from the plugin it was not incrementing wait time, meaning you would have to hard-stop the plugin to get it to recover if the HB server didn't start up
 * Changed service start and stop to quote the long path to the Indigo prefs due to path complexity
@@ -142,19 +157,19 @@ Version 0.0.5 (Alpha 5)
 * Added regular server process checking so that the running state of the plugin device will reflect the running state of the service every 30-60 seconds (variable to keep CPU costs down)
 
 Version 0.0.4 (Alpha 4)
-==========
+---------------
 * Additional changed to fix Lightbulb definition (note,  you will need to edit your lightbulb devices on the server and re-save them so they reference the correct library, you'll get an error if you do not)
 * Fixed API issue where if the item was an action it would not resolve properly and cause an error
 * Added error check to API deviceList so that if there is any kind of an error on a device it will not be added to the final result, preventing a Homebridge restart race condition
 
 Version 0.0.3 (Alpha 3)
-==========
+---------------
 * Fixed ability to add actions to the HomeKit device list
 * Changed LightBulb to Lightbulb for better HomeKit compatibility and naming conventions
 * Changed RESTful URL output to remove the cmd parameter
 
 Version 0.0.2 (Alpha 2)
-==========
+---------------
 * Server can now FILL with devices, this will take the server up to it's 99 object limit
 * Added a catch-all for switches to always include an ON characteristic, even if the device doesn't support On/Off because all devices will fall back to a switch if no other type can be determined
 * Added LockTargetState as a mapped characteristic on locks, defaulting to the current state for now (and normally it would anyway)
