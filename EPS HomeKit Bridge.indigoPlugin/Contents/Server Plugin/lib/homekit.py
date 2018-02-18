@@ -27,6 +27,8 @@ class HomeKit:
 	def printClassLookupDict (self):
 		try:
 			clsmembers = inspect.getmembers(sys.modules[__name__], inspect.isclass)
+			
+			serviceList = "\n"
 
 			d = "\n***\n## Services\n\n"
 			
@@ -36,11 +38,13 @@ class HomeKit:
 			for cls in clsmembers:
 				if "service_" in cls[0]:
 					index += "[{}](#{}) | ".format(cls[0].replace("service_", ""), cls[0].replace("service_", "").lower())
-					
+										
 					d += "### {}\n\n".format(cls[0].replace("service_", ""))	
 						
 					cclass = cls[1]
 					obj = cclass(self.factory, 0, 0, {}, [], True)
+					
+					serviceList += "* [{}](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#{})\n".format(unicode(obj.desc), cls[0].replace("service_", "").lower())
 					
 					d += "**Device**: {}\n\n".format(unicode(obj.desc))
 					
@@ -135,7 +139,8 @@ class HomeKit:
 			
 			index = index[0:len(index) - 3]
 			d = d.replace("[INDEX]", index)
-								
+			
+			indigo.server.log(unicode(serviceList) + "\n\n\n\n\n\n")					
 			indigo.server.log(unicode(d))
 					
 		except Exception as e:
@@ -225,6 +230,18 @@ class HomeKit:
 			elif "sensorValue" in dir(dev):
 				if unicode(dev.protocol) == "Insteon" and "Motion Sensor" in dev.model: 
 					return "service_MotionSensor"
+					
+				elif dev.pluginId == "com.perceptiveautomation.indigoplugin.zwave" and dev.deviceTypeId == "zwValueSensorType" and "LightSensor" in unicode(dev.displayStateImageSel):
+					return "service_LightSensor"
+					
+				elif "Leak" in dev.model:
+					return "service_LeakSensor"
+					
+				elif "Smoke" in dev.model:
+					return "service_SmokeSensor"	
+					
+				elif "Humidity" in dev.model:
+					return "service_HumiditySensor"	
 				
 				else:
 					return "service_MotionSensor"
@@ -934,20 +951,20 @@ class Service (object):
 					if getter == "special_lowbattery":
 						obj = indigo.devices[self.objId]
 						if "batteryLevel" in dir(obj) and "lowbattery" in self.factory.plugin.pluginPrefs:
-							lowbattery = int(self.factory.plugin.pluginPrefs["lowbattery"])
-							if lowbattery > 0: lowbattery = lowbattery / 100
-							if obj.batteryLevel < ((100 * lowbattery) + 1): 
-								self.setAttributeValue (characteristic, 1)
-								self.characterDict[characteristic] = 1
-							else:
-								self.setAttributeValue (characteristic, 0)
-								self.characterDict[characteristic] = 0
+							# If it's set to None then we really don't have battery levels and can skip this all
+							if obj.batteryLevel is not None:
+								lowbattery = int(self.factory.plugin.pluginPrefs["lowbattery"])
+								if lowbattery > 0: lowbattery = lowbattery / 100
+								if obj.batteryLevel < ((100 * lowbattery) + 1): 
+									self.setAttributeValue (characteristic, 1)
+									self.characterDict[characteristic] = 1
+								else:
+									self.setAttributeValue (characteristic, 0)
+									self.characterDict[characteristic] = 0
 								
-							# So we get notified of any changes, add a trigger for this in actions, it won't do anything other than monitor
-							self.actions.append (HomeKitAction(characteristic, "equal", False, "device.turnOff", [self.objId], 0, {self.objId: "attr_batteryLevel"}))
+								# So we get notified of any changes, add a trigger for this in actions, it won't do anything other than monitor
+								self.actions.append (HomeKitAction(characteristic, "equal", False, "device.turnOff", [self.objId], 0, {self.objId: "attr_batteryLevel"}))
 						
-						else:
-							self.characterDict[characteristic] = 0
 						
 					# Mostly for outlets, will read a load if supported and report as in use or will default to the onState
 					if getter == "special_inuse":
@@ -1623,6 +1640,36 @@ class Dummy (Service):
 		#self.logger.warning ('{} has no automatic conversion to HomeKit and will not be usable unless custom mapped'.format(self.alias.value))	
 
 # ==============================================================================
+# BATTERY SERVICE
+# ==============================================================================
+class service_BatteryService (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "BatteryService"
+		desc = "Battery Service (Unsupported)"
+	
+		super(service_BatteryService, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = ["BatteryLevel", "ChargingState", "StatusLowBattery"]
+		self.optional = ["Name"]
+		
+		self.requiredv2 = {}
+		self.requiredv2["BatteryLevel"] = {"*": "attr_batteryLevel"}
+		self.requiredv2["ChargingState"] = {}
+		self.requiredv2["StatusLowBattery"] = {"*": "special_lowbattery"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["Name"] = {}
+					
+		super(service_BatteryService, self).setAttributesv2 ()					
+		#super(service_LockMechanism, self).setAttributes ()
+				
+		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+
+# ==============================================================================
 # CONTACT SENSOR
 # ==============================================================================
 class service_ContactSensor (Service):
@@ -1720,6 +1767,71 @@ class service_GarageDoorOpener (Service):
 		#super(service_GarageDoorOpener, self).setAttributes ()
 						
 		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+
+# ==============================================================================
+# HUMIDITY SENSOR
+# ==============================================================================
+class service_HumiditySensor (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "HumiditySensor"
+		desc = "Humidity Sensor"
+	
+		super(service_HumiditySensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = ["CurrentRelativeHumidity"]
+		self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name"]
+		
+		self.requiredv2 = {}
+		self.requiredv2["CurrentRelativeHumidity"] = {"*": "attr_sensorValue", "indigo.ThermostatDevice": "state_humidityInput1", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "state_relativeHumidity"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["StatusActive"] = {}
+		self.optionalv2["StatusFault"] = {}
+		self.optionalv2["StatusTampered"] = {}
+		self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
+		self.optionalv2["Name"] = {}
+					
+		super(service_HumiditySensor, self).setAttributesv2 ()				
+		#super(service_MotionSensor, self).setAttributes ()
+				
+		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+		
+
+# ==============================================================================
+# LEAK SENSOR
+# ==============================================================================
+class service_LeakSensor (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "LeakSensor"
+		desc = "Leak Sensor"
+	
+		super(service_LeakSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = ["LeakDetected"]
+		self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name"]
+		
+		self.requiredv2 = {}
+		self.requiredv2["LeakDetected"] = {"*": "attr_onState"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["StatusActive"] = {}
+		self.optionalv2["StatusFault"] = {}
+		self.optionalv2["StatusTampered"] = {}
+		self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
+		self.optionalv2["Name"] = {}
+					
+		super(service_LeakSensor, self).setAttributesv2 ()				
+		#super(service_MotionSensor, self).setAttributes ()
+				
+		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
 		
 # ==============================================================================
 # LIGHT BULB
@@ -1754,6 +1866,38 @@ class service_Lightbulb (Service):
 		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
 # ==============================================================================
+# LIGHT SENSOR
+# ==============================================================================
+class service_LightSensor (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "LightSensor"
+		desc = "Light Sensor"
+	
+		super(service_LightSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = ["CurrentAmbientLightLevel"]
+		self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name"]
+		
+		self.requiredv2 = {}
+		self.requiredv2["CurrentAmbientLightLevel"] = {"*": "attr_sensorValue"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["StatusActive"] = {}
+		self.optionalv2["StatusFault"] = {}
+		self.optionalv2["StatusTampered"] = {}
+		self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
+		self.optionalv2["Name"] = {}
+					
+		super(service_LightSensor, self).setAttributesv2 ()				
+		#super(service_MotionSensor, self).setAttributes ()
+				
+		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
+		
+# ==============================================================================
 # MICROPHONE
 # ==============================================================================
 class service_Microphone (Service):
@@ -1763,7 +1907,7 @@ class service_Microphone (Service):
 	#
 	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "Microphone"
-		desc = "Microphone"
+		desc = "Microphone (Unsupported)"
 	
 		super(service_Microphone, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
@@ -1867,7 +2011,39 @@ class service_LockMechanism (Service):
 		super(service_LockMechanism, self).setAttributesv2 ()					
 		#super(service_LockMechanism, self).setAttributes ()
 				
-		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))								
+		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+		
+# ==============================================================================
+# SMOKE SENSOR
+# ==============================================================================
+class service_SmokeSensor (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "SmokeSensor"
+		desc = "Smoke Sensor"
+	
+		super(service_SmokeSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = ["SmokeDetected"]
+		self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name"]
+		
+		self.requiredv2 = {}
+		self.requiredv2["SmokeDetected"] = {"*": "attr_onState"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["StatusActive"] = {}
+		self.optionalv2["StatusFault"] = {}
+		self.optionalv2["StatusTampered"] = {}
+		self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
+		self.optionalv2["Name"] = {}
+					
+		super(service_SmokeSensor, self).setAttributesv2 ()				
+		#super(service_MotionSensor, self).setAttributes ()
+				
+		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))									
 
 # ==============================================================================
 # SPEAKER
@@ -1879,7 +2055,7 @@ class service_Speaker (Service):
 	#
 	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "Speaker"
-		desc = "Speaker"
+		desc = "Speaker (Unsupported)"
 	
 		super(service_Speaker, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
@@ -1922,6 +2098,8 @@ class service_Switch (Service):
 		#super(service_Switch, self).setAttributes ()
 				
 		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		
+			
 		
 # ==============================================================================
 # THERMOSTAT
@@ -1967,6 +2145,19 @@ class characteristic_Active:
 		self.notify = True
 		
 # ==============================================================================
+# BATTERY LEVEL
+# ==============================================================================
+class characteristic_BatteryLevel:
+	def __init__(self):
+		self.value = 0
+		self.maxValue = 100
+		self.minValue = 0
+		self.minStep = 1
+		
+		self.readonly = True
+		self.notify = True		
+		
+# ==============================================================================
 # BRIGHTNESS
 # ==============================================================================
 class characteristic_Brightness:
@@ -1978,6 +2169,21 @@ class characteristic_Brightness:
 		
 		self.readonly = False
 		self.notify = True
+		
+# ==============================================================================
+# CHARGING STATE
+# ==============================================================================
+class characteristic_ChargingState:	
+	def __init__(self):
+		self.value = 0 
+		self.maxValue = 2
+		self.minValue = 0
+		
+		self.validValues = [0, 1, 2]
+		self.validValuesStr = "[not charging, charging, not chargable]"
+		
+		self.readonly = False
+		self.notify = True			
 		
 # ==============================================================================
 # COLOR TEMPERATURE
@@ -2018,6 +2224,19 @@ class characteristic_CoolingThresholdTemperature:
 		self.minStep = 0.1
 
 		self.readonly = False
+		self.notify = True			
+		
+# ==============================================================================
+# CURRENT AMBIENT LIGHT LEVEL
+# ==============================================================================		
+class characteristic_CurrentAmbientLightLevel:
+	def __init__(self):
+		self.value = 0.0
+		self.maxValue = 100
+		self.minValue = 0.0001
+		self.minStep = 0.0001
+
+		self.readonly = True
 		self.notify = True			
 		
 # ==============================================================================
@@ -2116,6 +2335,21 @@ class characteristic_Hue:
 		
 		self.readonly = False
 		self.notify = True
+		
+# ==============================================================================
+# LEAK DETECTED
+# ==============================================================================
+class characteristic_LeakDetected:	
+	def __init__(self):
+		self.value = 0 # clockwise [counter-clockwise]
+		self.maxValue = 1
+		self.minValue = 0
+		
+		self.validValues = [0, 1]
+		self.validValuesStr = "[leak not detected, leak detected]"
+		
+		self.readonly = False
+		self.notify = True			
 		
 # ==============================================================================
 # LOCK CURRENT STATE
@@ -2272,6 +2506,21 @@ class characteristic_Saturation:
 
 		self.readonly = False
 		self.notify = True
+		
+# ==============================================================================
+# SMOKE DETECTED
+# ==============================================================================
+class characteristic_SmokeDetected:	
+	def __init__(self):
+		self.value = 0 # clockwise [counter-clockwise]
+		self.maxValue = 1
+		self.minValue = 0
+		
+		self.validValues = [0, 1]
+		self.validValuesStr = "[smoke not detected, smoke detected]"
+		
+		self.readonly = False
+		self.notify = True			
 		
 # ==============================================================================
 # STATUS ACTIVE

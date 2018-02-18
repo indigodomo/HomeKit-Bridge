@@ -69,7 +69,7 @@
 				<Description>If we have reached the 99 device limit then this is enabled</Description>
 			</Field>
             
-            <Field type="checkbox" id="filterIncluded" defaultValue="false" enabledBindingId="deviceLimitReached" enabledBindingNegate="true" visibleBindingId="objectType" visibleBindingValue="device,action">
+            <Field type="checkbox" id="filterIncluded" defaultValue="true" enabledBindingId="deviceLimitReached" enabledBindingNegate="true" visibleBindingId="objectType" visibleBindingValue="device,action" tooltip="This will automatically hide from the device and action list ALL devices and actions used on ANY HomeKit Bridge server so that you are only looking at the items yet to be sent to HomeKit">
 				<Label> </Label>
 				<Description>Only show objects that are not being sent to HomeKit</Description>
 				<CallbackMethod>formFieldChanged</CallbackMethod>

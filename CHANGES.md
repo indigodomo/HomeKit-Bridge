@@ -1,26 +1,32 @@
 Release Notes
 ==========
 
-Version 0.8.0 (Beta 8)
+Version 0.9.0 (Beta 9)
 ==========
-* Changed behavior of Airfoil when using a Lightbulb HomeKit type so that On/Off will connect/disconnect the Airfoil speaker instead of using the Speaker control of Mute/Unmute which was exactly opposite
-* Fixed bug on characteristic action execution where the thread debug message indicating it was checking for a status change output to the main console instead of thread debug
-* Fixed bug on characteristic action execution where a run action would error out if it had too many attempts, it should log the message rather than error on the message [reported by Jon](http://forums.indigodomo.com/viewtopic.php?p=154874#p154874)
-* Fixed bug on devices that use the Invert On/Off option where the display was correct but the commands would work only after timing out since the commands were not also getting reversed properly
-* Fixed bug on receiving characteristic changes from HomeKit where the plugin may execute a characteristic change more than once under certain circumstances, possibly reversing the action that was just executed
-* Tested Lightbulb not working for Airfoil control [reported by Jon](http://forums.indigodomo.com/viewtopic.php?p=154874#p154874) but it was working (perhaps as result of the other bug fixes)
+* New device type added: [Smoke Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#smokesensor)
+* New device type added: [Humidity Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#humiditysensor) - Will also use humidity from the WUnderground plugin or thermostats (although if already using either of these you will need to use a different server device since it's now hard-coded to not permit multiples of the same device under one server unless it is a complication)
+* New device type added: [Leak Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#leaksensor)
+* New device type added: [Light Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#lightsensor)
+* New device type added: [Battery Service](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#batteryservice) - yet another HomeKit device that is not yet supported BUT you can open the details and it will show the battery level and charging state, which means you can trigger from this even if the UI says it's not implemented.  This will work with any Indigo device that has a battery state being reported (i.e., motion sensors, etc)
+* Added "Unsupported" as a tag to all devices that are not fully HomeKit ready when you drop down the HomeKit device type in the server so you can easily identify what is going to be an issue.  Once HomeKit officially supports those types they will get changed.  I could leave them out completely to avoid possible confusion but they need to stick around so they can be tested as Homebridge gets updated or HomeKit gets updated.
+* Device and action lists in the server dialog will no longer show any device or action that is already added via THIS server and optionally ANY server, this to curb any potential problems caused by using the same device in multiple HomeKit maps.  Complications were created for this purpose.
+* Changed the behavior of the checkbox "Only show objects that are not being sent to HomeKit" in the server dialog to mean that devices that are part of ANY HomeKit Bridge server will be excluded from the list, ensuring that the list is always unique.  Also changed the dialog so that this is defaulted.
+* Changed the shutdown behavior of the plugin so that when it is shut down or restarted it will no longer wait for the servers to stop and instead will "blind stop" them, this because Indigo has a time limit for shutting down and if there are more than a few running servers this can cause Indigo to do a forced shutdown and while that won't hurt anything it's just ugly and will raise questions.  This will also speed up the time needed to shut down or restart the plugin
+* Fixed bug where a device may show a battery level exclamation in HomeKit even though there was no valid battery level in Indigo (Indigo sets a no battery device to None, this got interpreted to 0 which falls below any % threshold set)
+* Fixed bug in new server creation where it would not automatically determine port, listen port and username if the user doesn't do anything with the new server dialog except click OK to save it, now the save function will validate those critical parameters and create them if needed - this should fix the initial install failures as well as new server device failures
+* Fixed minor issue where the invert on/off checkbox might stay checked or check itself when editing a device added prior to that feature being added, causing you to inadvertently invert an item you are editing when you don't want to (couldn't understand why my front door suddenly was opposite of what it should be)
+* Fixed minor issue reported by chobo997 (via PM) that adding multiple items resulted in "Exception in plugin.serverButtonAddDeviceOrAction_Object line 2055: invalid literal for int() with base 10: ''", that possibility is now trapped and will pop a message on the screen
+* Fixed known issue: Creating additional servers is not incrementing the user name and then not showing up in Homebridge as a result (reported by Autolog http://forums.indigodomo.com/viewtopic.php?p=154501#p154501)
+* Fixed known issue: Complications spinning up a second server (http://forums.indigodomo.com/viewtopic.php?p=154391#p154391)
+* Fixed known issue: Adding a device that is already on the included server devices to the list a 2nd time will produce unexpected results, this needs to be prohibited unless it's a complication (i.e., adding door lock as a lock and also as a contact sensor confused HomeKit)
+* Removed known issue (not seen since beta 1): A failed Homebridge start can cause a minor race condition where HB will continuously try to restart itself, the current solution to this if it happens is to remove the serverId folder under ~/.HomeKit-Bridge so that the restarts cannot be processed.  This is fine because the plugin will regenerate that folder automatically when you turn on your server device.  This has been countered by extra safeguards in server startup and plugin shutdown but it's a HB issue that still needs resolved.
 
 Known Issues
 ---------------
-* FRESH INSTALLATION ISSUE: It seems fairly universal that the first server you add does not work until you restart the plugin
-* 
-* After all the code to get the Speaker (also Microphone) device working it shows up in HomeKit but is "not yet supported" so we'll have to wait for a HomeKit update - but we'll be ready when HomeKit is
+* FRESH INSTALLATION ISSUE: It seems fairly universal that the first server you add does not work until you restart the plugin (this likely has been resolved in Beta 9, needs tested to be sure)
 * Need to remove API port from the plugin config and autodetect it instead when building the server configuration
-* Creating additional servers is not incrementing the user name and then not showing up in Homebridge as a result (reported by Autolog http://forums.indigodomo.com/viewtopic.php?p=154501#p154501)
-* Complications spinning up a second server (http://forums.indigodomo.com/viewtopic.php?p=154391#p154391).  BETA TESTERS: PLEASE TEST ADDING MULTIPLE SERVERS.
 * Brand new install with brand new server is still not auto starting the server after config close (reported by Autolog, but he was on 0.1.1 and this was fixed in 0.1.2 so it may not be an issue after all, still needs tested to absolutely certain so it was added to the testing issue on Git)
 * The current API is not locked to Localhost but will need to be prior to being publicly released for security purposes
-* A failed Homebridge start can cause a minor race condition where HB will continuously try to restart itself, the current solution to this if it happens is to remove the serverId folder under ~/.HomeKit-Bridge so that the restarts cannot be processed.  This is fine because the plugin will regenerate that folder automatically when you turn on your server device.  This has been countered by extra safeguards in server startup and plugin shutdown but it's a HB issue that still needs resolved.
 * Changing the port on a running server will result in the plugin reporting that the port is in use when it's only in use by the currently running server (resolve by stopping the server before attempting to manually change any HB settings)
 
 
@@ -34,11 +40,21 @@ Wish List
 * Add ability to reverse On/Off on devices, many plugins do it opposite of Indigo
 * Autolog suggestion: http://forums.indigodomo.com/viewtopic.php?p=154506#p154506
 * Add a feature to read in HBB and Alexa items to build a cache of already used alias names
+* Speaker, Microphone and Battery Service are all coded into the plugin but HomeKit does not yet support them
 
 
 
 Previous Release Notes
 ==========
+
+Version 0.8.0 (Beta 8)
+---------------
+* Changed behavior of Airfoil when using a Lightbulb HomeKit type so that On/Off will connect/disconnect the Airfoil speaker instead of using the Speaker control of Mute/Unmute which was exactly opposite
+* Fixed bug on characteristic action execution where the thread debug message indicating it was checking for a status change output to the main console instead of thread debug
+* Fixed bug on characteristic action execution where a run action would error out if it had too many attempts, it should log the message rather than error on the message [reported by Jon](http://forums.indigodomo.com/viewtopic.php?p=154874#p154874)
+* Fixed bug on devices that use the Invert On/Off option where the display was correct but the commands would work only after timing out since the commands were not also getting reversed properly
+* Fixed bug on receiving characteristic changes from HomeKit where the plugin may execute a characteristic change more than once under certain circumstances, possibly reversing the action that was just executed
+* Tested Lightbulb not working for Airfoil control [reported by Jon](http://forums.indigodomo.com/viewtopic.php?p=154874#p154874) but it was working (perhaps as result of the other bug fixes)
 
 Version 0.7.0 (Beta 7)
 ---------------

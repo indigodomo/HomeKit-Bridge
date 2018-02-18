@@ -123,6 +123,9 @@ class Plugin(indigo.PluginBase):
 			#x = eps.homekit.getServiceObject (558499318, 1794022133, "service_Speaker")
 			#indigo.server.log (unicode(x))
 			
+			x = eps.homekit.getServiceObject (658907852, 1794022133, "service_BatteryService")
+			indigo.server.log (unicode(x))
+			
 			#for a in x.actions:
 				#if a.characteristic == "Mute" and not a.whenvalue:
 				#	a.run ("false", 558499318, False)
@@ -201,8 +204,20 @@ class Plugin(indigo.PluginBase):
 	def onAfter_shutdown (self):		
 		try:
 			# Shut down ALL servers if they are running (since the API doesn't work when the plugin is not running anyway)
+			msg = eps.ui.debugHeader ("HOMEKIT BRIDGE RUNNING SERVER SHUTDOWN")
+			msg += eps.ui.debugLine ("Now blind stopping all running servers, due to Indigo timeout ")
+			msg += eps.ui.debugLine ("limits the plugin cannot wait for them to stop but will instead ")
+			msg += eps.ui.debugLine ("shut them down blindly and let them refresh when the plugin ")
+			msg += eps.ui.debugLine ("restarts")
+			msg += eps.ui.debugHeaderEx ()
+			haswarned = False
+			
 			for dev in indigo.devices.iter(self.pluginId + ".Server"):
-				if dev.states["onOffState"]: self.shellHBStopServer (dev)
+				if dev.states["onOffState"]: 
+					if not haswarned:
+						self.logger.warning (msg)
+						haswarned = True
+					self.shellHBStopServer (dev, False, True)
 			
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -665,14 +680,20 @@ class Plugin(indigo.PluginBase):
 			for i in range (10, 100):
 				username = "CC:22:3D:E3:CE:{}".format(str(i))
 				
+				self.logger.threaddebug ("Validating Homebridge username {}".format(username))
+				
 				# Check our own servers to make sure we aren't going to use this port elsewhere
+				needtocontinue = False
 				for dev in indigo.devices.iter(self.pluginId + ".Server"):
 					if dev.id == devId:
 						# If we passed a devId then ignore it, we don't want to check against the server calling this function
-						continue
+						needtocontinue = True
 					
 					if "username" in dev.ownerProps and dev.ownerProps["username"] == username:
-						continue
+						self.logger.threaddebug ("Found username {} in '{}', incrementing username".format(username, dev.name))
+						needtocontinue = True
+						
+				if needtocontinue: continue
 						
 				# So far, so good, now lets check Homebridge Buddy Legacy servers to see if one is wanting to use this port and just isn't running
 				for dev in indigo.devices.iter("com.eps.indigoplugin.homebridge.Homebridge-Server"):
@@ -1522,10 +1543,31 @@ class Plugin(indigo.PluginBase):
 			#retList.append (("-none-", "Don't Include Any Devices"))
 			retList = eps.ui.addLine (retList)
 			
+			# Build a block list of current devices
+			used = []
+				
+			if "filterIncluded" in valuesDict and valuesDict["filterIncluded"]:
+				for dev in indigo.devices.iter(self.pluginId + ".Server"):	
+					if "includedDevices" in dev.pluginProps:
+						objects = json.loads(dev.pluginProps["includedDevices"])	
+						for r in objects:
+							used.append (r["id"])
+			else:
+				for r in includedDevices:
+					used.append (r["id"])
+			
+			
 			for dev in indigo.devices:
 				if dev.id in hidden: continue
+				if dev.id in used: continue
+				
 				devId = dev.id
 				name = dev.name
+				
+				# HomeKit doesn't allow the same ID more than once and the only way WE will allow it is
+				# via a complication or customization
+				r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", dev.id)
+				if r is not None: continue					
 				
 				# Homebridge Buddy Legacy support
 				if dev.pluginId == "com.eps.indigoplugin.homebridge":
@@ -1533,26 +1575,30 @@ class Plugin(indigo.PluginBase):
 						name += " => [HBB " + dev.ownerProps["treatAs"].upper() + " Wrapper]"
 					elif dev.deviceTypeId == "Homebridge-Alias":
 						name += " => [HBB " + dev.ownerProps["treatAs"].upper() + " Alias]"
+						
+				else:
+					retList.append ( (str(devId), name) )
 				
 				#if type(dev) == indigo.ThermostatDevice:
 				#	# Add one device for the thermostat and one for the fan
 				#	retList.append ( (str(devId + .1), name + " (Thermostat)") )
 				#	retList.append ( (str(devId + .2), name + " (Fan)") )
 					
-				else:
+				#else:
 								
 					# HomeKit doesn't allow the same ID more than once and the only way WE will allow it is
 					# via a complication or customization
 					#r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", dev.id)
 					#	if r is None:
+					#		retList.append ( (str(devId), name) )
 				
-					if "filterIncluded" in valuesDict and valuesDict["filterIncluded"]:
-						# Only include devices that are not already
-						r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", devId)
-						if r is None:
-							retList.append ( (str(devId), name) )
-					else:
-						retList.append ( (str(devId), name) )
+					#if "filterIncluded" in valuesDict and valuesDict["filterIncluded"]:
+					#	# Only include devices that are not already
+					#	r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", devId)
+					#	if r is None:
+					#		retList.append ( (str(devId), name) )
+					#else:
+					#	retList.append ( (str(devId), name) )
 			
 			return retList
 		
@@ -1567,6 +1613,9 @@ class Plugin(indigo.PluginBase):
 		ret = [("default", "No data")]
 		
 		try:
+			valuesDict = self.serverCheckForJSONKeys (valuesDict)	
+			includedActions = json.loads(valuesDict["includedActions"])
+			
 			if "hiddenIds" in self.pluginPrefs:
 				hidden = json.loads (self.pluginPrefs["hiddenIds"])
 			else:
@@ -1584,8 +1633,21 @@ class Plugin(indigo.PluginBase):
 			#retList.append (("-none-", "Don't Include Any Action Groups"))
 			retList = eps.ui.addLine (retList)
 			
+			used = []
+				
+			if "filterIncluded" in valuesDict and valuesDict["filterIncluded"]:
+				for dev in indigo.devices.iter(self.pluginId + ".Server"):	
+					if "includedActions" in dev.pluginProps:
+						objects = json.loads(dev.pluginProps["includedActions"])	
+						for r in objects:
+							used.append (r["id"])
+			else:
+				for r in includedActions:
+					used.append (r["id"])
+			
 			for dev in indigo.actionGroups:
 				if dev.id in hidden: continue
+				if dev.id in used: continue
 				retList.append ( (str(dev.id), dev.name) )
 				
 			return retList
@@ -1816,7 +1878,10 @@ class Plugin(indigo.PluginBase):
 						valuesDict["hkStatesJSON"] = r["char"]
 						valuesDict["hkActionsJSON"] = r["action"]
 						valuesDict["deviceOrActionSelected"] = True
-						if "invert" in r: valuesDict["invertOnOff"] = r["invert"]
+						if "invert" in r: 
+							valuesDict["invertOnOff"] = r["invert"]
+						else:
+							valuesDict["invertOnOff"] = False
 						
 						
 						valuesDict["deviceLimitReached"] = False # Since we only allow 99 we are now at 98 and valid again
@@ -1875,6 +1940,7 @@ class Plugin(indigo.PluginBase):
 			# Defaults if there are none
 			if valuesDict["device"] == "": valuesDict["device"] = "-fill-"
 			if valuesDict["action"] == "": valuesDict["action"] = "-fill-"	
+			valuesDict["invertOnOff"] = False # Failsafe
 				
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -2030,6 +2096,18 @@ class Plugin(indigo.PluginBase):
 		try:
 			#valuesDict = self.serverCheckForJSONKeys (valuesDict)
 			total = 0
+			
+			if thistype == "Device":
+				if valuesDict["device"] == "" or valuesDict["device"] == "-line-" or valuesDict["device"] == "-fill-":
+					errorsDict = eps.ui.setErrorStatus (errorsDict, "{} is not a valid device ID, please verify your selection.".format(valuesDict["device"]))
+					errorsDict["device"] = "Invalid device"
+					return (valuesDict, errorsDict)
+			else:
+				if valuesDict["action"] == "" or valuesDict["action"] == "-line-" or valuesDict["action"] == "-fill-":
+					errorsDict = eps.ui.setErrorStatus (errorsDict, "{} is not a valid action ID, please verify your selection.".format(valuesDict["action"]))
+					errorsDict["action"] = "Invalid action"
+					return (valuesDict, errorsDict)
+			
 			
 			(includeList, max) = self.getIncludeStashList (thistype, valuesDict)
 			
@@ -2271,6 +2349,7 @@ class Plugin(indigo.PluginBase):
 				valuesDict["action"] = "-fill-"
 				valuesDict["objectType"] = "device"
 				valuesDict["enableOnOffInvert"] = False
+				valuesDict["invertOnOff"] = False
 				valuesDict["deviceOrActionSelected"] = False
 				
 				# If the server is running and the ports didn't change then we know we should be OK, otherwise we need to check
@@ -2301,6 +2380,18 @@ class Plugin(indigo.PluginBase):
 				# Just in case we are missing either of these, add them now so that we won't get errors when we start up
 				if not "includedDevices" in valuesDict: valuesDict["includedDevices"] = json.dumps([])
 				if not "includedActions" in valuesDict: valuesDict["includedActions"] = json.dumps([])
+
+				# Sanity check to make sure we have our required startup info				
+				if valuesDict["port"] == "":
+					valuesDict["port"] = str(self.getNextAvailablePort (51826, devId, True))
+				
+				# Now check the callback port
+				if valuesDict["listenPort"] == "":
+					valuesDict["listenPort"] = str(self.getNextAvailablePort (8445, devId, True))
+				
+				# Now check the username
+				if valuesDict["username"] == "":
+					valuesDict["username"] = self.getNextAvailableUsername (devId, True)
 				
 				# Re-catalog the server just to be safe
 				self._catalogServerDevices (server)
@@ -2523,14 +2614,20 @@ class Plugin(indigo.PluginBase):
 	#
 	# Stop HB for the provided server
 	#
-	def shellHBStopServer (self, dev, noStatus = False):
+	def shellHBStopServer (self, dev, noStatus = False, blind = False):
 		try:
 			# Start the HB server
 			self.logger.threaddebug ('Running: "' + self.HBDIR + '/unload" "' + self.CONFIGDIR + "/" + str(dev.id) + '"')
 			os.system('"' + self.HBDIR + '/unload" "' + self.CONFIGDIR + "/" + str(dev.id) + '"')
 			
-			self.logger.info ("Attempting to stop '{0}'".format(dev.name))
-			if not noStatus: indigo.devices[dev.id].updateStateOnServer("onOffState", True, uiValue="Stopping")
+			if not blind:
+				self.logger.info ("Attempting to stop '{0}'".format(dev.name))
+				if not noStatus: indigo.devices[dev.id].updateStateOnServer("onOffState", True, uiValue="Stopping")
+			else:
+				self.logger.info ("Blind stopping '{0}'".format(dev.name))
+				if not noStatus: indigo.devices[dev.id].updateStateOnServer("onOffState", False, uiValue="Blind Stop")
+			
+			if blind: return True
 			
 			# Give it up to 60 seconds to respond to a port query to know if it started
 			loopcount = 1
