@@ -1,8 +1,52 @@
 Release Notes
 ==========
 
-Version 0.9.0 (Beta 9)
+Version 0.9.9 (Beta 10)
 ==========
+* New device type added: [Temperature Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#temperaturesensor) - it should be noted that HomeKit temps, for whatever reason, have a max limit of 0 to 100 Celsius, so if it's 16F that translates to -9C and HomeKit will reject it and make it 32 degrees (the default value).  Don't blame me, talk to Apple.  If this ever changes the plugin will already handle it accurately without any further changes.
+* Added native support to temperature sensors for WUnderground and WeatherSnoop devices
+* Added callback stub catch-all for characteristics that are read-only or not explicitly defined so they will get caught on device changes to send to HomeKit (i.e., humidity changes)
+* Fixed huge SNAFU where I commented out a critical line that caused all commands to get the 30 second timeout error and beachball for that 30 seconds.  It's beta folks, B-E-T-A :)
+* Fixed bug to report back to HomeKit a success if the device is already in the state requested (i.e., if it's already On and HomeKit asks us to turn it On then return success even though nothing changed on the device) - this should fix most timeout issues
+* Rewrite of the Thermostat handling in plugin - note that I am at a disadvantage because I only have a Nest thermostat which has very long delayed reactions to set point changes, this is untested with "normal" thermostats that do not have to hit the cloud to do updates
+* Changed format of logs as they were relatively unreadable with how Python interprets tabs in the log
+* Removed logging on class instantiation unless a device is attached because several functions need to iterate the classes and that resulted in numerous "Invalid Indigo Object" items being logged
+* Cleaned up miscellaneous log messages that were not needed
+
+Known Issues
+---------------
+* FRESH INSTALLATION ISSUE: It seems fairly universal that the first server you add does not work until you restart the plugin (this likely has been resolved in Beta 9, needs tested to be sure)
+* Nest thermostats (perhaps others) will appear to hang in HomeKit when changing temperature setpoints because of how the Nest plugin operates, the changes will be implemented but the Indigo UI will show timeout errors
+* Readonly sensor devices not calling back on state change
+* Need to remove API port from the plugin config and autodetect it instead when building the server configuration
+* Brand new install with brand new server is still not auto starting the server after config close (reported by Autolog, but he was on 0.1.1 and this was fixed in 0.1.2 so it may not be an issue after all, still needs tested to absolutely certain so it was added to the testing issue on Git)
+* The current API is not locked to Localhost but will need to be prior to being publicly released for security purposes
+* Changing the port on a running server will result in the plugin reporting that the port is in use when it's only in use by the currently running server (resolve by stopping the server before attempting to manually change any HB settings)
+* Errors getting smoke detector working as [reported by Different Computers](http://forums.indigodomo.com/viewtopic.php?p=154957#p154957)
+* Fresh install issues still occurring that require a plugin restart as [reported by ZachBenz](http://forums.indigodomo.com/viewtopic.php?p=154998#p154998)
+
+Homebridge Issues
+---------------
+* Need type and versByte to recognize
+* Thermostats need the same exclusion principal as lights to prevent characteristic change -> refresh loop
+* Why HB-Indigo1 thermostat shows green and HB-Indigo2 shows red
+
+Wish List
+---------------
+* Dev device wishlist: Battery Service, Leak Sensor, Camera RTP Stream Management, Lock Management
+* Add ability to reverse On/Off on devices, many plugins do it opposite of Indigo
+* Autolog suggestion: http://forums.indigodomo.com/viewtopic.php?p=154506#p154506
+* Add a feature to read in HBB and Alexa items to build a cache of already used alias names
+* Speaker, Microphone and Battery Service are all coded into the plugin but HomeKit does not yet support them
+* Rework thermostat to use the new definition methods, which then allows the use of Temperature Sensors as well
+* Sort HK type list alphabetically
+* Redo complications to be a selectable list of different complications or the ability to not use one at all
+
+Previous Release Notes
+==========
+
+Version 0.9.0 (Beta 9)
+---------------
 * New device type added: [Smoke Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#smokesensor)
 * New device type added: [Humidity Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#humiditysensor) - Will also use humidity from the WUnderground plugin or thermostats (although if already using either of these you will need to use a different server device since it's now hard-coded to not permit multiples of the same device under one server unless it is a complication)
 * New device type added: [Leak Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#leaksensor)
@@ -21,31 +65,6 @@ Version 0.9.0 (Beta 9)
 * Fixed known issue: Adding a device that is already on the included server devices to the list a 2nd time will produce unexpected results, this needs to be prohibited unless it's a complication (i.e., adding door lock as a lock and also as a contact sensor confused HomeKit)
 * Removed known issue (not seen since beta 1): A failed Homebridge start can cause a minor race condition where HB will continuously try to restart itself, the current solution to this if it happens is to remove the serverId folder under ~/.HomeKit-Bridge so that the restarts cannot be processed.  This is fine because the plugin will regenerate that folder automatically when you turn on your server device.  This has been countered by extra safeguards in server startup and plugin shutdown but it's a HB issue that still needs resolved.
 
-Known Issues
----------------
-* FRESH INSTALLATION ISSUE: It seems fairly universal that the first server you add does not work until you restart the plugin (this likely has been resolved in Beta 9, needs tested to be sure)
-* Need to remove API port from the plugin config and autodetect it instead when building the server configuration
-* Brand new install with brand new server is still not auto starting the server after config close (reported by Autolog, but he was on 0.1.1 and this was fixed in 0.1.2 so it may not be an issue after all, still needs tested to absolutely certain so it was added to the testing issue on Git)
-* The current API is not locked to Localhost but will need to be prior to being publicly released for security purposes
-* Changing the port on a running server will result in the plugin reporting that the port is in use when it's only in use by the currently running server (resolve by stopping the server before attempting to manually change any HB settings)
-
-
-Homebridge Issues
----------------
-* Need type and versByte to recognize
-
-Wish List
----------------
-* Dev device wishlist: Battery Service, Leak Sensor, Camera RTP Stream Management, Lock Management
-* Add ability to reverse On/Off on devices, many plugins do it opposite of Indigo
-* Autolog suggestion: http://forums.indigodomo.com/viewtopic.php?p=154506#p154506
-* Add a feature to read in HBB and Alexa items to build a cache of already used alias names
-* Speaker, Microphone and Battery Service are all coded into the plugin but HomeKit does not yet support them
-
-
-
-Previous Release Notes
-==========
 
 Version 0.8.0 (Beta 8)
 ---------------

@@ -29,7 +29,7 @@ class eps:
 			self.plugin = plugin
 		
 			# Sets the log format in the plugin and across all modules that can reference the plugin
-			logformat = logging.Formatter('%(asctime)s.%(msecs)03d\t%(levelname)-12s\t%(name)s\t%(funcName)-25s\t%(msg)s', datefmt='%Y-%m-%d %H:%M:%S')
+			logformat = logging.Formatter('%(asctime)s.%(msecs)03d-25s [%(levelname)-12s] %(name)-45s  %(funcName)-45s  %(msg)s', datefmt='%Y-%m-%d %H:%M:%S')
 			plugin.plugin_file_handler.setFormatter(logformat)
 		
 			# Sets the localized logger with the module name appended

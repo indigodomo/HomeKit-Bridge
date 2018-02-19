@@ -1,4 +1,4 @@
-# lib.ui - Custom list returns and UI enhancements
+# lib.homekit - HomeKit integration via Homebridge-Indigo2
 #
 # Copyright (c) 2018 ColoradoFourWheeler / EPS
 #
@@ -589,7 +589,7 @@ class HomeKit:
 	# ==============================================================================
 	# THERMOSTAT DEFAULTS
 	# ==============================================================================
-	def _setIndigoDefaultValues_Thermostat (self, serviceObj, definedActions, dev):	
+	def _setIndigoDefaultValues_Thermostatxxx (self, serviceObj, definedActions, dev):	
 		try:
 			targettemp = 0
 			
@@ -931,8 +931,6 @@ class Service (object):
 							# If we don't set the characterDict value then it won't show in the API
 							self.characterDict[characteristic] = getattr (self, characteristic).value
 						
-						
-						
 						# Since we are here we can calculate the actions needed to change this attribute
 						self.calculateDefaultActionsForAttribute (getter.replace("attr_", ""), characteristic)
 						
@@ -945,63 +943,17 @@ class Service (object):
 							
 							# Since we are here we can calculate the actions needed to change this attribute
 							self.calculateDefaultActionsForState (getter.replace("state_", ""), characteristic)
-							
+						
+				# SPECIAL DIRECTIVES	
 				else:
-					# If we have a battery level then add this value
-					if getter == "special_lowbattery":
-						obj = indigo.devices[self.objId]
-						if "batteryLevel" in dir(obj) and "lowbattery" in self.factory.plugin.pluginPrefs:
-							# If it's set to None then we really don't have battery levels and can skip this all
-							if obj.batteryLevel is not None:
-								lowbattery = int(self.factory.plugin.pluginPrefs["lowbattery"])
-								if lowbattery > 0: lowbattery = lowbattery / 100
-								if obj.batteryLevel < ((100 * lowbattery) + 1): 
-									self.setAttributeValue (characteristic, 1)
-									self.characterDict[characteristic] = 1
-								else:
-									self.setAttributeValue (characteristic, 0)
-									self.characterDict[characteristic] = 0
-								
-								# So we get notified of any changes, add a trigger for this in actions, it won't do anything other than monitor
-								self.actions.append (HomeKitAction(characteristic, "equal", False, "device.turnOff", [self.objId], 0, {self.objId: "attr_batteryLevel"}))
+					if getter in dir(self):
+						obj = getattr (self, getter)
+						obj (classes, sourceDict, getter, characteristic, isOptional)		
 						
-						
-					# Mostly for outlets, will read a load if supported and report as in use or will default to the onState
-					if getter == "special_inuse":
-						obj = indigo.devices[self.objId]
-						if "energyCurLevel" in dir(obj) and obj.energyCurLevel is not None:
-							# It supports energy reporting
-							if obj.energyCurLevel > 0:
-								self.setAttributeValue (characteristic, True)
-								self.characterDict[characteristic] = True
-							else:
-								self.setAttributeValue (characteristic, False)
-								self.characterDict[characteristic] = False
-						else:
-							if "onState" in dir(obj) and obj.onState:
-								self.setAttributeValue (characteristic, True)
-								self.characterDict[characteristic] = True
-							else:
-								self.setAttributeValue (characteristic, False)
-								self.characterDict[characteristic] = False
-								
-					# For inverting an on/off state ATTRIBUTE
-					if getter == "special_invertedOnState":
-						obj = indigo.devices[self.objId]
-						if "onState" in dir(obj):
-							if obj.onState:
-								self.setAttributeValue (characteristic, False)
-								self.characterDict[characteristic] = False 
-							else:
-								self.setAttributeValue (characteristic, True)
-								self.characterDict[characteristic] = True 
-						else:
-							self.setAttributeValue (characteristic, False)
-							self.characterDict[characteristic] = False 
-							
-							
 		except Exception as e:
 			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))		
+
+
 
 			
 	#
@@ -1122,7 +1074,10 @@ class Service (object):
 				else:
 					invalidType = True
 					
-			
+			else:
+				# Whatever else, if we didn't specify it, will get a dummy action associated with it and it could cause errors if the characteristic is
+				# not read-only, but we need this so the plugin will monitor for any changes to the attribute
+				self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "attr_" + attrib}))
 				
 		
 			if invalidType:
@@ -1248,6 +1203,11 @@ class Service (object):
 				
 				else:
 					invalidType = True
+					
+			else:
+				# Whatever else, if we didn't specify it, will get a dummy action associated with it and it could cause errors if the characteristic is
+				# not read-only, but we need this so the plugin will monitor for any changes to the state
+				self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "state_" + state}))
 			
 				
 		
@@ -1329,6 +1289,255 @@ class Service (object):
 			self.logger.error (ext.getException(e))	
 	
 		return False		
+		
+	################################################################################
+	# SPECIAL ACTIONS
+	################################################################################		
+	#
+	# Check if a device's battery level is below the configured threshold
+	#
+	def special_lowbattery (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			obj = indigo.devices[self.objId]
+			if "batteryLevel" in dir(obj) and "lowbattery" in self.factory.plugin.pluginPrefs:
+				# If it's set to None then we really don't have battery levels and can skip this all
+				if obj.batteryLevel is not None:
+					lowbattery = int(self.factory.plugin.pluginPrefs["lowbattery"])
+					if lowbattery > 0: lowbattery = lowbattery / 100
+					if obj.batteryLevel < ((100 * lowbattery) + 1): 
+						self.setAttributeValue (characteristic, 1)
+						self.characterDict[characteristic] = 1
+					else:
+						self.setAttributeValue (characteristic, 0)
+						self.characterDict[characteristic] = 0
+					
+					# So we get notified of any changes, add a trigger for this in actions, it won't do anything other than monitor
+					self.actions.append (HomeKitAction(characteristic, "equal", False, "device.turnOff", [self.objId], 0, {self.objId: "attr_batteryLevel"}))
+			
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+			
+
+	#
+	# Check if an outlet is in use by looking at its power consumption
+	#
+	def special_inuse (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			obj = indigo.devices[self.objId]
+			if "energyCurLevel" in dir(obj) and obj.energyCurLevel is not None:
+				# It supports energy reporting
+				if obj.energyCurLevel > 0:
+					self.setAttributeValue (characteristic, True)
+					self.characterDict[characteristic] = True
+				else:
+					self.setAttributeValue (characteristic, False)
+					self.characterDict[characteristic] = False
+			else:
+				if "onState" in dir(obj) and obj.onState:
+					self.setAttributeValue (characteristic, True)
+					self.characterDict[characteristic] = True
+				else:
+					self.setAttributeValue (characteristic, False)
+					self.characterDict[characteristic] = False
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+
+
+	#
+	# Invert the on/off state of an onState attribute
+	#
+	def special_invertedOnState (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			obj = indigo.devices[self.objId]
+			if "onState" in dir(obj):
+				if obj.onState:
+					self.setAttributeValue (characteristic, False)
+					self.characterDict[characteristic] = False 
+				else:
+					self.setAttributeValue (characteristic, True)
+					self.characterDict[characteristic] = True 
+			else:
+				self.setAttributeValue (characteristic, False)
+				self.characterDict[characteristic] = False 
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+
+
+	#
+	# Thermostat HVAC mode
+	#
+	def special_thermHVACMode (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			obj = indigo.devices[self.objId]
+			if "hvacMode" in dir(obj):
+				if unicode(obj.hvacMode) == "Heat" or unicode(obj.hvacMode) == "ProgramHeat":
+					self.setAttributeValue (characteristic, 1)
+					self.characterDict[characteristic] = 1 
+				elif unicode(obj.hvacMode) == "Cool" or unicode(obj.hvacMode) == "ProgramCool":
+					self.setAttributeValue (characteristic, 2)
+					self.characterDict[characteristic] = 2 
+				elif unicode(obj.hvacMode) == "HeatCool" or unicode(obj.hvacMode) == "ProgramHeatCool":
+					self.setAttributeValue (characteristic, 3)
+					self.characterDict[characteristic] = 3 		
+				else:
+					self.setAttributeValue (characteristic, 0)
+					self.characterDict[characteristic] = 0 
+				
+				#self.actions.append (HomeKitAction(characteristic, "equal", falseValue, cmd, [self.objId, 0], 0, {self.objId: "attr_brightness"}))
+					
+			else:
+				self.setAttributeValue (characteristic, 0)
+				self.characterDict[characteristic] = 0 
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+						
+	#
+	# Change a thermostats set point
+	#
+	def special_thermTemperatureSetPoint (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			obj = indigo.devices[self.objId]
+			svr = indigo.devices[self.serverId]
+			if "tempunits" in svr.pluginProps:
+				value = float(obj.coolSetpoint)
+				if unicode(obj.hvacMode) == "Heat" or unicode(obj.hvacMode) == "ProgramHeat": value = float(obj.heatSetpoint)
+				if svr.pluginProps["tempunits"] == "f":	value = (value - 32) / 1.8000
+				
+				self.setAttributeValue (characteristic, round(value, 2))
+				self.characterDict[characteristic] = round(value, 2) 
+			else:
+				self.setAttributeValue (characteristic, round(float(obj.coolSetpoint), 2))
+				self.characterDict[characteristic] = round(float(obj.coolSetpoint), 2) 
+										
+			if unicode(obj.hvacMode) == "Heat" or unicode(obj.hvacMode) == "ProgramHeat":
+				self.actions.append (HomeKitAction(characteristic, "between", 0.0, "homekit.commandSetTargetThermostatTemperature", [self.objId, self.serverId, "=value="], 100.0, {self.objId: "attr_heatSetpoint"}))
+			else:	
+				self.actions.append (HomeKitAction(characteristic, "between", 0.0, "homekit.commandSetTargetThermostatTemperature", [self.objId, self.serverId, "=value="], 100.0, {self.objId: "attr_coolSetpoint"}))		
+				
+			self.actions.append (HomeKitAction("TargetHeatingCoolingState", "equal", 0, "thermostat.setHvacMode", [self.objId, indigo.kHvacMode.Off], 0, {self.objId: "attr_hvacMode"}))
+			self.actions.append (HomeKitAction("TargetHeatingCoolingState", "equal", 1, "thermostat.setHvacMode", [self.objId, indigo.kHvacMode.Heat], 0, {self.objId: "attr_hvacMode"}))
+			self.actions.append (HomeKitAction("TargetHeatingCoolingState", "equal", 2, "thermostat.setHvacMode", [self.objId, indigo.kHvacMode.Cool], 0, {self.objId: "attr_hvacMode"}))
+			self.actions.append (HomeKitAction("TargetHeatingCoolingState", "equal", 3, "thermostat.setHvacMode", [self.objId, indigo.kHvacMode.HeatCool], 0, {self.objId: "attr_hvacMode"}))
+	
+					
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))			
+			
+
+	#
+	# WeatherSnoop temperature
+	#
+	def special_wsTemperature (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			obj = indigo.devices[self.objId]
+			svr = indigo.devices[self.serverId]
+			if "tempunits" in svr.pluginProps:
+				if svr.pluginProps["tempunits"] == "f":
+					value = float(obj.states["temperature_F"])
+					value = (value - 32) / 1.8000
+					
+					self.setAttributeValue (characteristic, round(value, 2))
+					self.characterDict[characteristic] = round(value, 2) 
+					
+					# Dummy action just so we get status updates for temperature	
+					self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "state_temperature_F"}))
+				else:
+					self.setAttributeValue (characteristic, float(obj.states["temperature_C"]))
+					self.characterDict[characteristic] = float(obj.states["temperature_C"]) 
+					
+					# Dummy action just so we get status updates for temperature	
+					self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "state_temperature_C"}))
+			else:
+				self.setAttributeValue (characteristic, float(obj.states["temperature_C"]))
+				self.characterDict[characteristic] = float(obj.states["temperature_C"])	
+				
+				# Dummy action just so we get status updates for temperature	
+				self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "state_temperature_C"}))
+				
+				
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))				
+			
+	#
+	# Weather Underground temperature
+	#
+	def special_wuTemperature (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			obj = indigo.devices[self.objId]
+			svr = indigo.devices[self.serverId]
+			if "tempunits" in svr.pluginProps:
+				if svr.pluginProps["tempunits"] == "f":
+					value = float(obj.states["temp"])
+					value = (value - 32) / 1.8000
+					
+					self.setAttributeValue (characteristic, round(value, 2))
+					self.characterDict[characteristic] = round(value, 2) 
+				else:
+					self.setAttributeValue (characteristic, float(obj.states["temp"]))
+					self.characterDict[characteristic] = float(obj.states["temp"]) 
+			else:
+				self.setAttributeValue (characteristic, float(obj.states["temp"]))
+				self.characterDict[characteristic] = float(obj.states["temp"])	
+				
+			# Dummy action just so we get status updates for temperature	
+			self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "state_temp"}))	
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+			
+
+	#
+	# Get thermostat current temperature
+	#
+	def special_thermTemperature (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			obj = indigo.devices[self.objId]
+			svr = indigo.devices[self.serverId]
+			if "tempunits" in svr.pluginProps:
+				if svr.pluginProps["tempunits"] == "f":
+					value = float(obj.states["temperatureInput1"])
+					value = (value - 32) / 1.8000
+					
+					self.setAttributeValue (characteristic, round(value, 2))
+					self.characterDict[characteristic] = round(value, 2) 
+				else:
+					self.setAttributeValue (characteristic, float(obj.states["temperatureInput1"]))
+					self.characterDict[characteristic] = float(obj.states["temperatureInput1"]) 
+			else:
+				self.setAttributeValue (characteristic, float(obj.states["temperatureInput1"]))
+				self.characterDict[characteristic] = float(obj.states["temperatureInput1"])
+			
+			# Dummy action just so we get status updates for temperature	
+			self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "state_temperatureInput1"}))	
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))				
+			
+			
+	#
+	# Thermostat show units in F or C
+	#
+	def special_serverCorFSetting (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			obj = indigo.devices[self.serverId]
+			if "tempunits" in obj.pluginProps:
+				if obj.pluginProps["tempunits"] == "f":
+					self.setAttributeValue (characteristic, 1)
+					self.characterDict[characteristic] = 1 
+				else:
+					self.setAttributeValue (characteristic, 1)
+					self.characterDict[characteristic] = 1 
+			else:
+				self.setAttributeValue (characteristic, 1)
+				self.characterDict[characteristic] = 1 	
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))		
 			
 ################################################################################
 # HOMEKIT ACTIONS
@@ -1477,15 +1686,18 @@ class HomeKitAction ():
 								
 										
 										d = dtutil.dateDiff ("seconds", runStartTime, indigo.devices[int(devId)].lastChanged)
-										#indigo.server.log(str(d))
+										#indigo.server.log(str(d) + " : " + str(indigo.devices[int(devId)].lastChanged))
 										if d <= 0:
 											# Something changed, see if it is one of our attributes, ANY attribute change (if there are multiple) will result in success
 											for devId, prop in self.monitors.iteritems():
 												if "attr_" in prop:
-													self.logger.threaddebug ("Target device '{}' changed, checking attribute '{}' to see if it was updated".format(indigo.devices[devId].name, prop.replace("attr_", "")))
+													#self.logger.threaddebug ("Target device '{}' changed, checking attribute '{}' to see if it was updated".format(indigo.devices[devId].name, prop.replace("attr_", "")))
 													obj = getattr (indigo.devices[devId], prop.replace("attr_", ""))
-													if monitors[devId] != {prop: obj}:
-														self.logger.threaddebug ("Target device '{}' attribute '{}' was updated, the command succeeded".format(indigo.devices[devId].name, prop.replace("attr_", "")))
+													self.logger.threaddebug ("No change: " + unicode(monitors[devId]) + " = " + unicode({prop: obj}))
+													# Not only check if the state changed, but check if it's already what HK asked to be, if it said to turn off and it's off then it's done
+													# this comes up with brightness/onOff because brightness turns it on and if we get an onOff afterwards it'll hang because it'll never update the state
+													if monitors[devId] != {prop: obj} or obj == value:
+														self.logger.debug ("Target device '{}' attribute '{}' was updated, the command succeeded".format(indigo.devices[devId].name, prop.replace("attr_", "")))
 														runcomplete = True
 														break
 														
@@ -1493,19 +1705,23 @@ class HomeKitAction ():
 														
 												if "state_" in prop:
 													if "states" in dir(indigo.devices[devId]):
-														self.logger.threaddebug ("Target device '{}' changed, checking state '{}' to see if it was updated".format(indigo.devices[devId].name, prop.replace("state_", "")))
+														#self.logger.threaddebug ("Target device '{}' changed, checking state '{}' to see if it was updated".format(indigo.devices[devId].name, prop.replace("state_", "")))
 														obj = indigo.devices[devId]
 														if prop.replace("state_", "") in obj.states:
 															state = obj.states[prop.replace("state_", "")]
-															if monitors[devId] != {prop: state}:
-																self.logger.threaddebug ("Target device '{}' state '{}' was updated, the command succeeded".format(indigo.devices[devId].name, prop.replace("state_", "")))
+															#indigo.server.log("Monitor: " + unicode(monitors[devId]))
+															#indigo.server.log("Compare: " + unicode({prop: state}))
+															#indigo.server.log("State: " + unicode(obj.states[prop.replace("state_", "")]))
+															if monitors[devId] != {prop: state} or obj.states[prop.replace("state_", "")] == value:
+																self.logger.debug ("Target device '{}' state '{}' was updated, the command succeeded".format(indigo.devices[devId].name, prop.replace("state_", "")))
 																runcomplete = True
 																break
 															#else:
 															#	self.logger.info ("Target device '{}' state '{}' value '{}' is equal to '{}'".format(indigo.devices[devId].name, prop.replace("state_", ""), unicode({prop: obj.states[prop.replace("state_", "")]}), unicode(monitors[devId])))
 																
 																
-														self.logger.threaddebug ("Target device '{}' state '{}' was not updated, still waiting".format(indigo.devices[devId].name, prop.replace("state_", "")))
+														#self.logger.threaddebug ("Target device '{}' state '{}' was not updated, still waiting".format(indigo.devices[devId].name, prop.replace("state_", "")))
+
 				
 				except Exception as ex:
 					self.logger.error (ext.getException(ex))
@@ -1514,6 +1730,7 @@ class HomeKitAction ():
 				return True
 			
 			else:
+				self.logger.debug ("{} was not set because the rule didn't pass for {}".format(self.characteristic, self.command))
 				return False
 				
 		
@@ -1636,7 +1853,7 @@ class Dummy (Service):
 					
 		super(Dummy, self).setAttributes ()
 				
-		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		#self.logger.warning ('{} has no automatic conversion to HomeKit and will not be usable unless custom mapped'.format(self.alias.value))	
 
 # ==============================================================================
@@ -1667,7 +1884,7 @@ class service_BatteryService (Service):
 		super(service_BatteryService, self).setAttributesv2 ()					
 		#super(service_LockMechanism, self).setAttributes ()
 				
-		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 
 # ==============================================================================
 # CONTACT SENSOR
@@ -1699,7 +1916,7 @@ class service_ContactSensor (Service):
 		super(service_ContactSensor, self).setAttributesv2 ()				
 		#super(service_MotionSensor, self).setAttributes ()
 				
-		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 
 # ==============================================================================
 # FAN V2
@@ -1733,7 +1950,7 @@ class service_Fanv2 (Service):
 		super(service_Fanv2, self).setAttributesv2 ()
 		#super(service_Fanv2, self).setAttributes ()
 			
-		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
 
 		
 # ==============================================================================
@@ -1766,7 +1983,7 @@ class service_GarageDoorOpener (Service):
 		super(service_GarageDoorOpener, self).setAttributesv2 ()			
 		#super(service_GarageDoorOpener, self).setAttributes ()
 						
-		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 
 # ==============================================================================
 # HUMIDITY SENSOR
@@ -1798,7 +2015,7 @@ class service_HumiditySensor (Service):
 		super(service_HumiditySensor, self).setAttributesv2 ()				
 		#super(service_MotionSensor, self).setAttributes ()
 				
-		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
 
 # ==============================================================================
@@ -1831,7 +2048,7 @@ class service_LeakSensor (Service):
 		super(service_LeakSensor, self).setAttributesv2 ()				
 		#super(service_MotionSensor, self).setAttributes ()
 				
-		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
 # ==============================================================================
 # LIGHT BULB
@@ -1863,7 +2080,7 @@ class service_Lightbulb (Service):
 		super(service_Lightbulb, self).setAttributesv2 ()					
 		#super(service_Lightbulb, self).setAttributes ()
 				
-		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
 # ==============================================================================
 # LIGHT SENSOR
@@ -1895,7 +2112,7 @@ class service_LightSensor (Service):
 		super(service_LightSensor, self).setAttributesv2 ()				
 		#super(service_MotionSensor, self).setAttributes ()
 				
-		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
 		
 # ==============================================================================
 # MICROPHONE
@@ -1923,7 +2140,7 @@ class service_Microphone (Service):
 		super(service_Microphone, self).setAttributesv2 ()	
 		#super(service_Switch, self).setAttributes ()
 				
-		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
 # ==============================================================================
 # MOTION SENSOR
@@ -1955,7 +2172,7 @@ class service_MotionSensor (Service):
 		super(service_MotionSensor, self).setAttributesv2 ()				
 		#super(service_MotionSensor, self).setAttributes ()
 				
-		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
 # ==============================================================================
 # OUTLET
@@ -1982,7 +2199,7 @@ class service_Outlet (Service):
 		super(service_Outlet, self).setAttributesv2 ()							
 		#super(service_Outlet, self).setAttributes ()
 				
-		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
 # ==============================================================================
 # LOCK MECHANISM
@@ -2011,7 +2228,7 @@ class service_LockMechanism (Service):
 		super(service_LockMechanism, self).setAttributesv2 ()					
 		#super(service_LockMechanism, self).setAttributes ()
 				
-		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
 # ==============================================================================
 # SMOKE SENSOR
@@ -2043,7 +2260,7 @@ class service_SmokeSensor (Service):
 		super(service_SmokeSensor, self).setAttributesv2 ()				
 		#super(service_MotionSensor, self).setAttributes ()
 				
-		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))									
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))										
 
 # ==============================================================================
 # SPEAKER
@@ -2071,7 +2288,7 @@ class service_Speaker (Service):
 		super(service_Speaker, self).setAttributesv2 ()	
 		#super(service_Switch, self).setAttributes ()
 				
-		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
 		
 # ==============================================================================
 # SWITCH
@@ -2097,9 +2314,39 @@ class service_Switch (Service):
 		super(service_Switch, self).setAttributesv2 ()	
 		#super(service_Switch, self).setAttributes ()
 				
-		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
-			
+# ==============================================================================
+# TEMPERATURE SENSOR
+# ==============================================================================
+class service_TemperatureSensor (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "TemperatureSensor"
+		desc = "Temperature Sensor"
+	
+		super(service_TemperatureSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = ["CurrentTemperature"]
+		self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name"]
+		
+		self.requiredv2 = {}
+		self.requiredv2["CurrentTemperature"] = {"indigo.SensorDevice": "attr_sensorValue", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "special_wuTemperature", "indigo.ThermostatDevice": "special_thermTemperature", "indigo.Device.com.perceptiveautomation.indigoplugin.weathersnoop.ws3station": "special_wsTemperature"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["StatusActive"] = {}
+		self.optionalv2["StatusFault"] = {}
+		self.optionalv2["StatusTampered"] = {}
+		self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
+		self.optionalv2["Name"] = {}
+					
+		super(service_TemperatureSensor, self).setAttributesv2 ()				
+		#super(service_MotionSensor, self).setAttributes ()
+				
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))					
 		
 # ==============================================================================
 # THERMOSTAT
@@ -2118,9 +2365,24 @@ class service_Thermostat (Service):
 		self.required = ["CurrentHeatingCoolingState", "TargetHeatingCoolingState", "CurrentTemperature", "TargetTemperature", "TemperatureDisplayUnits"]
 		self.optional = ["CurrentRelativeHumidity", "TargetRelativeHumidity", "CoolingThresholdTemperature", "HeatingThresholdTemperature", "Name"]
 		
-		super(service_Thermostat, self).setAttributes ()
+		self.requiredv2 = {}
+		self.requiredv2["CurrentHeatingCoolingState"] = {"indigo.ThermostatDevice": "special_thermHVACMode"}
+		self.requiredv2["TargetHeatingCoolingState"] = {"indigo.ThermostatDevice": "special_thermHVACMode"}
+		self.requiredv2["CurrentTemperature"] = {"indigo.ThermostatDevice": "special_thermTemperature"}
+		self.requiredv2["TargetTemperature"] = {"indigo.ThermostatDevice": "special_thermTemperatureSetPoint"}
+		self.requiredv2["TemperatureDisplayUnits"] = {"indigo.ThermostatDevice": "special_serverCorFSetting"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["CurrentRelativeHumidity"] = {"indigo.ThermostatDevice": "state_humidityInput1"}
+		self.optionalv2["TargetRelativeHumidity"] = {}
+		#self.optionalv2["CoolingThresholdTemperature"] = {"indigo.ThermostatDevice": "special_thermCoolSet"}
+		#self.optionalv2["HeatingThresholdTemperature"] = {"indigo.ThermostatDevice": "special_thermHeatSet"}
+		self.optionalv2["Name"] = {}
+					
+		super(service_Thermostat, self).setAttributesv2 ()	
+		#super(service_Thermostat, self).setAttributes ()
 				
-		self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
 	
 		

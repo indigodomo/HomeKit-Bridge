@@ -123,8 +123,8 @@ class Plugin(indigo.PluginBase):
 			#x = eps.homekit.getServiceObject (558499318, 1794022133, "service_Speaker")
 			#indigo.server.log (unicode(x))
 			
-			x = eps.homekit.getServiceObject (658907852, 1794022133, "service_BatteryService")
-			indigo.server.log (unicode(x))
+			#x = eps.homekit.getServiceObject (658907852, 1794022133, "service_BatteryService")
+			#indigo.server.log (unicode(x))
 			
 			#for a in x.actions:
 				#if a.characteristic == "Mute" and not a.whenvalue:
@@ -138,8 +138,238 @@ class Plugin(indigo.PluginBase):
 			#x = eps.homekit.getHomeKitServices ()
 			#indigo.server.log (unicode(x))
 			
+			self.complicationTestOutput()
 			
 			pass
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+	#
+	# Compose and output a sample complication (pseudo documentation)
+	#
+	def complicationTestOutput (self):
+		try:
+			complications = []
+			
+			#########################
+			# Sample of one to many #
+			#########################
+			
+			# Complication Data
+			complication = {}
+			complication["name"] 			= "Indigo Thermostat and Fan"
+			complication["deviceIds"] 		= []
+			complication["method"]	 		= 0 # One to many
+			complication["devId"]	 		= 12345
+			complication["indigoDevTypes"]	= ["indigo.ThermostatDevice"] # Only if these are found, an * anywhere will fall to conditions
+			complication["criteriaScope"]	= "indigo.devices"
+			complication["criteria"]		= []
+						
+			members = []
+			
+			# The Thermostat
+			member = {}
+			member["type"]					= 0 # Same device
+			member["object"]				= "state_temperatureInput1"
+			member["service"]				= "Thermostat"
+			member["prefix"]				= ""
+			member["suffix"]				= ""
+			member["lookup"]				= []
+			member["characteristics"]		= {}
+			member["actions"]				= []
+			
+			members.append(member)
+			
+			# The Fan
+			member = {}
+			member["type"]					= 0 # Same device
+			member["object"]				= "attr_fanIsOn"
+			member["service"]				= "Fanv2"
+			member["prefix"]				= ""
+			member["suffix"]				= " (Fan)"
+			member["lookup"]				= []
+			
+			characteristics = {} # For demonstration purposes, if left blank then use plugin defaults
+			characteristics["active"]				= {"indigo.ThermostatDevice": "attr_fanIsOn"}
+			characteristics["CurrentFanState"]		= {"indigo.ThermostatDevice": "special_thermFanMode"}
+			
+			member["characteristics"]		= characteristics
+			
+			actions = [] # For demonstration purposes, if left blank then use plugin defaults
+			
+			# First action condition
+			action = {}
+			action["characteristic"]		= "Active"
+			action["qualifier"]				= "equal"
+			action["value"]					= True
+			action["highValue"]				= None
+			action["command"]				= "thermostat.setFanMode"
+			action["args"]					= ["=memberDevId=", indigo.kFanMode.Auto]
+			
+			actions.append (action)
+			
+			# Second action condition
+			action = {}
+			action["characteristic"]		= "Active"
+			action["qualifier"]				= "equal"
+			action["value"]					= False
+			action["highValue"]				= None
+			action["command"]				= "thermostat.setFanMode"
+			action["args"]					= ["=memberDevId=", indigo.kFanMode.AlwaysOn]
+			
+			actions.append (action)
+			
+			member["actions"]				= actions
+						
+			members.append(member)
+			
+			# Add all members to complication
+			complication["members"] 		= members
+			
+			# Add complication to all complications
+			complications.append(complication)
+			
+			##########################
+			# Sample of many to many #
+			##########################
+			
+			complication = {}
+			complication["name"] 			= "Fibaro Motion Sensor FBGS001"
+			complication["deviceIds"] 		= []
+			complication["method"]	 		= 1 # Many to many
+			complication["devId"]	 		= 12345
+			complication["indigoDevTypes"]	= [] # Empty means analyse all against criteria
+			complication["criteriaScope"]	= "indigo.devices"
+			
+			allcriteria = [] # If more than one then it is always AND, if OR is needed then create another complication with THOSE criteria
+			
+			# 1st Criteria
+			criteria = {}
+			criteria["object"]				= "attr_model"
+			criteria["qualifier"]			= "contains"
+			criteria["value"]				= "FGS001"
+			
+			allcriteria.append(criteria)
+			
+			#2nd Criteria (AND)
+			criteria = {}
+			criteria["object"]				= "attr_model"
+			criteria["qualifier"]			= "contains"
+			criteria["value"]				= "Motion Sensor"
+			
+			allcriteria.append(criteria)
+			
+			complication["criteria"]		= allcriteria
+			
+			members = []
+			
+			# The Motion Sensor
+			member = {}
+			member["type"]					= 0
+			member["object"]				= "attr_onState"
+			member["service"]				= "MotionSensor"
+			member["prefix"]				= ""
+			member["suffix"]				= ""
+			member["lookup"]				= []
+			member["characteristics"]		= {}
+			member["actions"]				= []
+			
+			members.append(member)
+			
+			# The Light Sensor
+			member = {}
+			member["type"]					= 1 # Device lookup
+			member["object"]				= "attr_onState"
+			member["service"]				= "LightSensor"
+			member["prefix"]				= ""
+			member["suffix"]				= " (Lux)"
+			
+			lookups = [] # If more than one then it is always AND, if OR is needed then create another complication with THOSE criteria
+			
+			# 1st Criteria
+			lookup = {}
+			lookup["object"]				= "attr_address"
+			lookup["qualifier"]				= "equal"
+			lookup["value"]					= "=address="
+			
+			lookups.append(lookup)
+			
+			# 2nd Criteria
+			lookup = {}
+			lookup["object"]				= "attr_model"
+			lookup["qualifier"]				= "contains"
+			lookup["value"]					= "FGS001"
+			
+			lookups.append(lookup)
+			
+			# 3rd Criteria
+			lookup = {}
+			lookup["object"]				= "attr_model"
+			lookup["qualifier"]				= "contains"
+			lookup["value"]					= "Luminance"
+			
+			lookups.append(lookup)
+			
+			member["lookup"]				= lookups
+			
+			member["characteristics"]		= {}
+			member["actions"]				= []
+			
+			members.append(member)
+			
+			# The Temperature Sensor
+			member = {}
+			member["type"]					= 1 # Device lookup
+			member["object"]				= "attr_onState"
+			member["service"]				= "TemperatureSensor"
+			member["prefix"]				= ""
+			member["suffix"]				= " (Temp)"
+			
+			lookups = [] # If more than one then it is always AND, if OR is needed then create another complication with THOSE criteria
+			
+			# 1st Criteria
+			lookup = {}
+			lookup["object"]				= "attr_address"
+			lookup["qualifier"]				= "equal"
+			lookup["value"]					= "=address="
+			
+			lookups.append(lookup)
+			
+			# 2nd Criteria
+			lookup = {}
+			lookup["object"]				= "attr_model"
+			lookup["qualifier"]				= "contains"
+			lookup["value"]					= "FGS001"
+			
+			lookups.append(lookup)
+			
+			# 3rd Criteria
+			lookup = {}
+			lookup["object"]				= "attr_model"
+			lookup["qualifier"]				= "contains"
+			lookup["value"]					= "Temperature"
+			
+			lookups.append(lookup)
+			
+			member["lookup"]				= lookups
+			
+			member["characteristics"]		= {}
+			member["actions"]				= []
+			
+			members.append(member)
+			
+			# Add all members to complication
+			complication["members"] 		= members
+			
+			# Add complication to all complications
+			complications.append(complication)
+			
+			
+			
+			# Output
+			indigo.server.log(unicode(json.dumps(complications, indent = 4)))
+			indigo.server.log(unicode(json.dumps(complications)))
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -258,7 +488,7 @@ class Plugin(indigo.PluginBase):
 		# At 30 ticks we check server running state (more or less between 30 seconds and a minute but keeps us from having to do date calcs here which use CPU)
 		if self.CTICKS == 30:
 			try:
-				self.logger.debug ("Checking running state of all servers")
+				#self.logger.debug ("Checking running state of all servers")
 				for dev in indigo.devices.iter(self.pluginId + ".Server"):
 					self.checkRunningHBServer (dev)
 			
@@ -340,7 +570,7 @@ class Plugin(indigo.PluginBase):
 		try:
 			# If this is the stupid NEST thermostat that updates every damn second then ignore most changes
 			if newDev.pluginId == "com.corporatechameleon.nestplugBeta":
-				self.logger.debug ("Idiotic NEST plugin updating 8-12 states every 1 second, ignoring")
+				#self.logger.debug ("Idiotic NEST plugin updating 8-12 states every 1 second, ignoring")
 				wecareabout = ["coolSetpoint", "hvacMode", "temperatures", "heatSetpoint", "humidities"]
 				youshallnotpass = True
 				for w in wecareabout:
@@ -486,20 +716,21 @@ class Plugin(indigo.PluginBase):
 						if obj.invertOnState: obj.setAttributesv2() # Force it to refresh values so we get our inverted action
 					
 					# Loop through actions to see if any of them are in the query
-					processedActions = []
+					processedActions = False
 					response = False
 					
 					#indigo.server.log(unicode(obj))
 					
 					for a in obj.actions:
 						#indigo.server.log(unicode(a))
-						if a.characteristic in query and a.characteristic not in processedActions: 
-							self.logger.debug ("Received {} in query, setting to {} using {}".format(a.characteristic, query[a.characteristic][0], a.command))
+						if a.characteristic in query and not processedActions: 
+							self.logger.debug ("Received {} in query, setting to {} using {} if rules apply".format(a.characteristic, query[a.characteristic][0], a.command))
 							#processedActions.append(a.characteristic)
 							ret = a.run (query[a.characteristic][0], r["id"], True)
 							#self.HKREQUESTQUEUE[obj.id] = a.characteristic # It's ok that this overwrites, it's the same
 							if ret: 
 								response = True # Only change it if its true, that way we know the operation was a success
+								processedActions = True
 								break # we only ever get a single command on each query
 										
 					r = self.buildHKAPIDetails (devId, serverId, r["jkey"], isAction)		
@@ -1057,6 +1288,176 @@ class Plugin(indigo.PluginBase):
 		return rec
 		
 	################################################################################
+	# OBJECT MOVER
+	################################################################################
+	#
+	# List of unselected servers
+	#
+	def objectMoverAvailableServerList (self, args, valuesDict):
+		ret = [("default", "SELECT A SERVER")]
+		if "sourceServer" not in valuesDict: return ret
+		if valuesDict["sourceServer"] == "": return ret
+		
+		try:
+			retList = []
+			
+			for dev in indigo.devices.iter("com.eps.indigoplugin.homekit-bridge.Server"):
+				if str(dev.id) != valuesDict["sourceServer"]:
+					retList.append ( (str(dev.id), dev.name) )
+				
+			return retList
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			return ret	
+			
+	#
+	# List of objects on the server
+	#
+	def objectMoverItemsList (self, args, valuesDict):
+		ret = [("default", "No data")]
+		
+		try:
+			if "sourceServer" not in valuesDict or "destinationServer" not in valuesDict: return ret
+			if valuesDict["sourceServer"] == "" or valuesDict["destinationServer"] == "": return ret
+			
+			source = indigo.devices[int(valuesDict["sourceServer"])]
+
+			includedDevices = []
+			includedActions = []
+			
+			if "includedDevices" in source.pluginProps: includedDevices = json.loads(source.pluginProps["includedDevices"])
+			if "includedActions" in source.pluginProps: includedActions = json.loads(source.pluginProps["includedActions"])
+			
+			# Combine the lists for the return
+			includedObjects = []
+			
+			for d in includedDevices:
+				name = d["alias"]
+				if name == "": name = d["name"]
+				d["sortbyname"] = name.lower()
+				
+				name = "{0}: {1}".format(d["object"], name)
+				d["sortbytype"] = name.lower()
+				
+				
+				includedObjects.append (d)
+				
+			for d in includedActions:
+				name = d["alias"]
+				if name == "": name = d["name"]
+				d["sortbyname"] = name.lower()
+				
+				name = "{0}: {1}".format(d["object"], name)
+				d["sortbytype"] = name.lower()
+				
+				includedObjects.append (d)	
+			
+			retList = []
+			
+			includedObjects = eps.jstash.sortStash (includedObjects, "sortbyname")
+			
+			for d in includedObjects:
+				name = d["alias"]
+				if name == "": name = d["name"]
+				name = "{0}: {1}".format(d["object"], name)
+				
+				retList.append ( (str(d["id"]), name) )
+				
+			return retList
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			return ret	
+			
+	#
+	# Form field changed
+	#
+	def objectMoverFormFieldChanged (self, valuesDict, typeId):	
+		try:
+			errorsDict = indigo.Dict()		
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+		return (valuesDict, errorsDict)		
+		
+	#
+	# Move items between servers
+	#
+	def objectMoverRun (self, valuesDict, typeId):		
+		try:
+			success = True
+			errorsDict = indigo.Dict()	
+			
+			if valuesDict["sourceServer"] == "":
+				errorsDict["showAlertText"] = "Select a source server to move your items from."
+				errorsDict["sourceServer"] = "Invalid server"
+				return (False, valuesDict, errorsDict)	
+				
+			if valuesDict["destinationServer"] == "":
+				errorsDict["showAlertText"] = "Select a destination server to move your items to."
+				errorsDict["destinationServer"] = "Invalid server"
+				return (False, valuesDict, errorsDict)		
+				
+			if len(valuesDict["moveItems"]) == 0:
+				errorsDict["showAlertText"] = "This process will be far more successful if you choose items to move."
+				errorsDict["moveItems"] = "Invalid selection"
+				return (False, valuesDict, errorsDict)	
+				
+			source = indigo.devices[int(valuesDict["sourceServer"])]
+
+			includedDevicesSource = []
+			includedActionsSource = []
+			
+			if "includedDevices" in source.pluginProps: includedDevicesSource = json.loads(source.pluginProps["includedDevices"])
+			if "includedActions" in source.pluginProps: includedActionsSource = json.loads(source.pluginProps["includedActions"])
+			
+			dest = indigo.devices[int(valuesDict["sourceServer"])]
+
+			includedDevicesDest = []
+			includedActionsDest = []
+			
+			if "includedDevices" in dest.pluginProps: includedDevicesDest = json.loads(dest.pluginProps["includedDevices"])
+			if "includedActions" in dest.pluginProps: includedActionsDest = json.loads(dest.pluginProps["includedActions"])	
+			
+			if len(includedDevicesDest) + len(includedActionsDest) + len(valuesDict["moveItems"]) > 99:
+				allowed = 100 - (len(includedDevicesDest) + len(includedActionsDest))
+				errorsDict["showAlertText"] = "You are unable to move all of these items because it would cause '{}' to have more than the maximum 99 items.\n\nChange your selection, the server can handle up to {} more items.".format(dest.name, str(allowed))
+				errorsDict["moveItems"] = "Too many items"
+				return (False, valuesDict, errorsDict)	
+			
+			badNames = {}	
+			badIds = {}
+			
+			for devId in valuesDict["moveItems"]:
+				rec = eps.jstash.getRecordWithFieldEquals (includedDevicesSource, "id", int(devId))	
+				if rec is None: rec = eps.jstash.getRecordWithFieldEquals (includedActionsSource, "id", int(devId))	
+				
+				# See if this alias name exists on the destination
+				alias = eps.jstash.getRecordWithFieldEquals (includedDevicesDest, "alias", rec["alias"])	
+				if not alias is None: indigo.server.log("1: " + rec["alias"] + " = " + alias["alias"])
+				if alias is None: alias = eps.jstash.getRecordWithFieldEquals (includedActionsDest, "alias", rec["alias"])		
+				if not alias is None: indigo.server.log("2: " + rec["alias"] + " = " + alias["alias"])
+				if not alias is None: badNames[alias["id"]] = alias["alias"]
+				
+				# See if this ID exists on the destination
+				#id = eps.jstash.getRecordWithFieldEquals (includedDevicesDest, "id", rec["id"])	
+				#if id is None: id = eps.jstash.getRecordWithFieldEquals (includedActionsDest, "id", rec["id"])		
+				#if not id is None: badIds[alias["id"]] = alias["alias"]
+				
+			indigo.server.log(unicode(badNames))
+			indigo.server.log(unicode(badIds))
+				
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			return (False, valuesDict, errorsDict)	
+			
+		return (True, valuesDict, errorsDict)	
+		
+				
+		
+	################################################################################
 	# HIDDEN ITEMS MANAGEMENT
 	################################################################################
 	
@@ -1227,7 +1628,9 @@ class Plugin(indigo.PluginBase):
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
 			
-		return (valuesDict, errorsDict)					
+		return (valuesDict, errorsDict)		
+		
+					
 	
 	################################################################################
 	# WIZARD METHODS
@@ -2659,13 +3062,14 @@ class Plugin(indigo.PluginBase):
 	#
 	def saveConfigurationToDisk (self, server):
 		try:
+			self.logger.debug ("Saving '{}' configuration to {}".format(server.name, self.CONFIGDIR + "/" + str(server.id)))
 			config = self.buildServerConfigurationDict (server.id)
 			if config is None:
 				self.logger.error ("Unable to build server configuration for '{0}'.".format(server.name))
 				return False
 				
 			jsonData = json.dumps(config, indent=8)
-			self.logger.debug (unicode(jsonData))
+			#self.logger.debug (unicode(jsonData))
 			
 			if os.path.exists (self.CONFIGDIR + "/" + str(server.id)):
 				with open(self.CONFIGDIR + "/" + str(server.id) + "/config.json", 'w') as file_:
@@ -2775,7 +3179,7 @@ class Plugin(indigo.PluginBase):
 			config["platforms"] = platforms
 							
 			if debugMode: indigo.server.log(unicode(config))
-			
+						
 			return config
 		
 		except Exception as e:
