@@ -3144,7 +3144,7 @@ class characteristic_TargetPosition:
 		self.minValue = 0
 		self.minStep = 1
 
-		self.readonly = True
+		self.readonly = False
 		self.notify = True			
 		
 # ==============================================================================

@@ -101,7 +101,120 @@
     </MenuItem>
     
     <MenuItem id="sep_excludes"/>
+    
+    <MenuItem id="serverWizard" hidden="true">
+    	<Name>Automatic Server Wizard</Name>
+    	<ConfigUI>
+    		<Field type="checkbox" id="needrefresh" defaultValue="true" hidden="true">
+				<Label> </Label>
+				<Description>Show the refresh button</Description>
+			</Field>
+			
+			<Field type="checkbox" id="isavailable" defaultValue="true" hidden="true">
+				<Label> </Label>
+				<Description>If the automatic server has not yet been put into effect and all fields are editable without consequences</Description>
+			</Field>
+			
+			<Field type="label" id="lbl_refresh" visibleBindingId="needrefresh" visibleBindingValue="true" >
+				<Label>Click the refresh button below to analyze your current automatic server configuration.  You may get an error in the Indigo log while this occurs, that is not an indication of a problem.
+				</Label>
+			</Field>
+	
+    		<Field type="button" id="refresh" visibleBindingId="needrefresh" visibleBindingValue="true" >
+				<Label> </Label>
+				<Title>Refresh </Title>
+				<CallbackMethod>wizardButtonRefresh</CallbackMethod>
+			</Field>
+			
+    		<Field type="label" id="lbl_intro" >
+				<Label>This wizard will help you get your Indigo devices published to HomeKit.  Select the options below for what you would like to link to HomeKit. 
+				
+Any device currently being referenced by another server will not be included until they are removed from that server.  Once run, your rule will stay in effect and dynamically change your server devices as the devices change.				
+				</Label>
+			</Field>
 
+    		<Field type="menu" id="wizard" defaultValue="folder" alwaysUseInDialogHeightCalc="true" enabledBindingId="isavailable">
+				<Label>Wizard:</Label>
+				<List>
+					<Option value="alexa">Alexa-Hue Bridge Device Sync</Option>
+					<Option value="folder">By Folder</Option>
+					<Option value="type">By Type</Option>
+					<Option value="all">All Devices</Option>
+				</List>
+				<CallbackMethod>wizardFormFieldChanged</CallbackMethod>
+			</Field>
+			
+			<Field type="label" id="lbl_bytype" visibleBindingId="wizard" visibleBindingValue="type" alwaysUseInDialogHeightCalc="true" enabledBindingId="isavailable">
+				<Label>
+                This will create servers based on the device types (i.e., motion
+                sensors servers, switches server, etc).  If there are more than 99
+                of any type then additional servers will be created.
+				</Label>
+			</Field>
+			
+			<Field type="menu" id="method" defaultValue="homekit" visibleBindingId="wizard" visibleBindingValue="type" alwaysUseInDialogHeightCalc="true" enabledBindingId="isavailable">
+				<Label>Method:</Label>
+				<List>
+					<Option value="indigo">Indigo Type</Option>
+					<Option value="homekit">HomeKit Type</Option>
+				</List>
+				<CallbackMethod>wizardFormFieldChanged</CallbackMethod>
+			</Field>
+			
+			<Field type="menu" id="mincount" defaultValue="1" visibleBindingId="wizard" visibleBindingValue="type,folder,all" alwaysUseInDialogHeightCalc="true" enabledBindingId="isavailable">
+				<Label>Min devices:</Label>
+				<List>
+					<Option value="1">1</Option>
+					<Option value="5">5</Option>
+					<Option value="10">10</Option>
+					<Option value="20">20</Option>
+				</List>
+				<CallbackMethod>wizardFormFieldChanged</CallbackMethod>
+			</Field>
+			
+			<Field type="checkbox" id="hbbaliases" defaultValue="true" visibleBindingId="wizard" visibleBindingValue="type,folder,all" enabledBindingId="isavailable">
+				<Label> </Label>
+				<Description>Convert Homebridge Buddy alias device names</Description>
+				<CallbackMethod>wizardFormFieldChanged</CallbackMethod>
+			</Field>
+			
+			<Field type="checkbox" id="hbbdevices" defaultValue="true" visibleBindingId="wizard" visibleBindingValue="type,all" enabledBindingId="isavailable">
+				<Label> </Label>
+				<Description>Put Homebridge Buddy devices in their own groups</Description>
+				<CallbackMethod>wizardFormFieldChanged</CallbackMethod>
+			</Field>
+			
+			<Field type="checkbox" id="security" defaultValue="true" visibleBindingId="wizard" visibleBindingValue="type,folder,all" enabledBindingId="isavailable">
+				<Label> </Label>
+				<Description>Put security devices in their own group</Description>
+				<CallbackMethod>wizardFormFieldChanged</CallbackMethod>
+			</Field>
+			
+			<Field type="checkbox" id="securitydevice" defaultValue="true" visibleBindingId="security" visibleBindingValue="true"  enabledBindingId="isavailable">
+				<Label> </Label>
+				<Description>Add security device server to switch server</Description>
+			</Field>
+			
+			<Field type="label" id="lbl_deviceList" alwaysUseInDialogHeightCalc="true" enabledBindingId="isavailable">
+				<Label>
+                </Label>
+			</Field>			
+			
+			<Field type="list" id="deviceList" rows="10" alwaysUseInDialogHeightCalc="true" visibleBindingId="isavailable" visibleBindingValue="true">
+				<Label>Servers:</Label>
+				<List class="self" filter="#plugin#[index=deviceList, callback=wizardListMethodDeviceTypes, ref=hideWrappedItems]" method="getCustomList" dynamicReload="true" />
+			</Field>
+			
+			<Field type="separator" id="sep_unlink" visibleBindingId="isavailable" visibleBindingValue="false" alwaysUseInDialogHeightCalc="true"/>
+			
+			<Field type="button" id="unlink" visibleBindingId="isavailable" visibleBindingValue="false" alwaysUseInDialogHeightCalc="true">
+				<Label>ACTIVE: </Label>
+				<Title>Remove active automatic server settings</Title>
+				<CallbackMethod>wizardButtonRefresh</CallbackMethod>
+			</Field>
+			
+    	</ConfigUI>
+    </MenuItem>
 
 	<MenuItem id="performanceOptions">
         <Name>Performance Options</Name>

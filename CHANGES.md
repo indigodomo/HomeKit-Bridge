@@ -1,24 +1,12 @@
 Release Notes
 ==========
 
-Version 0.11.0 (Beta 11)
+Version 0.12.0 (Beta 12)
 ==========
-* This marks just about the last nail in the coffin for Homebridge Buddy as all remaining device types supported under that plugin are now available under HomeKit Bridge and a complete migration routine has been added
-* New [Move Items Between Servers](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Plugin-Menu-Utilities#move-items-between-servers) plugin menu utility that allows you to move devices between servers
-* New [Migration From Homebridge Buddy](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Plugin-Menu-Utilities#migrate-from-homebridge-buddy) available under the plugin menu's Advanced Plugin Actions - this will also auto run if no HomeKit Bridge servers are found on startup (i.e., new refugee from HBB)
-* New device type added: [Occupancy Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#occupancysensor) - and in case you aren't clear on what one does then [read the Wiki on it](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/FAQ#what-is-the-difference-between-a-motion-sensor-and-an-occupancy-sensor)
-* New device type added: [Door](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#door)
-* New device type added: [Window](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#windowcovering)
-* New device type added: [Window Covering](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#windowcovering)
-* Added auto detection of Homebridge Buddy Wrapper and Alias devices so that they will default to whatever they were defined as in HBB
-* Added feature that will prevent a server from starting if there are no objects to serve up
-* Fixed HomeKit device list in the Server Device so that it appears as sorted
-* Fixed bug where Homebridge Buddy devices were being excluded from the device list entirely
-* Fixed bug where read-only characteristics, such as sensors, would not update in realtime on changes
-* Fixed current temperature readings by hacking Homebridge build to allow wider temperature ranges, now temperature controls will work properly in all ranges
-* Fixed target temperature settings by hacking Homebridge build to allow wider temperature settings
-* Fixed known issue: Readonly sensor devices not calling back on state change
-* Satisfied wish list item: Sort HK type list alphabetically
+* Fixed bug where Window Coverings had a readonly state and were not usable via the Home App
+* Fixed bug where Windows had a readonly state and were not usable via the Home App
+* Fixed bug where Doors had a readonly state and were not usable via the Home App
+* Removed "Automatic Server Wizard" from build entirely, it's been a playground and not supposed to be in beta yet
 
 Known Issues
 ---------------
@@ -46,6 +34,25 @@ Wish List
 
 Previous Release Notes
 ==========
+
+Version 0.11.0 (Beta 11)
+---------------
+* This marks just about the last nail in the coffin for Homebridge Buddy as all remaining device types supported under that plugin are now available under HomeKit Bridge and a complete migration routine has been added
+* New [Move Items Between Servers](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Plugin-Menu-Utilities#move-items-between-servers) plugin menu utility that allows you to move devices between servers
+* New [Migration From Homebridge Buddy](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Plugin-Menu-Utilities#migrate-from-homebridge-buddy) available under the plugin menu's Advanced Plugin Actions - this will also auto run if no HomeKit Bridge servers are found on startup (i.e., new refugee from HBB)
+* New device type added: [Occupancy Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#occupancysensor) - and in case you aren't clear on what one does then [read the Wiki on it](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/FAQ#what-is-the-difference-between-a-motion-sensor-and-an-occupancy-sensor)
+* New device type added: [Door](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#door)
+* New device type added: [Window](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#windowcovering)
+* New device type added: [Window Covering](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#windowcovering)
+* Added auto detection of Homebridge Buddy Wrapper and Alias devices so that they will default to whatever they were defined as in HBB
+* Added feature that will prevent a server from starting if there are no objects to serve up
+* Fixed HomeKit device list in the Server Device so that it appears as sorted
+* Fixed bug where Homebridge Buddy devices were being excluded from the device list entirely
+* Fixed bug where read-only characteristics, such as sensors, would not update in realtime on changes
+* Fixed current temperature readings by hacking Homebridge build to allow wider temperature ranges, now temperature controls will work properly in all ranges
+* Fixed target temperature settings by hacking Homebridge build to allow wider temperature settings
+* Fixed known issue: Readonly sensor devices not calling back on state change
+* Satisfied wish list item: Sort HK type list alphabetically
 
 Version 0.9.9 (Beta 10)
 ---------------

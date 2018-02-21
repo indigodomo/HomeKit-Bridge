@@ -127,6 +127,9 @@ class Plugin(indigo.PluginBase):
 			#x = eps.homekit.getServiceObject (658907852, 1794022133, "service_BatteryService")
 			#indigo.server.log (unicode(x))
 			
+			x = eps.homekit.getServiceObject (1021929362, 1794022133, "service_WindowCovering")
+			indigo.server.log (unicode(x))
+			
 			#for a in x.actions:
 				#if a.characteristic == "Mute" and not a.whenvalue:
 				#	a.run ("false", 558499318, False)
