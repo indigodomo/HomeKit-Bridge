@@ -1,23 +1,29 @@
 Release Notes
 ==========
 
-Version 0.9.9 (Beta 10)
+Version 0.11.0 (Beta 11)
 ==========
-* New device type added: [Temperature Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#temperaturesensor) - it should be noted that HomeKit temps, for whatever reason, have a max limit of 0 to 100 Celsius, so if it's 16F that translates to -9C and HomeKit will reject it and make it 32 degrees (the default value).  Don't blame me, talk to Apple.  If this ever changes the plugin will already handle it accurately without any further changes.
-* Added native support to temperature sensors for WUnderground and WeatherSnoop devices
-* Added callback stub catch-all for characteristics that are read-only or not explicitly defined so they will get caught on device changes to send to HomeKit (i.e., humidity changes)
-* Fixed huge SNAFU where I commented out a critical line that caused all commands to get the 30 second timeout error and beachball for that 30 seconds.  It's beta folks, B-E-T-A :)
-* Fixed bug to report back to HomeKit a success if the device is already in the state requested (i.e., if it's already On and HomeKit asks us to turn it On then return success even though nothing changed on the device) - this should fix most timeout issues
-* Rewrite of the Thermostat handling in plugin - note that I am at a disadvantage because I only have a Nest thermostat which has very long delayed reactions to set point changes, this is untested with "normal" thermostats that do not have to hit the cloud to do updates
-* Changed format of logs as they were relatively unreadable with how Python interprets tabs in the log
-* Removed logging on class instantiation unless a device is attached because several functions need to iterate the classes and that resulted in numerous "Invalid Indigo Object" items being logged
-* Cleaned up miscellaneous log messages that were not needed
+* This marks just about the last nail in the coffin for Homebridge Buddy as all remaining device types supported under that plugin are now available under HomeKit Bridge and a complete migration routine has been added
+* New [Move Items Between Servers](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Plugin-Menu-Utilities#move-items-between-servers) plugin menu utility that allows you to move devices between servers
+* New [Migration From Homebridge Buddy](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Plugin-Menu-Utilities#migrate-from-homebridge-buddy) available under the plugin menu's Advanced Plugin Actions - this will also auto run if no HomeKit Bridge servers are found on startup (i.e., new refugee from HBB)
+* New device type added: [Occupancy Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#occupancysensor) - and in case you aren't clear on what one does then [read the Wiki on it](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/FAQ#what-is-the-difference-between-a-motion-sensor-and-an-occupancy-sensor)
+* New device type added: [Door](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#door)
+* New device type added: [Window](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#windowcovering)
+* New device type added: [Window Covering](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#windowcovering)
+* Added auto detection of Homebridge Buddy Wrapper and Alias devices so that they will default to whatever they were defined as in HBB
+* Added feature that will prevent a server from starting if there are no objects to serve up
+* Fixed HomeKit device list in the Server Device so that it appears as sorted
+* Fixed bug where Homebridge Buddy devices were being excluded from the device list entirely
+* Fixed bug where read-only characteristics, such as sensors, would not update in realtime on changes
+* Fixed current temperature readings by hacking Homebridge build to allow wider temperature ranges, now temperature controls will work properly in all ranges
+* Fixed target temperature settings by hacking Homebridge build to allow wider temperature settings
+* Fixed known issue: Readonly sensor devices not calling back on state change
+* Satisfied wish list item: Sort HK type list alphabetically
 
 Known Issues
 ---------------
 * FRESH INSTALLATION ISSUE: It seems fairly universal that the first server you add does not work until you restart the plugin (this likely has been resolved in Beta 9, needs tested to be sure)
 * Nest thermostats (perhaps others) will appear to hang in HomeKit when changing temperature setpoints because of how the Nest plugin operates, the changes will be implemented but the Indigo UI will show timeout errors
-* Readonly sensor devices not calling back on state change
 * Need to remove API port from the plugin config and autodetect it instead when building the server configuration
 * Brand new install with brand new server is still not auto starting the server after config close (reported by Autolog, but he was on 0.1.1 and this was fixed in 0.1.2 so it may not be an issue after all, still needs tested to absolutely certain so it was added to the testing issue on Git)
 * The current API is not locked to Localhost but will need to be prior to being publicly released for security purposes
@@ -28,22 +34,30 @@ Known Issues
 Homebridge Issues
 ---------------
 * Need type and versByte to recognize
-* Thermostats need the same exclusion principal as lights to prevent characteristic change -> refresh loop
 * Why HB-Indigo1 thermostat shows green and HB-Indigo2 shows red
 
 Wish List
 ---------------
-* Dev device wishlist: Battery Service, Leak Sensor, Camera RTP Stream Management, Lock Management
-* Add ability to reverse On/Off on devices, many plugins do it opposite of Indigo
+* Dev device wishlist: Camera RTP Stream Management, Lock Management
 * Autolog suggestion: http://forums.indigodomo.com/viewtopic.php?p=154506#p154506
 * Add a feature to read in HBB and Alexa items to build a cache of already used alias names
 * Speaker, Microphone and Battery Service are all coded into the plugin but HomeKit does not yet support them
-* Rework thermostat to use the new definition methods, which then allows the use of Temperature Sensors as well
-* Sort HK type list alphabetically
 * Redo complications to be a selectable list of different complications or the ability to not use one at all
 
 Previous Release Notes
 ==========
+
+Version 0.9.9 (Beta 10)
+---------------
+* New device type added: [Temperature Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#temperaturesensor) - it should be noted that HomeKit temps, for whatever reason, have a max limit of 0 to 100 Celsius, so if it's 16F that translates to -9C and HomeKit will reject it and make it 32 degrees (the default value).  Don't blame me, talk to Apple.  If this ever changes the plugin will already handle it accurately without any further changes.
+* Added native support to temperature sensors for WUnderground and WeatherSnoop devices
+* Added callback stub catch-all for characteristics that are read-only or not explicitly defined so they will get caught on device changes to send to HomeKit (i.e., humidity changes)
+* Fixed huge SNAFU where I commented out a critical line that caused all commands to get the 30 second timeout error and beachball for that 30 seconds.  It's beta folks, B-E-T-A :)
+* Fixed bug to report back to HomeKit a success if the device is already in the state requested (i.e., if it's already On and HomeKit asks us to turn it On then return success even though nothing changed on the device) - this should fix most timeout issues
+* Rewrite of the Thermostat handling in plugin - note that I am at a disadvantage because I only have a Nest thermostat which has very long delayed reactions to set point changes, this is untested with "normal" thermostats that do not have to hit the cloud to do updates
+* Changed format of logs as they were relatively unreadable with how Python interprets tabs in the log
+* Removed logging on class instantiation unless a device is attached because several functions need to iterate the classes and that resulted in numerous "Invalid Indigo Object" items being logged
+* Cleaned up miscellaneous log messages that were not needed
 
 Version 0.9.0 (Beta 9)
 ---------------

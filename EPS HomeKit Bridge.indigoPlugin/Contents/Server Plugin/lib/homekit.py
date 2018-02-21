@@ -967,9 +967,9 @@ class Service (object):
 			a = getattr (self, characteristic)
 			invalidType = False
 			
-			if a.readonly: 
-				self.logger.threaddebug ("Not setting a default action for {} because that characteristic is read only".format(characteristic))
-				return # There are no actions for readonly characteristics, why add unnecessary data?
+			#if a.readonly: 
+			#	self.logger.threaddebug ("Not setting a default action for {} because that characteristic is read only".format(characteristic))
+			#	return # There are no actions for readonly characteristics, why add unnecessary data?
 			
 			# Define some defaults
 			minValue = 0
@@ -1401,6 +1401,8 @@ class Service (object):
 	def special_thermTemperatureSetPoint (self, classes, sourceDict, getter, characteristic, isOptional = False):
 		try:
 			obj = indigo.devices[self.objId]
+			if self.serverId == 0: return
+			
 			svr = indigo.devices[self.serverId]
 			if "tempunits" in svr.pluginProps:
 				value = float(obj.coolSetpoint)
@@ -1434,6 +1436,8 @@ class Service (object):
 	def special_wsTemperature (self, classes, sourceDict, getter, characteristic, isOptional = False):
 		try:
 			obj = indigo.devices[self.objId]
+			if self.serverId == 0: return
+			
 			svr = indigo.devices[self.serverId]
 			if "tempunits" in svr.pluginProps:
 				if svr.pluginProps["tempunits"] == "f":
@@ -1469,6 +1473,8 @@ class Service (object):
 	def special_wuTemperature (self, classes, sourceDict, getter, characteristic, isOptional = False):
 		try:
 			obj = indigo.devices[self.objId]
+			if self.serverId == 0: return
+			
 			svr = indigo.devices[self.serverId]
 			if "tempunits" in svr.pluginProps:
 				if svr.pluginProps["tempunits"] == "f":
@@ -1497,6 +1503,8 @@ class Service (object):
 	def special_thermTemperature (self, classes, sourceDict, getter, characteristic, isOptional = False):
 		try:
 			obj = indigo.devices[self.objId]
+			if self.serverId == 0: return
+			
 			svr = indigo.devices[self.serverId]
 			if "tempunits" in svr.pluginProps:
 				if svr.pluginProps["tempunits"] == "f":
@@ -1524,6 +1532,8 @@ class Service (object):
 	#
 	def special_serverCorFSetting (self, classes, sourceDict, getter, characteristic, isOptional = False):
 		try:
+			if self.serverId == 0: return
+		
 			obj = indigo.devices[self.serverId]
 			if "tempunits" in obj.pluginProps:
 				if obj.pluginProps["tempunits"] == "f":
@@ -1917,6 +1927,38 @@ class service_ContactSensor (Service):
 		#super(service_MotionSensor, self).setAttributes ()
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		
+# ==============================================================================
+# DOOR
+# ==============================================================================
+class service_Door (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "Door"
+		desc = "Door"
+	
+		super(service_Door, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = ["CurrentPosition", "PositionState", "TargetPosition"]
+		self.optional = ["HoldPosition", "ObstructionDetected", "Name"]
+		
+		self.requiredv2 = {}
+		self.requiredv2["CurrentPosition"] = {"*": "attr_brightness"}
+		self.requiredv2["PositionState"] = {}
+		self.requiredv2["TargetPosition"] = {"*": "attr_brightness"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["HoldPosition"] = {}
+		self.optionalv2["ObstructionDetected"] = {}
+		self.optionalv2["Name"] = {}
+					
+		super(service_Door, self).setAttributesv2 ()			
+		#super(service_GarageDoorOpener, self).setAttributes ()
+						
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
 
 # ==============================================================================
 # FAN V2
@@ -2175,6 +2217,38 @@ class service_MotionSensor (Service):
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
 # ==============================================================================
+# OCCUPANCY SENSOR
+# ==============================================================================
+class service_OccupancySensor (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "OccupancySensor"
+		desc = "Occupancy Sensor"
+	
+		super(service_OccupancySensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = ["OccupancyDetected"]
+		self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name"]
+		
+		self.requiredv2 = {}
+		self.requiredv2["OccupancyDetected"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["StatusActive"] = {}
+		self.optionalv2["StatusFault"] = {}
+		self.optionalv2["StatusTampered"] = {}
+		self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
+		self.optionalv2["Name"] = {}
+					
+		super(service_OccupancySensor, self).setAttributesv2 ()				
+		#super(service_MotionSensor, self).setAttributes ()
+				
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
+		
+# ==============================================================================
 # OUTLET
 # ==============================================================================
 class service_Outlet (Service):
@@ -2383,8 +2457,74 @@ class service_Thermostat (Service):
 		#super(service_Thermostat, self).setAttributes ()
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
-		
+
+# ==============================================================================
+# WINDOW
+# ==============================================================================
+class service_Window (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "Window"
+		desc = "Window"
 	
+		super(service_Window, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = ["CurrentPosition", "PositionState", "TargetPosition"]
+		self.optional = ["HoldPosition", "ObstructionDetected", "Name"]
+		
+		self.requiredv2 = {}
+		self.requiredv2["CurrentPosition"] = {"*": "attr_brightness"}
+		self.requiredv2["PositionState"] = {}
+		self.requiredv2["TargetPosition"] = {"*": "attr_brightness"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["HoldPosition"] = {}
+		self.optionalv2["ObstructionDetected"] = {}
+		self.optionalv2["Name"] = {}
+					
+		super(service_Window, self).setAttributesv2 ()			
+		#super(service_GarageDoorOpener, self).setAttributes ()
+						
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		
+# ==============================================================================
+# WINDOW COVERING
+# ==============================================================================
+class service_WindowCovering (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "WindowCovering"
+		desc = "Window Covering"
+	
+		super(service_WindowCovering, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = ["CurrentPosition", "PositionState", "TargetPosition"]
+		self.optional = ["HoldPosition", "ObstructionDetected", "Name", "HoldPosition", "ObstructionDetected", "Name", "DDD"]
+		
+		self.requiredv2 = {}
+		self.requiredv2["CurrentPosition"] = {"*": "attr_brightness"}
+		self.requiredv2["PositionState"] = {}
+		self.requiredv2["TargetPosition"] = {"*": "attr_brightness"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["HoldPosition"] = {}
+		self.optionalv2["TargetHorizontalTiltAngle"] = {}
+		self.optionalv2["TargetVerticalTiltAngle"] = {}
+		self.optionalv2["CurrentHorizontalTiltAngle"] = {}
+		self.optionalv2["CurrentVerticalTiltAngle"] = {}
+		self.optionalv2["ObstructionDetected"] = {}
+		self.optionalv2["Name"] = {}
+					
+		super(service_WindowCovering, self).setAttributesv2 ()			
+		#super(service_GarageDoorOpener, self).setAttributes ()
+						
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
 ################################################################################
 # HOMEKIT CHARACTERISTICS
@@ -2500,7 +2640,7 @@ class characteristic_CurrentAmbientLightLevel:
 
 		self.readonly = True
 		self.notify = True			
-		
+				
 # ==============================================================================
 # CURRENT DOOR STATE
 # ==============================================================================
@@ -2547,6 +2687,32 @@ class characteristic_CurrentHeatingCoolingState:
 		self.notify = True		
 		
 # ==============================================================================
+# CURRENT HORIZONTAL TILT ANGLE
+# ==============================================================================		
+class characteristic_CurrentHorizontalTiltAngle:
+	def __init__(self):
+		self.value = 0
+		self.maxValue = 90
+		self.minValue = -90
+		self.minStep = 1
+
+		self.readonly = True
+		self.notify = True		
+		
+# ==============================================================================
+# CURRENT POSITION
+# ==============================================================================		
+class characteristic_CurrentPosition:
+	def __init__(self):
+		self.value = 0
+		self.maxValue = 100
+		self.minValue = 0
+		self.minStep = 1
+
+		self.readonly = True
+		self.notify = True			
+		
+# ==============================================================================
 # CURRENT RELATIVE HUMIDITY
 # ==============================================================================		
 class characteristic_CurrentRelativeHumidity:
@@ -2560,17 +2726,32 @@ class characteristic_CurrentRelativeHumidity:
 		self.notify = True			
 		
 # ==============================================================================
-# CURRENT TEMPERATURE
+# CURRENT TEMPERATURE (Need to update homebridge/hap-nodejs/lib/gen/HomeKitTypes.js to extend this range)
 # ==============================================================================		
 class characteristic_CurrentTemperature:
 	def __init__(self):
 		self.value = 0.0
-		self.maxValue = 100
-		self.minValue = 0
+		#self.maxValue = 100
+		self.maxValue = 1000
+		#self.minValue = 0
+		self.minValue = -1000
 		self.minStep = 0.1
 
 		self.readonly = True
-		self.notify = True		
+		self.notify = True	
+		
+# ==============================================================================
+# CURRENT VERTICAL TILT ANGLE
+# ==============================================================================		
+class characteristic_CurrentVerticalTiltAngle:
+	def __init__(self):
+		self.value = 0
+		self.maxValue = 90
+		self.minValue = -90
+		self.minStep = 1
+
+		self.readonly = True
+		self.notify = True				
 		
 # ==============================================================================
 # HEATING THRESHOLD TEMPERATURE
@@ -2583,7 +2764,19 @@ class characteristic_HeatingThresholdTemperature:
 		self.minStep = 0.1
 
 		self.readonly = False
-		self.notify = True			
+		self.notify = True	
+		
+# ==============================================================================
+# HOLD POSITION
+# ==============================================================================
+class characteristic_HoldPosition:
+	def __init__(self):
+		self.value = True
+		
+		self.validValues = [True, False]
+		
+		self.readonly = True
+		self.notify = False					
 		
 # ==============================================================================
 # HUE
@@ -2693,6 +2886,18 @@ class characteristic_Name:
 		self.notify = False
 		
 # ==============================================================================
+# OCCUPANCY DETECTED
+# ==============================================================================
+class characteristic_OccupancyDetected:
+	def __init__(self):
+		self.value = False
+		
+		self.validValues = [True, False]
+		
+		self.readonly = True
+		self.notify = False			
+		
+# ==============================================================================
 # OBSTRUCTION DETECTED
 # ==============================================================================
 class characteristic_ObstructionDetected:	
@@ -2727,6 +2932,21 @@ class characteristic_OutletInUse:
 		
 		self.readonly = True
 		self.notify = True		
+		
+# ==============================================================================
+# POSITION STATE
+# ==============================================================================
+class characteristic_PositionState:	
+	def __init__(self):
+		self.value = 2 
+		self.maxValue = 2
+		self.minValue = 0
+		
+		self.validValues = [0, 1, 2]
+		self.validValuesStr = "[decreasing, increasing, stopped]"
+		
+		self.readonly = True
+		self.notify = True				
 		
 # ==============================================================================
 # ROTATION DIRECTION
@@ -2902,13 +3122,41 @@ class characteristic_TargetHeatingCoolingState:
 		self.notify = True		
 		
 # ==============================================================================
-# TARGET TEMPERATURE
+# TARGET HORIZONTAL TILT ANGLE
+# ==============================================================================		
+class characteristic_TargetHorizontalTiltAngle:
+	def __init__(self):
+		self.value = 0
+		self.maxValue = 90
+		self.minValue = -90
+		self.minStep = 1
+
+		self.readonly = False
+		self.notify = True		
+		
+# ==============================================================================
+# TARGET POSITION
+# ==============================================================================		
+class characteristic_TargetPosition:
+	def __init__(self):
+		self.value = 0
+		self.maxValue = 100
+		self.minValue = 0
+		self.minStep = 1
+
+		self.readonly = True
+		self.notify = True			
+		
+# ==============================================================================
+# TARGET TEMPERATURE (Need to update homebridge/hap-nodejs/lib/gen/HomeKitTypes.js to extend this range)
 # ==============================================================================		
 class characteristic_TargetTemperature:
 	def __init__(self):
 		self.value = 0.0
-		self.maxValue = 35
-		self.minValue = 10
+		#self.maxValue = 35
+		self.maxValue = 100
+		#self.minValue = 10
+		self.minValue = -100
 		self.minStep = 0.1
 
 		self.readonly = False
@@ -2926,6 +3174,19 @@ class characteristic_TargetRelativeHumidity:
 
 		self.readonly = False
 		self.notify = True	
+		
+# ==============================================================================
+# TARGET VERTICAL TILT ANGLE
+# ==============================================================================		
+class characteristic_TargetVerticalTiltAngle:
+	def __init__(self):
+		self.value = 0
+		self.maxValue = 90
+		self.minValue = -90
+		self.minStep = 1
+
+		self.readonly = False
+		self.notify = True		
 		
 # ==============================================================================
 # TEMPERATURE DISPLAY UNITS

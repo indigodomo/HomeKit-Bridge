@@ -26,6 +26,7 @@ import requests # for sending forced updates to HB-Indigo (POST JSON)
 import math # for server wizard
 import collections # dict sorting for server wizard
 import thread # homebridge callbacks on actions
+import operator # sorting
 
 #from lib.httpsvr import httpServer
 #hserver = httpServer(None)
@@ -138,7 +139,9 @@ class Plugin(indigo.PluginBase):
 			#x = eps.homekit.getHomeKitServices ()
 			#indigo.server.log (unicode(x))
 			
-			self.complicationTestOutput()
+			#self.complicationTestOutput()
+			
+			#self.migrateFromHomebridgeBuddy()
 			
 			pass
 		
@@ -411,7 +414,8 @@ class Plugin(indigo.PluginBase):
 			#self.serverListHomeKitDeviceTypes (None, None)
 				
 			if len(self.SERVERS) == 0:
-				self.logger.info ("No servers detected, creating your first HomeKit server (NOT YET IMPLEMENTED)")
+				self.logger.info ("No servers detected, attempting to migrate from Homebridge-Indigo and/or Homebridge Buddy if they are installed and enabled")
+				self.migrateFromHomebridgeBuddy()
 				
 			if "hiddenIds" in self.pluginPrefs:
 				hidden = json.loads (self.pluginPrefs["hiddenIds"])
@@ -647,8 +651,9 @@ class Plugin(indigo.PluginBase):
 						self.logger.error ("Unable to stop '{}' before it was deleted, you may need to restart your Mac to make sure it isn't running any longer".format(dev.name))
 						
 				# Remove the folder structure
-				import shutil
-				shutil.rmtree(self.CONFIGDIR + "/" + str(dev.id))
+				if os.path.exists (self.CONFIGDIR + "/" + str(dev.id)):
+					import shutil
+					shutil.rmtree(self.CONFIGDIR + "/" + str(dev.id))
 				
 				# Remove from cache
 				newservers = []
@@ -669,6 +674,17 @@ class Plugin(indigo.PluginBase):
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
+			
+	#
+	# Advanced Plugin Actions
+	#
+	def onAfter_btnAdvPluginAction (self, valuesDict, typeId):	
+		try:
+			if valuesDict["pluginActions"] == "migratehbb": self.migrateFromHomebridgeBuddy()
+				
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+				
 		
 	################################################################################
 	# PLUGIN SPECIFIC ROUTINES
@@ -901,6 +917,329 @@ class Plugin(indigo.PluginBase):
 	# GENERAL METHODS
 	################################################################################
 	
+	#
+	# Migrate from HBB
+	#
+	def migrateFromHomebridgeBuddy (self):
+		try:
+			self.logger.info ("Migrating from Homebridge Buddy and Homebridge-Indigo to HomeKit Bridge...")
+				
+			# See if we have the folder we need
+			folderId = 0
+			
+			if "HomeKit Bridge" not in indigo.devices.folders:
+				folder = indigo.devices.folder.create("HomeKit Bridge")
+				folderId = folder.id
+			else:
+				folder = indigo.devices.folders["HomeKit Bridge"]
+				folderId = folder.id
+			
+			# Check for Homebridge-Indigo
+			from os.path import expanduser
+			configdir = expanduser("~") + "/.homebridge"
+			
+			if os.path.exists (configdir):
+				filename = configdir + "/config.json" #.new"
+				if os.path.isfile(filename):
+					self.logger.info ("   Migrating found Homebridge-Indigo configuration")
+					self.migrateFromHomebridgeBuddy_parseJSON (filename, folderId, "Homebridge-Indigo")
+					
+			# Check for Homebridge Buddy
+			for server in indigo.devices.iter("com.eps.indigoplugin.homebridge"):
+				if server.deviceTypeId == "Homebridge-Server" or server.deviceTypeId == "Homebridge-Guest":
+					configdir = indigo.server.getInstallFolderPath() + "/Plugins/EPS Homebridge.indigoPlugin/Contents/Server Plugin/bin/hb/homebridge/{}".format(str(server.id))
+					
+					if os.path.exists (configdir):
+						filename = configdir + "/config.json"
+						if os.path.isfile(filename):
+							self.logger.info ("   Migrating Homebridge Buddy server '{}'".format(server.name))		
+							self.migrateFromHomebridgeBuddy_parseJSON (filename, folderId, server.name)
+			
+			
+			self.logger.info ("Homebridge Buddy migration has completed, you will find any servers that were created in a folder called 'HomeKit Bridge' in your devices.")
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+	#
+	# HBB migration, parse and process JSON file
+	#
+	def migrateFromHomebridgeBuddy_parseJSON (self, filename, folderId, migratedServerName):
+		try:
+			file = open(filename)
+			config = json.loads(file.read())
+			file.close()
+			
+			includedDevices = []
+			includedActions = []
+			props = {} # Server props when we create it, need it here for temp conversion
+			
+			# Concoct a server name
+			iteration = 0
+			servername = "HomeKit Bridge"
+			isok = False
+			failsafe = 0
+			
+			while not isok:
+				for dev in indigo.devices:
+					failsafe = failsafe + 1
+					if failsafe > 5000: isok = True
+					isok = True
+					
+					if dev.name == servername:
+						iteration = iteration + 1
+						servername = "HomeKit Bridge {}".format(str(iteration))
+						isok = False
+						break # start over
+						
+							
+				
+			for platform in config["platforms"]:
+				if platform["platform"] == "Indigo":
+					# Check temp conversion
+					if "thermostatsInCelsius" in platform and platform["thermostatsInCelsius"]:
+						props["tempunits"] = "c"
+					else:
+						props["tempunits"] = "f"
+				
+					# If we are including everything then take the first 99 and then we are done
+					if ("includeIds" in platform and len(platform["includeIds"]) == 0) or "includeIds" not in platform:
+						includeIds = []
+						for dev in indigo.devices:
+							if "excludeIds" in platform and str(dev.id) in platform["excludeIds"]: continue						
+							includeIds.append(str(dev.id))
+							if len(includeIds) == 99:
+								self.logger.warning ("      configuration was blanket including all devices, only allowing the first 99!")
+								break
+								
+						platform["includeIds"] = includeIds
+						
+					if "includeActions" in platform and platform["includeActions"] and len(platform["includeIds"]) < 99:
+						# We are good to add actions up to the limit
+						limit = 99 - len(platform["includeIds"])
+						
+						for action in indigo.actionGroups:
+							rec = self.createJSONItemRecord (action, action.name)
+							self.logger.info ("      adding action group '{}' as a switch".format(action.name))		
+							rec["hktype"] = "service_Switch"
+							
+							includedActions.append(rec)
+							
+							if len(includedActions) == limit:
+								self.logger.warning ("      configuration was blanket including all action groups, only allowing the first 99 devices and action groups!")
+								break
+				
+					# Process include Id's
+					for devId in platform["includeIds"]:
+						if int(devId) in indigo.devices:
+							if "excludeIds" in platform and devId in platform["excludeIds"]: continue
+							if int(devId) not in indigo.devices: continue
+							
+							dev = indigo.devices[int(devId)]
+								
+							rec = self.createJSONItemRecord (dev, dev.name)
+							rec["invert"] = False
+							
+							if dev.deviceTypeId == "Homebridge-Alias":
+								# We don't need these anymore, instead use the alias name and point to the parent device
+								dev = indigo.devices[int(dev.ownerProps["device"])]
+								
+							# As a failsafe make sure we aren't adding the same device ID, particularly since we are using the
+							# referenced Alias ID if it was an HBB alias
+							r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", dev.id)
+							if r is not None:
+								self.logger.warning ("      skipping '{}' because that device is already being used on this server".format(dev.name))
+								continue
+							
+							if "treatAsGarageDoorIds" in platform and devId in platform["treatAsGarageDoorIds"]:
+								self.logger.info ("      adding '{}' as a garage door opener".format(dev.name))	
+								rec["hktype"] = "service_GarageDoorOpener"
+								
+							elif "treatAsMotionSensorIds" in platform and devId in platform["treatAsMotionSensorIds"]:
+								self.logger.info ("      adding '{}' as a motion sensor".format(dev.name))	
+								rec["hktype"] = "service_MotionSensor"
+								
+							elif "treatAsSwitchIds" in platform and devId in platform["treatAsSwitchIds"]:
+								self.logger.info ("      adding '{}' as a switch".format(dev.name))		
+								rec["hktype"] = "service_Switch"
+								
+							elif "treatAsWindowCoveringIds" in platform and devId in platform["treatAsWindowCoveringIds"]:
+								self.logger.info ("      adding '{}' as a window covering".format(dev.name))
+								rec["hktype"] = "service_WindowCovering"
+								
+							elif "treatAsLockIds" in platform and devId in platform["treatAsLockIds"]:
+								self.logger.info ("      adding '{}' as a lock".format(dev.name))
+								rec["hktype"] = "service_LockMechanism"
+								
+							elif "treatAsDoorIds" in platform and devId in platform["treatAsDoorIds"]:
+								self.logger.info ("      adding '{}' as a door".format(dev.name))
+								rec["hktype"] = "service_Door"
+								
+							elif "treatAsContactSensorIds" in platform and devId in platform["treatAsContactSensorIds"]:
+								self.logger.info ("      adding '{}' as a contact sensor".format(dev.name))
+								rec["hktype"] = "service_ContactSensor"
+								
+							elif "treatAsWindowIds" in platform and devId in platform["treatAsWindowIds"]:
+								self.logger.info ("      adding '{}' as a window".format(dev.name))
+								rec["hktype"] = "service_Window"
+								
+							else:
+								obj = eps.homekit.getServiceObject (dev.id, 0, None, True, True)
+								rec["hktype"] = "service_" + obj.type # Set to the default type	
+								
+								if rec["hktype"] == "service_Dummy" or rec["hktype"] == "service_" or "(Unsupported)" in obj.desc:
+									if "brightness" in dir(dev):
+										self.logger.info ("      adding '{}' as a lightbulb (assumed)".format(dev.name))						
+										rec["hktype"] = "service_Lightbulb"
+									else:
+										self.logger.info ("      adding '{}' as a switch (assumed)".format(dev.name))		
+										rec["hktype"] = "service_Switch"
+										
+									if "(Unsupported)" in obj.desc:
+										self.logger.info ("         normally '{}' would be a {} but that is not yet supported".format(dev.name, rec["hktype"].replace("service_", "")))
+						
+								else:
+									self.logger.info ("      adding '{}' as a {} (autodetected)".format(dev.name, rec["hktype"].replace("service_", "")))
+									
+							if "invertOnOffIds" in platform and devId in platform["invertOnOffIds"]:
+								if "onState" in dir(dev):
+									rec["invert"] = True
+									
+							includedDevices.append(rec)
+							
+							if dev.deviceTypeId == "Homebridge-Wrapper" or dev.deviceTypeId == "Homebridge-Alias":
+								pass
+							
+								
+			#indigo.server.log(unicode(includedDevices))
+			# Create the server props
+			
+			props["serverOverride"] = False
+			props["username"] = self.getNextAvailableUsername (0, True)
+			props["port"] = str(self.getNextAvailablePort (51826, 0, True))
+			props["listenPort"] = str(self.getNextAvailablePort (8445, 0, True))
+			
+			props["deviceLimitReached"] = False
+			if len(includedDevices) + len(includedActions) > 98: props["deviceLimitReached"] = True
+			
+			props["includedDevices"] = json.dumps(includedDevices)
+			props["includedActions"] = json.dumps(includedActions)
+
+			props["pin"] = "031-45-154"			
+			#props["address"] = "{} | {}".format(props["pin"], props["port"])
+			props["listSort"] = "sortbyname"
+			props["hiddenIds"] = "[]"
+			props["filterIncluded"] = True
+			props["deviceOrActionSelected"] = False
+			props["editActive"] = False
+			props["device"] = "-fill-"
+			props["action"] = "-fill-"
+			props["objectType"] = "device"
+			props["autoStartStop"] = True
+			props["accessoryNamePrefix"] = ""
+			
+			server = indigo.device.create (protocol = indigo.kProtocol.Plugin,
+				address = "{} | {}".format(props["pin"], props["port"]),
+				name = servername,
+				description = "Migrated from {}".format(migratedServerName),
+				pluginId = "com.eps.indigoplugin.homekit-bridge",
+				deviceTypeId = "Server",
+				props = props,
+				folder = folderId)
+			
+			self.logger.info ("   HomeKit Bridge server '{}' created".format(server.name))
+			
+			self.checkserverFoldersAndStartIfConfigured (server)
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+	def migrateFromHomebridgeBuddyXXXX (self):
+		try:			
+			# Run through each HBB server
+			for server in indigo.devices.iter("com.eps.indigoplugin.homebridge.Homebridge-Server"):
+				self.logger.info ("   Migrating '{}'...".format(server.name))
+				
+				includedDevices = []
+				includedActions = []
+				
+				for devId in server.ownerProps["actinclude"]:
+					if devId == "-none-" or devId == "-all-" or devId == "-line-": continue
+					
+					if int(devId) not in indigo.actionGroups:
+						self.logger.warning ("      action ID {} no longer in Indigo, skipping".format(str(devId)))
+						continue
+						
+					if devId in server.ownerProps["actexclude"]:
+						#self.logger.info ("      action ID {} actively excluded, skipping".format(str(devId)))
+						continue	
+						
+					self.logger.info ("      adding '{}' as a switch (HomeKit Bridge only allows action groups as switches)".format(indigo.actionGroups[int(devId)].name))		
+				
+				for devId in server.ownerProps["devinclude"]:
+					if devId == "-none-" or devId == "-all-" or devId == "-line-": continue
+					
+					if int(devId) not in indigo.devices:
+						self.logger.warning ("      device ID {} no longer in Indigo, skipping".format(str(devId)))
+						continue
+						
+					if devId in server.ownerProps["devexclude"]:
+						#self.logger.info ("      device ID {} actively excluded, skipping".format(str(devId)))
+						continue
+						
+					if devId in server.ownerProps["treatasdoor"]:
+						self.logger.info ("      adding '{}' as a door".format(indigo.devices[int(devId)].name))
+					elif devId in server.ownerProps["treatasdrapes"]:
+						self.logger.info ("      adding '{}' as a window covering".format(indigo.devices[int(devId)].name))	
+					elif devId in server.ownerProps["treatasfans"]:
+						self.logger.info ("      adding '{}' as a fan".format(indigo.devices[int(devId)].name))	
+					elif devId in server.ownerProps["treatasgarage"]:
+						self.logger.info ("      adding '{}' as a garage door opener".format(indigo.devices[int(devId)].name))	
+					elif devId in server.ownerProps["treatassensors"]:
+						self.logger.info ("      adding '{}' as a motion sensor".format(indigo.devices[int(devId)].name))	
+					elif devId in server.ownerProps["treatasswitch"]:
+						self.logger.info ("      adding '{}' as a switch".format(indigo.devices[int(devId)].name))	
+					elif devId in server.ownerProps["treataswindows"]:
+						self.logger.info ("      adding '{}' as a window".format(indigo.devices[int(devId)].name))	
+					elif devId in server.ownerProps["treataslock"]:
+						self.logger.info ("      adding '{}' as a lock".format(indigo.devices[int(devId)].name))			
+					else:
+						self.logger.info ("      adding '{}' as a lightbulb".format(indigo.devices[int(devId)].name))		
+				
+				
+				for dev in indigo.devices.iter("com.eps.indigoplugin.homebridge"):
+					if "treatAs" in dev.ownerProps:
+						if dev.ownerProps["treatAs"] == "door":	
+							self.logger.info ("      adding '{}' as a door".format(dev.name))
+							
+						elif dev.ownerProps["treatAs"] == "drape":
+							self.logger.info ("      adding '{}' as a window covering".format(dev.name))
+						
+						elif dev.ownerProps["treatAs"] == "fan":
+							self.logger.info ("      adding '{}' as a fan".format(dev.name))
+						
+						elif dev.ownerProps["treatAs"] == "garage":
+							self.logger.info ("      adding '{}' as a garage door opener".format(dev.name))
+						
+						elif dev.ownerProps["treatAs"] == "sensor":
+							self.logger.info ("      adding '{}' as a motion sensor".format(dev.name))
+						
+						elif dev.ownerProps["treatAs"] == "switch":
+							self.logger.info ("      adding '{}' as a switch".format(dev.name))
+						
+						elif dev.ownerProps["treatAs"] == "window":
+							self.logger.info ("      adding '{}' as a window".format(dev.name))
+						
+						elif dev.ownerProps["treatAs"] == "lock":
+							self.logger.info ("      adding '{}' as a lock".format(dev.name))
+						
+						else:
+							self.logger.info ("      adding '{}' as a lightbulb".format(dev.name))
+					
+			
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
 	
 	#
 	# Find an available Homebridge username starting from the default
@@ -1124,7 +1463,7 @@ class Plugin(indigo.PluginBase):
 					return False
 					
 				if "listenPort" in dev.ownerProps and dev.ownerProps["listenPort"] == str(port):
-					self.logger.warning ("Unable to use port {0} because another HomeKit-Bridge Server '{1}' call back is assigned to that port".format(str(port), dev.name))
+					if not suppressLogging: self.logger.warning ("Unable to use port {0} because another HomeKit-Bridge Server '{1}' call back is assigned to that port".format(str(port), dev.name))
 					return False
 			
 			# So far, so good, now lets check Homebridge Buddy Legacy servers to see if one is wanting to use this port and just isn't running
@@ -1322,12 +1661,18 @@ class Plugin(indigo.PluginBase):
 			if valuesDict["sourceServer"] == "" or valuesDict["destinationServer"] == "": return ret
 			
 			source = indigo.devices[int(valuesDict["sourceServer"])]
+			dest = indigo.devices[int(valuesDict["destinationServer"])]
 
 			includedDevices = []
 			includedActions = []
+			includedDevicesDest = []
+			includedActionsDest = []
 			
 			if "includedDevices" in source.pluginProps: includedDevices = json.loads(source.pluginProps["includedDevices"])
 			if "includedActions" in source.pluginProps: includedActions = json.loads(source.pluginProps["includedActions"])
+			
+			if "includedDevices" in dest.pluginProps: includedDevicesDest = json.loads(dest.pluginProps["includedDevices"])
+			if "includedActions" in dest.pluginProps: includedActionsDest = json.loads(dest.pluginProps["includedActions"])
 			
 			# Combine the lists for the return
 			includedObjects = []
@@ -1358,9 +1703,21 @@ class Plugin(indigo.PluginBase):
 			includedObjects = eps.jstash.sortStash (includedObjects, "sortbyname")
 			
 			for d in includedObjects:
+				# See if this is in the destination
+				suffix = ""
+				
+				rec = eps.jstash.getRecordWithFieldEquals (includedDevicesDest, "alias", d["alias"])	
+				if rec is None: rec = eps.jstash.getRecordWithFieldEquals (includedActionsDest, "alias", d["alias"])
+				if not rec is None: suffix = " [Will Rename]"
+				
+				rec = eps.jstash.getRecordWithFieldEquals (includedDevicesDest, "id", d["id"])	
+				if rec is None: rec = eps.jstash.getRecordWithFieldEquals (includedActionsDest, "id", d["id"])
+				if not rec is None: suffix = " [Unmovable]"
+				
 				name = d["alias"]
 				if name == "": name = d["name"]
 				name = "{0}: {1}".format(d["object"], name)
+				name += suffix
 				
 				retList.append ( (str(d["id"]), name) )
 				
@@ -1413,7 +1770,7 @@ class Plugin(indigo.PluginBase):
 			if "includedDevices" in source.pluginProps: includedDevicesSource = json.loads(source.pluginProps["includedDevices"])
 			if "includedActions" in source.pluginProps: includedActionsSource = json.loads(source.pluginProps["includedActions"])
 			
-			dest = indigo.devices[int(valuesDict["sourceServer"])]
+			dest = indigo.devices[int(valuesDict["destinationServer"])]
 
 			includedDevicesDest = []
 			includedActionsDest = []
@@ -1436,18 +1793,60 @@ class Plugin(indigo.PluginBase):
 				
 				# See if this alias name exists on the destination
 				alias = eps.jstash.getRecordWithFieldEquals (includedDevicesDest, "alias", rec["alias"])	
-				if not alias is None: indigo.server.log("1: " + rec["alias"] + " = " + alias["alias"])
 				if alias is None: alias = eps.jstash.getRecordWithFieldEquals (includedActionsDest, "alias", rec["alias"])		
-				if not alias is None: indigo.server.log("2: " + rec["alias"] + " = " + alias["alias"])
-				if not alias is None: badNames[alias["id"]] = alias["alias"]
+				if not alias is None: badNames[alias["id"]] = rec["alias"]
 				
 				# See if this ID exists on the destination
-				#id = eps.jstash.getRecordWithFieldEquals (includedDevicesDest, "id", rec["id"])	
-				#if id is None: id = eps.jstash.getRecordWithFieldEquals (includedActionsDest, "id", rec["id"])		
-				#if not id is None: badIds[alias["id"]] = alias["alias"]
+				id = eps.jstash.getRecordWithFieldEquals (includedDevicesDest, "id", rec["id"])	
+				if id is None: id = eps.jstash.getRecordWithFieldEquals (includedActionsDest, "id", rec["id"])		
+				if not id is None: badIds[id["id"]] = rec["alias"]
 				
-			indigo.server.log(unicode(badNames))
-			indigo.server.log(unicode(badIds))
+			if len(badIds) > 0:
+				# Show up to 10 items
+				itemlist = "\n"
+				itemcount = 0
+				for devId, devName in badIds.iteritems():
+					itemlist += devName + "\n"
+					itemcount = itemcount + 1
+					if itemcount == 10: break
+					
+				errorsDict["showAlertText"] = "{} of the items you selected cannot be moved to '{}' because that server is already referencing those items and having multiple references to the same item is not permitted.\n\nPlease remove:{}".format(str(len(badIds)), dest.name, itemlist)
+				errorsDict["moveItems"] = "Unmovable items"
+				return (False, valuesDict, errorsDict)
+				
+			# Move the items
+			for devId in valuesDict["moveItems"]:
+				suffix = ""
+				
+				if devId in badIds: continue # Failsafe, we should never get here
+				if devId in badNames: suffix = " Copy"
+				
+				srcrec = eps.jstash.getRecordWithFieldEquals (includedDevicesSource, "id", int(devId))	
+				if srcrec is None: srcrec = eps.jstash.getRecordWithFieldEquals (includedActionsSource, "id", int(devId))	 	
+				
+				# Add the record to the destination server
+				if srcrec["object"] == "Device":
+					includedDevicesDest.append(srcrec)
+				else: 
+					includedActionsDest.append(srcrec)
+					
+				# Remove from our list
+				includedDevicesSource = eps.jstash.removeRecordFromStash (includedDevicesSource, "id", int(devId))
+				includedActionsSource = eps.jstash.removeRecordFromStash (includedActionsSource, "id", int(devId))
+				
+				# Now write it all to both servers
+				self.logger.info ("Moving '{}' from '{}' to '{}' as name '{}'".format(srcrec["alias"], source.name, dest.name, srcrec["alias"] + suffix))
+				srcrec["alias"] += suffix
+				
+				sourceProps = source.pluginProps
+				sourceProps["includedDevices"] = json.dumps(includedDevicesSource)
+				sourceProps["includedActions"] = json.dumps(includedActionsSource)				
+				source.replacePluginPropsOnServer(sourceProps)
+				
+				destProps = dest.pluginProps
+				destProps["includedDevices"] = json.dumps(includedDevicesDest)
+				destProps["includedActions"] = json.dumps(includedActionsDest)				
+				dest.replacePluginPropsOnServer(destProps)
 				
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -1905,7 +2304,9 @@ class Plugin(indigo.PluginBase):
 			retList = []
 			
 			services = eps.homekit.getHomeKitServices ()
-			for name, desc in services.iteritems():
+			sortedservices = sorted(services.items(), key=operator.itemgetter(0))
+			
+			for name, desc in sortedservices:
 				#indigo.server.log (name)
 				if "service_" in name:
 					retList.append ((name, desc))
@@ -1961,8 +2362,12 @@ class Plugin(indigo.PluginBase):
 			
 			
 			for dev in indigo.devices:
-				if dev.id in hidden: continue
-				if dev.id in used: continue
+				if dev.id in hidden: 
+					#self.logger.info("Device '{}' is being hidden and will not be shown on the list".format(dev.name))
+					continue
+				if dev.id in used:
+					#self.logger.info("Device '{}' is already being used on this server and will not be shown on the list".format(dev.name)) 
+					continue
 				
 				devId = dev.id
 				name = dev.name
@@ -1978,9 +2383,8 @@ class Plugin(indigo.PluginBase):
 						name += " => [HBB " + dev.ownerProps["treatAs"].upper() + " Wrapper]"
 					elif dev.deviceTypeId == "Homebridge-Alias":
 						name += " => [HBB " + dev.ownerProps["treatAs"].upper() + " Alias]"
-						
-				else:
-					retList.append ( (str(devId), name) )
+					
+				retList.append ( (str(devId), name) )
 				
 				#if type(dev) == indigo.ThermostatDevice:
 				#	# Add one device for the thermostat and one for the fan
@@ -2620,6 +3024,20 @@ class Plugin(indigo.PluginBase):
 					#obj = hkapi.automaticHomeKitDevice (indigo.devices[int(valuesDict["device"])], True)
 					#valuesDict = self.serverFormFieldChanged_RefreshHKDef (valuesDict, obj) # For our test when we were defining the HK object here
 					valuesDict["hkType"] = "service_" + obj.type # Set to the default type		
+					
+					# Check if this is a HBB device and default to THAT type instead
+					if int(valuesDict["device"]) in indigo.devices and indigo.devices[int(valuesDict["device"])].pluginId == "com.eps.indigoplugin.homebridge":
+						hbb = indigo.devices[int(valuesDict["device"])]
+						if "treatAs" in hbb.ownerProps and (hbb.deviceTypeId == "Homebridge-Wrapper" or hbb.deviceTypeId == "Homebridge-Alias"):
+							if hbb.ownerProps["treatAs"] == "dimmer": valuesDict["hkType"] = "service_Lightbulb"
+							if hbb.ownerProps["treatAs"] == "switch": valuesDict["hkType"] = "service_Switch"
+							if hbb.ownerProps["treatAs"] == "lock": valuesDict["hkType"] = "service_LockMechanism"
+							if hbb.ownerProps["treatAs"] == "door": valuesDict["hkType"] = "service_Door"
+							if hbb.ownerProps["treatAs"] == "garage": valuesDict["hkType"] = "service_GarageDoorOpener"
+							if hbb.ownerProps["treatAs"] == "window": valuesDict["hkType"] = "service_Window"
+							if hbb.ownerProps["treatAs"] == "drape": valuesDict["hkType"] = "service_WindowCovering"
+							if hbb.ownerProps["treatAs"] == "sensor": valuesDict["hkType"] = "service_MotionSensor"
+							if hbb.ownerProps["treatAs"] == "fan": valuesDict["hkType"] = "service_Fanv2"
 			
 					# Check for a complication if we aren't editing
 					if "enableComplications" in self.pluginPrefs and self.pluginPrefs["enableComplications"]:
@@ -2850,7 +3268,7 @@ class Plugin(indigo.PluginBase):
 	#
 	def serverAttribChanged (self, origDev, newDev, changedProps):
 		try:
-			self.logger.threaddebug ("Server attribute change: " + unicode(changedProps))
+			#self.logger.threaddebug ("Server attribute change: " + unicode(changedProps))
 						
 			# States that will prompt us to save and restart the server
 			watchStates = ["name"]
@@ -2894,6 +3312,7 @@ class Plugin(indigo.PluginBase):
 			if dev.pluginProps["pin"] == "" or dev.pluginProps["port"] == "" or dev.pluginProps["listenPort"] == "" or dev.pluginProps["username"] == "":
 				self.logger.debug ("One or more required fields are present but blank on '{}' (port, pin, listenPort or usrename), we'll assume it is yet unconfigured and won't error on the user".format(dev.name))
 				return False
+			
 							
 			return self.shellHBStartServer (dev)
 		
@@ -2978,6 +3397,16 @@ class Plugin(indigo.PluginBase):
 		try:
 			self.logger.info ("Rebuilding configuration for '{0}'".format(dev.name))
 			self.saveConfigurationToDisk (dev)
+			
+			includedDevices = []
+			includedActions = []
+				
+			if "includedDevices" in dev.pluginProps: includedDevices = json.loads(dev.pluginProps["includedDevices"])
+			if "includedActions" in dev.pluginProps: includedActions = json.loads(dev.pluginProps["includedActions"])	
+			
+			if len(includedDevices) + len(includedActions) == 0:
+				self.logger.info ("Server '{}' has no devices to publish to HomeKit, the server won't be started since there is nothing to serve".format(dev.name))
+				return False
 
 			# Start the HB server
 			self.logger.threaddebug ('Running: "' + self.HBDIR + '/load" "' + self.CONFIGDIR + "/" + str(dev.id) + '"')
