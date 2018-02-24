@@ -1,14 +1,11 @@
 Release Notes
 ==========
 
-Version 0.12.02 (Beta 12 Build 1)
+Version 0.12.03 (Beta 12 Build 3)
 ==========
-* Added the ability to use relay (On/Off) devices for Windows and Doors in case someone wants to use them as sensors instead of motors - it's always been planned that every Indigo device can map to any HomeKit device but that functionality may not be 100% but that hasn't really be widely implemented yet, this is part of that
-* Added DSC alarms plugin state "state.open" for use on Contact Sensors
-* Changed the order the plugin checks for actions from generic (*) first to specific (plugin data) first, this way if there is a plugin definition that will always take priority of generic definitions
-* Moved several issues out of the release notes and created issues on Git for them
-* Started background work on new service load method to replace the existing method
-* Fixed bug where state changes would not tell HomeKit to update characteristics
+* Fixed bug in setting characteristic values where converting from boolean to an integer could result in no value if there was not a validValues attribute in the characteristic
+* Added special function 'onStateToFullBrightness' designed to allow relay devices to be controlled on HomeKit services that use 0-100 scale (such as brightness).  Directly created to allow Windows and Doors the ability to be used as On/Off switches in order to utilize the device type and icon.
+* Added ability for relay devices to act as window coverings (also uses onStateToFullBrightness)
 
 Known Issues
 ---------------
@@ -28,6 +25,25 @@ Wish List
 
 Previous Release Notes
 ==========
+
+Known Issues
+---------------
+* FRESH INSTALLATION ISSUE: It seems fairly universal that the first server you add does not work until you restart the plugin (this likely has been resolved in Beta 9, needs tested to be sure)
+* Nest thermostats (perhaps others) will appear to hang in HomeKit when changing temperature setpoints because of how the Nest plugin operates, the changes will be implemented but the Indigo UI will show timeout errors
+* Need to remove API port from the plugin config and autodetect it instead when building the server configuration
+* The current API is not locked to Localhost but will need to be prior to being publicly released for security purposes
+* Changing the port on a running server will result in the plugin reporting that the port is in use when it's only in use by the currently running server (resolve by stopping the server before attempting to manually change any HB settings)
+* Errors getting smoke detector working as [reported by Different Computers](http://forums.indigodomo.com/viewtopic.php?p=154957#p154957)
+* Removing a device from Indigo that is part of a server will cause a bunch of errors when that server starts, need to add better device presense checking in code as well as delete detection
+
+Version 0.12.02 (Beta 12 Build 2) - Re-release of Build 1 due to missing library
+---------------
+* Added the ability to use relay (On/Off) devices for Windows and Doors in case someone wants to use them as sensors instead of motors - it's always been planned that every Indigo device can map to any HomeKit device but that functionality may not be 100% but that hasn't really be widely implemented yet, this is part of that
+* Added DSC alarms plugin state "state.open" for use on Contact Sensors
+* Changed the order the plugin checks for actions from generic (*) first to specific (plugin data) first, this way if there is a plugin definition that will always take priority of generic definitions
+* Moved several issues out of the release notes and created issues on Git for them
+* Started background work on new service load method to replace the existing method
+* Fixed bug where state changes would not tell HomeKit to update characteristics
 
 Version 0.12.0 (Beta 12 Build 0)
 ---------------

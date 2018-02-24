@@ -1279,6 +1279,8 @@ class Service (object):
 				# Try to do a basic conversion if possible
 				vtype = str(type(value)).replace("<type '", "").replace("'>", "")
 				atype = str(type(obj.value)).replace("<type '", "").replace("'>", "")
+				
+				self.logger.threaddebug ("Converting value type of {} to charateristic type of {} for {}".format(vtype, atype, attribute))
 			
 				converted = False
 				if vtype == "bool": converted = self.convertFromBoolean (attribute, value, atype, vtype, obj)
@@ -1290,7 +1292,7 @@ class Service (object):
 					converted = True
 			
 				if not converted:
-					indigo.server.log("Unable to set the value of {} on {} to {} because that attribute requires {} and it was given {}".format(attribute, self.alias.value, unicode(value), atype, vtype))
+					self.logger.warning ("Unable to set the value of {} on {} to {} because that attribute requires {} and it was given {}".format(attribute, self.alias.value, unicode(value), atype, vtype))
 					return False
 	
 		except Exception as e:
@@ -1311,9 +1313,12 @@ class Service (object):
 				if value: newvalue = 1
 				if not value: newvalue = 0
 		
-			if atype == "str":
+			elif atype == "str":
 				if value: newvalue = "true"
 				if not value: newvalue = "false"	
+				
+			else:
+				self.logger.warning ("Unable to convert from {} to {}".format(vtype, atype))
 		
 			if "validValues" in dir(obj) and newvalue in obj.validValues: 
 				obj.value = newvalue
@@ -1322,6 +1327,9 @@ class Service (object):
 			elif "validValues" in dir(obj) and newvalue not in obj.validValues: 
 				indigo.server.log("Converted {} for {} from {} to {} but the coverted value of {} was not a valid value for this attribute and will not be accepted by HomeKit, it will remain at the current value of {}".format(attribute, dev.Alias.value, vtype, atype, unicode(newvalue), unicode(obj.value)))
 				return False
+			
+			obj.value = newvalue	
+			return True
 	
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -1402,6 +1410,29 @@ class Service (object):
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+			
+	#
+	# Use an onState boolean value and convert to 1 or 100 for brightness devices
+	#
+	def special_onStateToFullBrightness (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			obj = indigo.devices[self.objId]
+			if "onState" in dir(obj):
+				if obj.onState:
+					self.setAttributeValue (characteristic, 100)
+					self.characterDict[characteristic] = 100 
+				else:
+					self.setAttributeValue (characteristic, 0)
+					self.characterDict[characteristic] = 0 
+			else:
+				self.setAttributeValue (characteristic, 0)
+				self.characterDict[characteristic] = 0 
+				
+			self.actions.append (HomeKitAction(characteristic, "equal", 0, "device.turnOff", [self.objId], 0, {self.objId: "attr_onState"}))
+			self.actions.append (HomeKitAction(characteristic, "between", 1, "device.turnOn", [self.objId], 100, {self.objId: "attr_onState"}))
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))				
 
 
 	#
@@ -1986,9 +2017,9 @@ class service_Door (Service):
 		self.optional = ["HoldPosition", "ObstructionDetected", "Name"]
 	
 		self.requiredv2 = {}
-		self.requiredv2["CurrentPosition"] = {"*": "attr_brightness", "indigo.RelayDevice": "attr_onState"}
+		self.requiredv2["CurrentPosition"] = {"*": "attr_brightness", "indigo.RelayDevice": "special_onStateToFullBrightness"}
 		self.requiredv2["PositionState"] = {}
-		self.requiredv2["TargetPosition"] = {"*": "attr_brightness", "indigo.RelayDevice": "attr_onState"}
+		self.requiredv2["TargetPosition"] = {"*": "attr_brightness", "indigo.RelayDevice": "special_onStateToFullBrightness"}
 
 		self.optionalv2 = {}
 		self.optionalv2["HoldPosition"] = {}
@@ -2516,9 +2547,9 @@ class service_Window (Service):
 		self.optional = ["HoldPosition", "ObstructionDetected", "Name"]
 		
 		self.requiredv2 = {}
-		self.requiredv2["CurrentPosition"] = {"*": "attr_brightness", "indigo.RelayDevice": "attr_onState"}
+		self.requiredv2["CurrentPosition"] = {"*": "attr_brightness", "indigo.RelayDevice": "special_onStateToFullBrightness"}
 		self.requiredv2["PositionState"] = {}
-		self.requiredv2["TargetPosition"] = {"*": "attr_brightness", "indigo.RelayDevice": "attr_onState"}
+		self.requiredv2["TargetPosition"] = {"*": "attr_brightness", "indigo.RelayDevice": "special_onStateToFullBrightness"}
 	
 		self.optionalv2 = {}
 		self.optionalv2["HoldPosition"] = {}
@@ -2548,9 +2579,9 @@ class service_WindowCovering (Service):
 		self.optional = ["HoldPosition", "ObstructionDetected", "Name", "HoldPosition", "ObstructionDetected", "Name", "DDD"]
 		
 		self.requiredv2 = {}
-		self.requiredv2["CurrentPosition"] = {"*": "attr_brightness"}
+		self.requiredv2["CurrentPosition"] = {"*": "attr_brightness","indigo.RelayDevice": "special_onStateToFullBrightness"}
 		self.requiredv2["PositionState"] = {}
-		self.requiredv2["TargetPosition"] = {"*": "attr_brightness"}
+		self.requiredv2["TargetPosition"] = {"*": "attr_brightness","indigo.RelayDevice": "special_onStateToFullBrightness"}
 	
 		self.optionalv2 = {}
 		self.optionalv2["HoldPosition"] = {}

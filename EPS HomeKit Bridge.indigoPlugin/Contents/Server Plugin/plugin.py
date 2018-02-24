@@ -93,7 +93,7 @@ class Plugin(indigo.PluginBase):
 			#eps.api.stopServer ()
 			#eps.api.run (self.pluginPrefs.get('apiport', '8558'))
 			
-			x = eps.homekit.getServiceObject (612598344, 1794022133, "service_ContactSensor")
+			x = eps.homekit.getServiceObject (145155245, 1794022133, "service_Window")
 			indigo.server.log (unicode(x))
 			
 			#x = eps.homekit.getServiceObject (361446525, 1794022133, "service_Fanv2")
@@ -150,6 +150,62 @@ class Plugin(indigo.PluginBase):
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
+			
+	#
+	# Plugin startup
+	#
+	def onAfter_startup (self):
+		try:
+			# Only uncomment this when new characteristics have been added so the class lookup can be printed
+			eps.homekit.printClassLookupDict()
+			
+			# Start the httpd listener
+			eps.api.startServer (self.pluginPrefs.get('apiport', '8558'))
+			
+			# Set up the config path in the Indigo preferences folder
+			self.CONFIGDIR = '{}/Preferences/Plugins/{}'.format(indigo.server.getInstallFolderPath(), self.pluginId)
+			self.logger.debug ("Config path set to {}".format(self.CONFIGDIR))
+			
+			# Subscribe to changes so we can send update requests to Homebridge
+			eps.plug.subscribeChanges (["devices", "actionGroups"])
+			
+			# Check that we have a server set up
+			for dev in indigo.devices.iter(self.pluginId + ".Server"):
+				self.checkserverFoldersAndStartIfConfigured (dev)
+					
+			#indigo.server.log(unicode(self.SERVER_ID))	
+				
+			#xdev = hkapi.service_LightBulb (624004987)
+			#indigo.server.log(unicode(xdev))
+			
+			#x = eps.plugdetails.getFieldUIList (indigo.devices[70743945])
+			#indigo.server.log(unicode(x))
+			
+			#indigo.server.log(unicode(eps.plugdetails.pluginCache))
+			
+			#self.devTest()
+			
+			#self.serverListHomeKitDeviceTypes (None, None)
+				
+			if len(self.SERVERS) == 0:
+				self.logger.info ("No servers detected, attempting to migrate from Homebridge-Indigo and/or Homebridge Buddy if they are installed and enabled")
+				self.migrateFromHomebridgeBuddy()
+				
+			if "hiddenIds" in self.pluginPrefs:
+				hidden = json.loads (self.pluginPrefs["hiddenIds"])
+				plural = ""
+				if len(hidden) > 1: plural = "s"
+				
+				msg = eps.ui.debugHeader ("HOMEKIT BRIDGE HIDDEN ITEMS WARNING")
+				msg += eps.ui.debugLine ("You have {} Indigo item{} being hidden, you can manage these ".format(str(len(hidden)), plural))
+				msg += eps.ui.debugLine ("from the plugin menu.")
+				msg += eps.ui.debugHeaderEx ()
+				
+				self.logger.warning (msg)
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
 			
 	#
 	# Compose and output a sample complication (pseudo documentation)
@@ -378,62 +434,7 @@ class Plugin(indigo.PluginBase):
 			indigo.server.log(unicode(json.dumps(complications)))
 		
 		except Exception as e:
-			self.logger.error (ext.getException(e))	
-	
-	#
-	# Plugin startup
-	#
-	def onAfter_startup (self):
-		try:
-			# Only uncomment this when new characteristics have been added so the class lookup can be printed
-			#eps.homekit.printClassLookupDict()
-			
-			# Start the httpd listener
-			eps.api.startServer (self.pluginPrefs.get('apiport', '8558'))
-			
-			# Set up the config path in the Indigo preferences folder
-			self.CONFIGDIR = '{}/Preferences/Plugins/{}'.format(indigo.server.getInstallFolderPath(), self.pluginId)
-			self.logger.debug ("Config path set to {}".format(self.CONFIGDIR))
-			
-			# Subscribe to changes so we can send update requests to Homebridge
-			eps.plug.subscribeChanges (["devices", "actionGroups"])
-			
-			# Check that we have a server set up
-			for dev in indigo.devices.iter(self.pluginId + ".Server"):
-				self.checkserverFoldersAndStartIfConfigured (dev)
-					
-			#indigo.server.log(unicode(self.SERVER_ID))	
-				
-			#xdev = hkapi.service_LightBulb (624004987)
-			#indigo.server.log(unicode(xdev))
-			
-			#x = eps.plugdetails.getFieldUIList (indigo.devices[70743945])
-			#indigo.server.log(unicode(x))
-			
-			#indigo.server.log(unicode(eps.plugdetails.pluginCache))
-			
-			#self.devTest()
-			
-			#self.serverListHomeKitDeviceTypes (None, None)
-				
-			if len(self.SERVERS) == 0:
-				self.logger.info ("No servers detected, attempting to migrate from Homebridge-Indigo and/or Homebridge Buddy if they are installed and enabled")
-				self.migrateFromHomebridgeBuddy()
-				
-			if "hiddenIds" in self.pluginPrefs:
-				hidden = json.loads (self.pluginPrefs["hiddenIds"])
-				plural = ""
-				if len(hidden) > 1: plural = "s"
-				
-				msg = eps.ui.debugHeader ("HOMEKIT BRIDGE HIDDEN ITEMS WARNING")
-				msg += eps.ui.debugLine ("You have {} Indigo item{} being hidden, you can manage these ".format(str(len(hidden)), plural))
-				msg += eps.ui.debugLine ("from the plugin menu.")
-				msg += eps.ui.debugHeaderEx ()
-				
-				self.logger.warning (msg)
-		
-		except Exception as e:
-			self.logger.error (ext.getException(e))	
+			self.logger.error (ext.getException(e))				
 			
 	#
 	# Plugin shutdown
