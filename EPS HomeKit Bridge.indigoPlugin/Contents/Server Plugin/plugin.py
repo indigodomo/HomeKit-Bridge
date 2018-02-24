@@ -93,8 +93,8 @@ class Plugin(indigo.PluginBase):
 			#eps.api.stopServer ()
 			#eps.api.run (self.pluginPrefs.get('apiport', '8558'))
 			
-			#x = eps.homekit.getServiceObject (141323225, 1794022133, "service_Fanv2")
-			#indigo.server.log (unicode(x))
+			x = eps.homekit.getServiceObject (612598344, 1794022133, "service_ContactSensor")
+			indigo.server.log (unicode(x))
 			
 			#x = eps.homekit.getServiceObject (361446525, 1794022133, "service_Fanv2")
 			#indigo.server.log (unicode(x))
@@ -127,8 +127,8 @@ class Plugin(indigo.PluginBase):
 			#x = eps.homekit.getServiceObject (658907852, 1794022133, "service_BatteryService")
 			#indigo.server.log (unicode(x))
 			
-			x = eps.homekit.getServiceObject (1021929362, 1794022133, "service_WindowCovering")
-			indigo.server.log (unicode(x))
+			#x = eps.homekit.getServiceObject (1021929362, 1794022133, "service_WindowCovering")
+			#indigo.server.log (unicode(x))
 			
 			#for a in x.actions:
 				#if a.characteristic == "Mute" and not a.whenvalue:
@@ -619,6 +619,17 @@ class Plugin(indigo.PluginBase):
 											if n != o:
 												updateRequired = True
 												break # We don't need to check anything else, if one thing needs an update then we need an update
+												
+									if monitor[0:6] == "state_": # If it is an state
+										action = monitor.replace("state_", "")
+										if action in newDev.states and action in origDev.states:
+											n = newDev.states[action]
+											o = origDev.states[action]
+											
+											if n != o:
+												updateRequired = True
+												break
+												
 												
 					if updateRequired:
 						self.logger.debug ("Device {} had an update that HomeKit needs to know about".format(obj.alias.value))

@@ -1,39 +1,40 @@
 Release Notes
 ==========
 
-Version 0.12.0 (Beta 12)
+Version 0.12.01 (Beta 12 Build 1)
 ==========
-* Fixed bug where Window Coverings had a readonly state and were not usable via the Home App
-* Fixed bug where Windows had a readonly state and were not usable via the Home App
-* Fixed bug where Doors had a readonly state and were not usable via the Home App
-* Removed "Automatic Server Wizard" from build entirely, it's been a playground and not supposed to be in beta yet
+* Added the ability to use relay (On/Off) devices for Windows and Doors in case someone wants to use them as sensors instead of motors - it's always been planned that every Indigo device can map to any HomeKit device but that functionality may not be 100% but that hasn't really be widely implemented yet, this is part of that
+* Added DSC alarms plugin state "state.open" for use on Contact Sensors
+* Changed the order the plugin checks for actions from generic (*) first to specific (plugin data) first, this way if there is a plugin definition that will always take priority of generic definitions
+* Moved several issues out of the release notes and created issues on Git for them
+* Started background work on new service load method to replace the existing method
+* Fixed bug where state changes would not tell HomeKit to update characteristics
 
 Known Issues
 ---------------
 * FRESH INSTALLATION ISSUE: It seems fairly universal that the first server you add does not work until you restart the plugin (this likely has been resolved in Beta 9, needs tested to be sure)
 * Nest thermostats (perhaps others) will appear to hang in HomeKit when changing temperature setpoints because of how the Nest plugin operates, the changes will be implemented but the Indigo UI will show timeout errors
 * Need to remove API port from the plugin config and autodetect it instead when building the server configuration
-* Brand new install with brand new server is still not auto starting the server after config close (reported by Autolog, but he was on 0.1.1 and this was fixed in 0.1.2 so it may not be an issue after all, still needs tested to absolutely certain so it was added to the testing issue on Git)
 * The current API is not locked to Localhost but will need to be prior to being publicly released for security purposes
 * Changing the port on a running server will result in the plugin reporting that the port is in use when it's only in use by the currently running server (resolve by stopping the server before attempting to manually change any HB settings)
 * Errors getting smoke detector working as [reported by Different Computers](http://forums.indigodomo.com/viewtopic.php?p=154957#p154957)
-* Fresh install issues still occurring that require a plugin restart as [reported by ZachBenz](http://forums.indigodomo.com/viewtopic.php?p=154998#p154998)
-
-Homebridge Issues
----------------
-* Need type and versByte to recognize
-* Why HB-Indigo1 thermostat shows green and HB-Indigo2 shows red
+* Removing a device from Indigo that is part of a server will cause a bunch of errors when that server starts, need to add better device presense checking in code as well as delete detection
 
 Wish List
 ---------------
 * Dev device wishlist: Camera RTP Stream Management, Lock Management
-* Autolog suggestion: http://forums.indigodomo.com/viewtopic.php?p=154506#p154506
 * Add a feature to read in HBB and Alexa items to build a cache of already used alias names
-* Speaker, Microphone and Battery Service are all coded into the plugin but HomeKit does not yet support them
 * Redo complications to be a selectable list of different complications or the ability to not use one at all
 
 Previous Release Notes
 ==========
+
+Version 0.12.0 (Beta 12 Build 0)
+---------------
+* Fixed bug where Window Coverings had a readonly state and were not usable via the Home App
+* Fixed bug where Windows had a readonly state and were not usable via the Home App
+* Fixed bug where Doors had a readonly state and were not usable via the Home App
+* Removed "Automatic Server Wizard" from build entirely, it's been a playground and not supposed to be in beta yet
 
 Version 0.11.0 (Beta 11)
 ---------------

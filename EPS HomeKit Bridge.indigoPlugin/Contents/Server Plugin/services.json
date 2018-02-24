@@ -1,0 +1,99 @@
+{
+	"ContactSensor": {
+		"service": "ContactSensor",
+		"characteristics": {
+			"ContactSensorState": {
+				"required": true,
+				"objects": {
+					"*": {
+						"attr_onState": [
+							{
+								"indigoValue": true,
+								"characteristic": 0
+							},
+							{	
+								"indigoValue": false,
+								"characteristic": 1
+							}
+						],
+						"setters": []
+					},
+					"indigo.ThermostatDevice": {
+						"attr_fanIsOn": [
+							{
+								"indigoValue": true,
+								"characteristic": 0
+							},
+							{	
+								"indigoValue": false,
+								"characteristic": 1
+							}
+						],
+						"setters": []
+					},
+					"indigo.MultiIODevice": {
+						"state_binaryOutput1": [
+							{
+								"indigoValue": true,
+								"characteristic": 0
+							},
+							{	
+								"indigoValue": false,
+								"characteristic": 1
+							}
+						],
+						"setters": []
+					},
+					"indigo.SprinklerDevice": {
+						"attr_activeZone": [
+							{
+								"indigoValue": 0,
+								"characteristic": 0
+							},
+							{	
+								"indigoValue": 1,
+								"indigoHighValue": 16,
+								"characteristic": 1
+							}
+						],
+						"setters": []
+					}
+				}
+			},
+			"StatusActive": {
+				"required": false,
+				"objects": {}			
+			},
+			"StatusFault": {
+				"required": false,
+				"objects": {}			
+			},
+			"StatusTampered": {
+				"required": false,
+				"objects": {}			
+			},
+			"StatusLowBattery": {
+				"required": false,
+				"objects": {
+					"*": {
+						"special_lowbattery": [
+							{
+								"indigoValue": true,
+								"characteristic": 1
+							},
+							{	
+								"indigoValue": false,
+								"characteristic": 0
+							}
+						],
+						"setters": []
+					}	
+				}
+			},
+			"Name": {
+				"required": false,
+				"objects": {}			
+			}
+		}
+	}
+}

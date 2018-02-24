@@ -9,8 +9,9 @@ import logging
 import ext
 import dtutil
 
-import sys, inspect
+import sys, inspect, json
 
+HomeKitServiceList = []
 
 class HomeKit:
 
@@ -18,9 +19,17 @@ class HomeKit:
 	# Initialize the class
 	#
 	def __init__ (self, factory):
+		global HomeKitServiceList
+		
 		self.logger = logging.getLogger ("Plugin.homekit")
 		self.factory = factory
 		
+		filename = indigo.server.getInstallFolderPath() + "/Plugins/EPS HomeKit Bridge.indigoPlugin/Contents/Server Plugin/services.json"
+		file = open(filename)
+		HomeKitServiceList = json.loads(file.read())
+		file.close()
+		
+			
 	#
 	# This only gets run manually in code when new devices are added to facilitate the lookup needed for classes
 	#
@@ -662,6 +671,8 @@ class Service (object):
 	# Initialize the class (Won't happen unless called from child)
 	#
 	def __init__ (self, factory, hktype, desc, objId, serverId, deviceCharacteristics, deviceActions, loadOptional):
+		global HomeKitServiceList
+		
 		self.logger = logging.getLogger ("Plugin.HomeKit.Service." + hktype)
 		self.factory = factory
 		
@@ -680,6 +691,7 @@ class Service (object):
 			self.indigoType = "Unable to detect"
 			self.pluginType = "Built-In"
 			self.invertOnState = False # This is set by the HTTP utility during processing if the user passed it in the stash
+			self.jsoninit = False # Just while we are dialing in the JSON dict file, this needs to be removed when we convert all HK types to the new method
 			
 			# Get the indigo class for this object
 			if objId in indigo.devices:
@@ -699,6 +711,29 @@ class Service (object):
 			
 			self.deviceInitialize()
 			
+			if self.type in HomeKitServiceList:
+				self.loadJSONDictData()
+			else:
+				#self.logger.error ("HomeKit service '{}' should have been in the dictionary but wasn't, control of this kind of device is impossible and errors will occur!".format(self.type))
+				pass
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+	def loadJSONDictData (self):
+		global HomeKitServiceList
+		
+		return # Until ready to release
+		
+		try:
+			self.logger.info ("HomeKit service '{}' loaded".format(self.type))
+			
+			# Try to load the service definitions from HomeKitServiceList
+			service = HomeKitServiceList[self.type]
+			
+			# Lastly set this if all went well and we are done
+			self.jsoninit = True
+		
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
 			
@@ -716,7 +751,7 @@ class Service (object):
 		ret += "\ttype : {0}\n".format(self.type)
 		ret += "\tdesc : {0}\n".format(self.desc)
 		ret += "\tobjId : {0}\n".format(unicode(self.objId))
-		
+
 		ret += "\trequired : (List)\n"
 		for i in self.required:
 			if i in dir(self):
@@ -749,6 +784,7 @@ class Service (object):
 			ret += "\t\t\tValue2 : {0} ({1})\n".format(unicode(i.whenvalue2), str(type(i.whenvalue)).replace("<type '", "").replace("'>", ""))
 			ret += "\t\t\tCommand : {0}\n".format(unicode(i.command))
 			ret += "\t\t\tArguments : {0}\n".format(unicode(i.arguments))
+			ret += "\t\tmonitors : {0}\n".format(unicode(i.monitors))
 		
 		ret += "\tloadOptional : {0}\n".format(unicode(self.loadOptional))
 		
@@ -827,6 +863,8 @@ class Service (object):
 	# Set device attributes from the required and optional parameters
 	#
 	def setAttributesv2 (self):
+		global HomeKitServiceList
+		
 		try:
 			# Use the previous method for actions since it handles it well
 			if self.indigoType == "indigo.actionGroup": 
@@ -845,7 +883,7 @@ class Service (object):
 			classes = {}
 			for cls in clsmembers:
 				classes[cls[0]] = cls[1]
-
+				
 			# Add all required characteristics
 			self.detCharacteristicValues (classes, self.requiredv2)
 			
@@ -868,10 +906,10 @@ class Service (object):
 				
 				# See if this type is in the getters
 				getter = None
-				if self.indigoType in getters:
-					getter = getters[self.indigoType]
-				elif self.pluginType in getters:
+				if self.pluginType in getters:
 					getter = getters[self.pluginType]
+				elif self.indigoType in getters:
+					getter = getters[self.indigoType]
 				elif "*" in getters:
 					getter = getters["*"]
 					
@@ -1910,18 +1948,19 @@ class service_ContactSensor (Service):
 	
 		super(service_ContactSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["ContactSensorState"]
-		self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name"]
+		if not self.jsoninit:
+			self.required = ["ContactSensorState"]
+			self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name"]
 		
-		self.requiredv2 = {}
-		self.requiredv2["ContactSensorState"] = {"*": "special_invertedOnState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+			self.requiredv2 = {}
+			self.requiredv2["ContactSensorState"] = {"*": "special_invertedOnState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedBoolean"}
 	
-		self.optionalv2 = {}
-		self.optionalv2["StatusActive"] = {}
-		self.optionalv2["StatusFault"] = {}
-		self.optionalv2["StatusTampered"] = {}
-		self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
-		self.optionalv2["Name"] = {}
+			self.optionalv2 = {}
+			self.optionalv2["StatusActive"] = {}
+			self.optionalv2["StatusFault"] = {}
+			self.optionalv2["StatusTampered"] = {}
+			self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
+			self.optionalv2["Name"] = {}
 					
 		super(service_ContactSensor, self).setAttributesv2 ()				
 		#super(service_MotionSensor, self).setAttributes ()
@@ -1942,14 +1981,15 @@ class service_Door (Service):
 	
 		super(service_Door, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
+		
 		self.required = ["CurrentPosition", "PositionState", "TargetPosition"]
 		self.optional = ["HoldPosition", "ObstructionDetected", "Name"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["CurrentPosition"] = {"*": "attr_brightness"}
-		self.requiredv2["PositionState"] = {}
-		self.requiredv2["TargetPosition"] = {"*": "attr_brightness"}
 	
+		self.requiredv2 = {}
+		self.requiredv2["CurrentPosition"] = {"*": "attr_brightness", "indigo.RelayDevice": "attr_onState"}
+		self.requiredv2["PositionState"] = {}
+		self.requiredv2["TargetPosition"] = {"*": "attr_brightness", "indigo.RelayDevice": "attr_onState"}
+
 		self.optionalv2 = {}
 		self.optionalv2["HoldPosition"] = {}
 		self.optionalv2["ObstructionDetected"] = {}
@@ -2476,9 +2516,9 @@ class service_Window (Service):
 		self.optional = ["HoldPosition", "ObstructionDetected", "Name"]
 		
 		self.requiredv2 = {}
-		self.requiredv2["CurrentPosition"] = {"*": "attr_brightness"}
+		self.requiredv2["CurrentPosition"] = {"*": "attr_brightness", "indigo.RelayDevice": "attr_onState"}
 		self.requiredv2["PositionState"] = {}
-		self.requiredv2["TargetPosition"] = {"*": "attr_brightness"}
+		self.requiredv2["TargetPosition"] = {"*": "attr_brightness", "indigo.RelayDevice": "attr_onState"}
 	
 		self.optionalv2 = {}
 		self.optionalv2["HoldPosition"] = {}
