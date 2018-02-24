@@ -93,8 +93,10 @@ class Plugin(indigo.PluginBase):
 			#eps.api.stopServer ()
 			#eps.api.run (self.pluginPrefs.get('apiport', '8558'))
 			
-			x = eps.homekit.getServiceObject (145155245, 1794022133, "service_Window")
-			indigo.server.log (unicode(x))
+			#x = eps.homekit.getServiceObject (145155245, 1794022133, "service_Window")
+			#x.invertOnState = True
+			#if x.invertOnState: x.setAttributesv2()
+			#indigo.server.log (unicode(x))
 			
 			#x = eps.homekit.getServiceObject (361446525, 1794022133, "service_Fanv2")
 			#indigo.server.log (unicode(x))
@@ -157,7 +159,7 @@ class Plugin(indigo.PluginBase):
 	def onAfter_startup (self):
 		try:
 			# Only uncomment this when new characteristics have been added so the class lookup can be printed
-			eps.homekit.printClassLookupDict()
+			#eps.homekit.printClassLookupDict()
 			
 			# Start the httpd listener
 			eps.api.startServer (self.pluginPrefs.get('apiport', '8558'))

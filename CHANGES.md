@@ -1,8 +1,10 @@
 Release Notes
 ==========
 
-Version 0.12.03 (Beta 12 Build 3)
+Version 0.12.04 (Beta 12 Build 4)
 ==========
+* Added ability to use invert on devices utilizing the new onStateToFullBrightness special action - this completes the ability to fully use Doors, Windows and Coverings with a relay device in either native or inverted mode
+* Notes below this point were from a wonky Build 3, just leaving them in the release notes so they are not lost when the Release 3 is removed from Git (otherwise once we go public the plugin store will complain that the plist is incorrect)
 * Fixed bug in setting characteristic values where converting from boolean to an integer could result in no value if there was not a validValues attribute in the characteristic
 * Added special function 'onStateToFullBrightness' designed to allow relay devices to be controlled on HomeKit services that use 0-100 scale (such as brightness).  Directly created to allow Windows and Doors the ability to be used as On/Off switches in order to utilize the device type and icon.
 * Added ability for relay devices to act as window coverings (also uses onStateToFullBrightness)

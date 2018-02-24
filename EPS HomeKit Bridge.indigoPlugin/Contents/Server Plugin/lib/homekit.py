@@ -1417,19 +1417,38 @@ class Service (object):
 	def special_onStateToFullBrightness (self, classes, sourceDict, getter, characteristic, isOptional = False):
 		try:
 			obj = indigo.devices[self.objId]
+			
+			onValue = 100
+			offValue = 0
+			
+			if self.invertOnState:
+				onValue = 0
+				offValue = 100
+			
 			if "onState" in dir(obj):
 				if obj.onState:
-					self.setAttributeValue (characteristic, 100)
-					self.characterDict[characteristic] = 100 
+					self.setAttributeValue (characteristic, onValue)
+					self.characterDict[characteristic] = onValue 
 				else:
-					self.setAttributeValue (characteristic, 0)
-					self.characterDict[characteristic] = 0 
+					self.setAttributeValue (characteristic, offValue)
+					self.characterDict[characteristic] = offValue 
 			else:
-				self.setAttributeValue (characteristic, 0)
-				self.characterDict[characteristic] = 0 
+				self.setAttributeValue (characteristic, offValue)
+				self.characterDict[characteristic] = offValue 
 				
-			self.actions.append (HomeKitAction(characteristic, "equal", 0, "device.turnOff", [self.objId], 0, {self.objId: "attr_onState"}))
-			self.actions.append (HomeKitAction(characteristic, "between", 1, "device.turnOn", [self.objId], 100, {self.objId: "attr_onState"}))
+			if self.invertOnState:	
+				# Remove all default actions or we'll end up just appending these on top and they won't get fired
+				newactions = []
+				for a in self.actions:
+					if not a.default: newactions.append(a)
+					
+				self.actions = newactions
+					
+				self.actions.append (HomeKitAction(characteristic, "equal", 0, "device.turnOn", [self.objId], 0, {self.objId: "attr_onState"}))
+				self.actions.append (HomeKitAction(characteristic, "between", 1, "device.turnOff", [self.objId], 100, {self.objId: "attr_onState"}))
+			else:
+				self.actions.append (HomeKitAction(characteristic, "equal", 0, "device.turnOff", [self.objId], 0, {self.objId: "attr_onState"}))
+				self.actions.append (HomeKitAction(characteristic, "between", 1, "device.turnOn", [self.objId], 100, {self.objId: "attr_onState"}))
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))				
