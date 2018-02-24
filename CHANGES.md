@@ -1,7 +1,7 @@
 Release Notes
 ==========
 
-Version 0.12.01 (Beta 12 Build 1)
+Version 0.12.02 (Beta 12 Build 1)
 ==========
 * Added the ability to use relay (On/Off) devices for Windows and Doors in case someone wants to use them as sensors instead of motors - it's always been planned that every Indigo device can map to any HomeKit device but that functionality may not be 100% but that hasn't really be widely implemented yet, this is part of that
 * Added DSC alarms plugin state "state.open" for use on Contact Sensors

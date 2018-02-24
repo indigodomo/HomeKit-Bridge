@@ -1953,7 +1953,7 @@ class service_ContactSensor (Service):
 			self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name"]
 		
 			self.requiredv2 = {}
-			self.requiredv2["ContactSensorState"] = {"*": "special_invertedOnState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedBoolean"}
+			self.requiredv2["ContactSensorState"] = {"*": "special_invertedOnState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedBoolean", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open"}
 	
 			self.optionalv2 = {}
 			self.optionalv2["StatusActive"] = {}
