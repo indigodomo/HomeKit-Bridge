@@ -1407,6 +1407,9 @@ class Service (object):
 			else:
 				self.setAttributeValue (characteristic, False)
 				self.characterDict[characteristic] = False 
+				
+			self.actions.append (HomeKitAction(characteristic, "equal", False, "device.turnOn", [self.objId], 0, {self.objId: "attr_onState"}))
+			self.actions.append (HomeKitAction(characteristic, "between", True, "device.turnOff", [self.objId], 100, {self.objId: "attr_onState"}))
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	

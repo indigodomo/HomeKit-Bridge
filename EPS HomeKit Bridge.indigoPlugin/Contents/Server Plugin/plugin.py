@@ -168,6 +168,13 @@ class Plugin(indigo.PluginBase):
 			self.CONFIGDIR = '{}/Preferences/Plugins/{}'.format(indigo.server.getInstallFolderPath(), self.pluginId)
 			self.logger.debug ("Config path set to {}".format(self.CONFIGDIR))
 			
+			# Just to be safe, check for our configdir on startup, this should fix issues where new installs can't start a server until reloading
+			if not os.path.exists (self.CONFIGDIR):
+				os.makedirs (self.CONFIGDIR)
+				
+				if not os.path.exists (self.CONFIGDIR):
+					self.logger.error ("Unable to create the configuration folder under '{0}', '{1}' will be unable to run until this issue is resolved.  Please verify permissions and create the folder by hand if needed.".format(self.CONFIGDIR, dev.name))
+			
 			# Subscribe to changes so we can send update requests to Homebridge
 			eps.plug.subscribeChanges (["devices", "actionGroups"])
 			
@@ -648,6 +655,7 @@ class Plugin(indigo.PluginBase):
 	#
 	def onAfter_pluginDeviceCreated (self, dev):
 		try:
+			indigo.server.log ("NEW DEVICE")
 			if dev.deviceTypeId == "Server": 
 				self.checkserverFoldersAndStartIfConfigured (dev)
 		
@@ -943,6 +951,7 @@ class Plugin(indigo.PluginBase):
 				
 			# See if we have the folder we need
 			folderId = 0
+			migration = False
 			
 			if "HomeKit Bridge" not in indigo.devices.folders:
 				folder = indigo.devices.folder.create("HomeKit Bridge")
@@ -956,6 +965,7 @@ class Plugin(indigo.PluginBase):
 			configdir = expanduser("~") + "/.homebridge"
 			
 			if os.path.exists (configdir):
+				migration = True
 				filename = configdir + "/config.json" #.new"
 				if os.path.isfile(filename):
 					self.logger.info ("   Migrating found Homebridge-Indigo configuration")
@@ -964,6 +974,7 @@ class Plugin(indigo.PluginBase):
 			# Check for Homebridge Buddy
 			for server in indigo.devices.iter("com.eps.indigoplugin.homebridge"):
 				if server.deviceTypeId == "Homebridge-Server" or server.deviceTypeId == "Homebridge-Guest":
+					migration = True
 					configdir = indigo.server.getInstallFolderPath() + "/Plugins/EPS Homebridge.indigoPlugin/Contents/Server Plugin/bin/hb/homebridge/{}".format(str(server.id))
 					
 					if os.path.exists (configdir):
@@ -972,8 +983,11 @@ class Plugin(indigo.PluginBase):
 							self.logger.info ("   Migrating Homebridge Buddy server '{}'".format(server.name))		
 							self.migrateFromHomebridgeBuddy_parseJSON (filename, folderId, server.name)
 			
-			
-			self.logger.info ("Homebridge Buddy migration has completed, you will find any servers that were created in a folder called 'HomeKit Bridge' in your devices.")
+			if migration:
+				self.logger.info ("Homebridge Buddy migration has completed, you will find any servers that were created in a folder called 'HomeKit Bridge' in your devices.")
+			else:
+				self.logger.info ("No Homebridge-Indigo or Homebridge Buddy servers found, migration not needed")
+				
 			
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -3172,6 +3186,9 @@ class Plugin(indigo.PluginBase):
 			success = True
 			errorsDict = indigo.Dict()
 			
+			# If the server is running and the ports didn't change then we know we should be OK, otherwise we need to check
+			server = indigo.devices[devId]
+			
 			if valuesDict["editActive"]:
 				errorsDict["showAlertText"] = "You are actively editing a list item, finish editing that item and save it.\n\nIf you don't want that item any longer then highlight it on the list and select the action to delete it instead.\n\nYou can also choose to cancel the configuration and lose any changes you have made."
 				errorsDict["device"] = "Finish editing before saving your device"
@@ -3179,6 +3196,18 @@ class Plugin(indigo.PluginBase):
 				errorsDict["alias"] = "Finish editing before saving your device"
 				errorsDict["add"] = "Finish editing before saving your device"
 				success = False
+				
+			# Sanity check to make sure we have our required startup info				
+			if valuesDict["port"] == "":
+				valuesDict["port"] = str(self.getNextAvailablePort (51826, devId, True))
+			
+			# Now check the callback port
+			if valuesDict["listenPort"] == "":
+				valuesDict["listenPort"] = str(self.getNextAvailablePort (8445, devId, True))
+			
+			# Now check the username
+			if valuesDict["username"] == "":
+				valuesDict["username"] = self.getNextAvailableUsername (devId, True)	
 				
 			if success:
 				# Reset the form back so when they open it again it has some defaults in place
@@ -3190,8 +3219,7 @@ class Plugin(indigo.PluginBase):
 				valuesDict["invertOnOff"] = False
 				valuesDict["deviceOrActionSelected"] = False
 				
-				# If the server is running and the ports didn't change then we know we should be OK, otherwise we need to check
-				server = indigo.devices[devId]
+				
 				
 				# See if any of our critical items changed from the current config (or if this is a new device)
 				if "port" not in server.pluginProps or server.pluginProps["port"] != valuesDict["port"] or server.pluginProps["listenPort"] != valuesDict["listenPort"] or server.pluginProps["username"] != valuesDict["username"]:
@@ -3219,24 +3247,14 @@ class Plugin(indigo.PluginBase):
 				if not "includedDevices" in valuesDict: valuesDict["includedDevices"] = json.dumps([])
 				if not "includedActions" in valuesDict: valuesDict["includedActions"] = json.dumps([])
 
-				# Sanity check to make sure we have our required startup info				
-				if valuesDict["port"] == "":
-					valuesDict["port"] = str(self.getNextAvailablePort (51826, devId, True))
-				
-				# Now check the callback port
-				if valuesDict["listenPort"] == "":
-					valuesDict["listenPort"] = str(self.getNextAvailablePort (8445, devId, True))
-				
-				# Now check the username
-				if valuesDict["username"] == "":
-					valuesDict["username"] = self.getNextAvailableUsername (devId, True)
-				
-				# Re-catalog the server just to be safe
-				self._catalogServerDevices (server)
+			# Re-catalog the server just to be safe
+			self._catalogServerDevices (server)
 				
 			# No matter what happens, if we are hiding objects for this session only then remove that cache now
 			if "hiddenIds" in valuesDict:
 				del valuesDict["hiddenIds"]
+				
+			
 						
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -3517,8 +3535,18 @@ class Plugin(indigo.PluginBase):
 			jsonData = json.dumps(config, indent=8)
 			#self.logger.debug (unicode(jsonData))
 			
-			if os.path.exists (self.CONFIGDIR + "/" + str(server.id)):
-				with open(self.CONFIGDIR + "/" + str(server.id) + "/config.json", 'w') as file_:
+			startpath = self.CONFIGDIR + "/" + str(server.id)
+			
+			# Failsafe to make sure we have a server folder
+			if not os.path.exists (startpath):
+				os.makedirs (startpath)
+				
+				if not os.path.exists (startpath):
+					self.logger.error ("Unable to create the configuration folder under '{0}', '{1}' will be unable to run until this issue is resolved.  Please verify permissions and create the folder by hand if needed.".format(startpath, dev.name))
+					return False
+			
+			if os.path.exists (startpath):
+				with open(startpath + "/config.json", 'w') as file_:
 					file_.write (jsonData)
 			
 		except Exception as e:

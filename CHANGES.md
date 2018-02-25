@@ -1,17 +1,17 @@
 Release Notes
 ==========
 
-Version 0.12.04 (Beta 12 Build 4)
+Version 0.13.0 (Beta 13)
 ==========
-* Added ability to use invert on devices utilizing the new onStateToFullBrightness special action - this completes the ability to fully use Doors, Windows and Coverings with a relay device in either native or inverted mode
-* Notes below this point were from a wonky Build 3, just leaving them in the release notes so they are not lost when the Release 3 is removed from Git (otherwise once we go public the plugin store will complain that the plist is incorrect)
-* Fixed bug in setting characteristic values where converting from boolean to an integer could result in no value if there was not a validValues attribute in the characteristic
-* Added special function 'onStateToFullBrightness' designed to allow relay devices to be controlled on HomeKit services that use 0-100 scale (such as brightness).  Directly created to allow Windows and Doors the ability to be used as On/Off switches in order to utilize the device type and icon.
-* Added ability for relay devices to act as window coverings (also uses onStateToFullBrightness)
+* This marks the next milestone of inviting the next group of beta testers in since the new plugin install issue has been resolved
+* Fixed issue with Contact Sensors where they may not get status updates when the device changes Indigo because the sensor is read-only and using a special "invertedOnState" method
+* Fixed bug where creating a server without doing anything other than immediately saving and closing it (i.e., not changing anything or adding devices) would cause it to save with empty ports and usernames and then cause error messages
+* Fixed new plugin installation bug (and any possible post-install new server startup issues) by moving the folder check routines into the server startup routine
+* Fixed bug where if there were no servers the Homebridge Buddy/Homebridge-Indigo migration routine would run and appear succesful, now it will state that neither was found
+* FINALLY removed known issue: FRESH INSTALLATION ISSUE: It seems fairly universal that the first server you add does not work until you restart the plugin (this likely has been resolved in Beta 9, needs tested to be sure)
 
 Known Issues
 ---------------
-* FRESH INSTALLATION ISSUE: It seems fairly universal that the first server you add does not work until you restart the plugin (this likely has been resolved in Beta 9, needs tested to be sure)
 * Nest thermostats (perhaps others) will appear to hang in HomeKit when changing temperature setpoints because of how the Nest plugin operates, the changes will be implemented but the Indigo UI will show timeout errors
 * Need to remove API port from the plugin config and autodetect it instead when building the server configuration
 * The current API is not locked to Localhost but will need to be prior to being publicly released for security purposes
@@ -24,19 +24,18 @@ Wish List
 * Dev device wishlist: Camera RTP Stream Management, Lock Management
 * Add a feature to read in HBB and Alexa items to build a cache of already used alias names
 * Redo complications to be a selectable list of different complications or the ability to not use one at all
+* Suggestions [from Jon](http://forums.indigodomo.com/viewtopic.php?p=155453#p155453)
 
 Previous Release Notes
 ==========
 
-Known Issues
+Version 0.12.04 (Beta 12 Build 4)
 ---------------
-* FRESH INSTALLATION ISSUE: It seems fairly universal that the first server you add does not work until you restart the plugin (this likely has been resolved in Beta 9, needs tested to be sure)
-* Nest thermostats (perhaps others) will appear to hang in HomeKit when changing temperature setpoints because of how the Nest plugin operates, the changes will be implemented but the Indigo UI will show timeout errors
-* Need to remove API port from the plugin config and autodetect it instead when building the server configuration
-* The current API is not locked to Localhost but will need to be prior to being publicly released for security purposes
-* Changing the port on a running server will result in the plugin reporting that the port is in use when it's only in use by the currently running server (resolve by stopping the server before attempting to manually change any HB settings)
-* Errors getting smoke detector working as [reported by Different Computers](http://forums.indigodomo.com/viewtopic.php?p=154957#p154957)
-* Removing a device from Indigo that is part of a server will cause a bunch of errors when that server starts, need to add better device presense checking in code as well as delete detection
+* Added ability to use invert on devices utilizing the new onStateToFullBrightness special action - this completes the ability to fully use Doors, Windows and Coverings with a relay device in either native or inverted mode
+* Notes below this point were from a wonky Build 3, just leaving them in the release notes so they are not lost when the Release 3 is removed from Git (otherwise once we go public the plugin store will complain that the plist is incorrect)
+* Fixed bug in setting characteristic values where converting from boolean to an integer could result in no value if there was not a validValues attribute in the characteristic
+* Added special function 'onStateToFullBrightness' designed to allow relay devices to be controlled on HomeKit services that use 0-100 scale (such as brightness).  Directly created to allow Windows and Doors the ability to be used as On/Off switches in order to utilize the device type and icon.
+* Added ability for relay devices to act as window coverings (also uses onStateToFullBrightness)
 
 Version 0.12.02 (Beta 12 Build 2) - Re-release of Build 1 due to missing library
 ---------------
