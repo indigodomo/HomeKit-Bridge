@@ -93,7 +93,7 @@ class Plugin(indigo.PluginBase):
 			#eps.api.stopServer ()
 			#eps.api.run (self.pluginPrefs.get('apiport', '8558'))
 			
-			x = eps.homekit.getServiceObject (1074591219, 1794022133, "service_CarbonDioxideSensor")
+			x = eps.homekit.getServiceObject (1551819695, 1794022133, "service_IrrigationSystem")
 			#x.invertOnState = True
 			#if x.invertOnState: x.setAttributesv2()
 			indigo.server.log (unicode(x))
@@ -598,6 +598,8 @@ class Plugin(indigo.PluginBase):
 					
 				if youshallnotpass: return
 				
+			rebuildRequired = False
+				
 			#indigo.server.log (newDev.name)
 			if newDev.id in self.SERVER_ID:
 				self.logger.debug ("Indigo device {} changed and is linked to HomeKit, checking if that change impacts HomeKit".format(newDev.name))
@@ -605,6 +607,11 @@ class Plugin(indigo.PluginBase):
 				
 				
 				for serverId in self.SERVER_ID[devId]:
+					if serverId not in indigo.devices:
+						self.logger.debug ("Server ID {} has been removed from Indigo but is still in cache, ignoring this update and removing it from cache to avoid further message or false positives".format(str(serverId)))
+						rebuildRequired = True
+						continue
+						
 					valuesDict = self.serverCheckForJSONKeys (indigo.devices[serverId].pluginProps)	
 					includedDevices = json.loads(valuesDict["includedDevices"])
 					includedActions = json.loads(valuesDict["includedActions"])
@@ -653,6 +660,9 @@ class Plugin(indigo.PluginBase):
 						self.logger.debug ("Device {} had an update that HomeKit needs to know about".format(obj.alias.value))
 						#self.serverSendObjectUpdateToHomebridge (indigo.devices[serverId], newDev.id)
 						self.serverSendObjectUpdateToHomebridge (indigo.devices[serverId], r["jkey"])
+						
+			if rebuildRequired:
+				self.catalogServerDevices()
 					
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -920,7 +930,9 @@ class Plugin(indigo.PluginBase):
 				#self.serverSendObjectUpdateToHomebridge (indigo.devices[int(serverId)], r["id"])
 				#thread.start_new_thread(self.timedCallbackToURL, (serverId, r["id"], 2))
 				thread.start_new_thread(self.timedCallbackToURL, (serverId, r["jkey"], 2))
-				
+			
+			if obj.recurringUpdate:
+				thread.start_new_thread(self.timedCallbackToURL, (serverId, r["jkey"], obj.recurringSeconds))	
 			
 			
 			# Before we return r, use the jstash ID for our ID instead of the Indigo ID
@@ -1603,6 +1615,7 @@ class Plugin(indigo.PluginBase):
 	def catalogServerDevices (self, serverId = 0):
 		try:
 			self.SERVERS = []
+			self.SERVER_ID = {}
 			
 			if serverId == 0:
 				for dev in indigo.devices.iter(self.pluginId + ".Server"):

@@ -1,16 +1,21 @@
 Release Notes
 ==========
 
-Version 0.13.1 (Beta 13 Release 1)
+Version 0.14 (Beta 14)
 ==========
-* New device type added: [Filter Maintenance](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#filtermaintenance) - I was so excited about this until the dreaded "unsupported" came up.  Hopefully one day soon it will work because I even created a special device for this in Device Extensions.  That's OK, the device extensions device is super cool anyway :)
-* New device type added: [Carbon Dioxide Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#carbondioxidesensor)
-* Added checkbox to the plugin menu Item Mover utility to show HBB devices with a special suffix, allowing the user to begin to redefine hold HBB Wrappers and Aliases that now have native support and are not needed anymore
-* Added 3rd party API framework and integration libraries (more on this later as it's not something the beta testers will be testing at this point)
-* Fixed bug in Homebridge Buddy / Homebridge-Indigo migration utility (in Advanced Plugin menu option) that migrated Alias devices when it was supposed to use the native device instead, now it will NOT migrate HBB Alias devices since that device is no longer needed with the ability to define alias names up front
-* Fixed bug where under certain circumstances a user could save a device that didn't have a defined HomeKit device type
-* Fixed bug where removing a server would cause it to stay in the ID array and cause errors any time a device that was a part of that server is updated in Indigo by rebuilding the ID index after each form save
-* Fixed bug where removing a device would cause it to stay in the ID array and cause errors
+* New device type added: [Irrigation System](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#irrigationsystem) - Note that complications have not yet been coded so you cannot yet tie zone valves to this but you can see the running state of your sprinklers here
+* New device type added: [Air Purifier](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#airpurifier)
+* New device type added: [Carbon Monoxide Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#carbonmonoxidesensor)
+* New device type added: [Doorbell](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#doorbell) - Don't get your hopes up, this is totally experimental and is likely going to need a lot of work and it was added simply as a development tool for now
+* New device type added: [Faucet](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#faucet) - Yea, I don't know who has automated faucets either, but HomeKit seems to think people do or will in their dystopian future....  It's essentially a switch so maybe you can use it for a cool icon for something else
+* New device type added: [Security System](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#securitysystem) - This has been coded to work with DSC alarms because it seems to be the most widely used on Indigo, more will be added in the future.  I do not have a DSC so this in the blind, let me know if it works!
+* New device type added: [Slat](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#slat)
+* New device type added: [Valve](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#valve) - Will be used in complications for irrigation systems when that comes around but for now it's just based on on/off states
+* Changed "Unsupported" language to only apply if it's unsupported in Apple Home, the non-Apple Home and Eve because testing showed that almost all "Unsupported" devices work in Eve and non-Apple Home, now items that only workin 3rd party apps will be listed as "3rd Party Only"
+* Added stricter conformity to characteristic restrictions (left loose during initial testing) to make sure no value can be greater or less than what HomeKit expects
+* Fixed bug where float values would not convert to int values on characteristic validation
+* Fixed bug in cache rebuilding that would leave deleted devices or servers in the cache and could cause errors when the plugin would try to access them
+* Fixed bug when devices attached to the server are updated but reference a deleted server, the system will now make sure the server ID still exists in Indigo [reported by siclark](http://forums.indigodomo.com/viewtopic.php?p=155668#p155668)
 
 Known Issues
 ---------------
@@ -31,6 +36,18 @@ Wish List
 
 Previous Release Notes
 ==========
+
+Version 0.13.1 (Beta 13 Release 1)
+---------------
+* New device type added: [Filter Maintenance](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#filtermaintenance) - I was so excited about this until the dreaded "unsupported" came up.  Hopefully one day soon it will work because I even created a special device for this in Device Extensions.  That's OK, the device extensions device is super cool anyway :)
+* New device type added: [Carbon Dioxide Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#carbondioxidesensor)
+* Added checkbox to the plugin menu Item Mover utility to show HBB devices with a special suffix, allowing the user to begin to redefine hold HBB Wrappers and Aliases that now have native support and are not needed anymore
+* Added 3rd party API framework and integration libraries (more on this later as it's not something the beta testers will be testing at this point)
+* Fixed bug in Homebridge Buddy / Homebridge-Indigo migration utility (in Advanced Plugin menu option) that migrated Alias devices when it was supposed to use the native device instead, now it will NOT migrate HBB Alias devices since that device is no longer needed with the ability to define alias names up front
+* Fixed bug where under certain circumstances a user could save a device that didn't have a defined HomeKit device type
+* Fixed bug where removing a server would cause it to stay in the ID array and cause errors any time a device that was a part of that server is updated in Indigo by rebuilding the ID index after each form save
+* Fixed bug where removing a device would cause it to stay in the ID array and cause errors
+
 
 Version 0.13.0 (Beta 13)
 ---------------

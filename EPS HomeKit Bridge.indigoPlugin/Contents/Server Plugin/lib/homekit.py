@@ -56,6 +56,8 @@ class HomeKit:
 					serviceList += "* [{}](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#{})\n".format(unicode(obj.desc), cls[0].replace("service_", "").lower())
 					
 					d += "**Device**: {}\n\n".format(unicode(obj.desc))
+
+					if "wiki" in dir(obj): d += "**Notes**: {}\n\n".format(obj.wiki)
 					
 					requiredItems = ""
 					optionalItems = ""
@@ -257,6 +259,9 @@ class HomeKit:
 					
 			elif "supportsCoolSetpoint" in dir(dev):
 				return "service_Thermostat"
+				
+			elif "zoneCount" in dir(dev):
+				return "service_IrrigationSystem"
 				
 			else:
 				# Fallback but only if there is an onstate, otherwise we return an unknown
@@ -691,7 +696,14 @@ class Service (object):
 			self.indigoType = "Unable to detect"
 			self.pluginType = "Built-In"
 			self.invertOnState = False # This is set by the HTTP utility during processing if the user passed it in the stash
+			
+			# For timer baseed operations
+			self.recurringUpdate = False # When true, the API will schedule a thread to refresh every X seconds
+			self.recurringSeconds = 0
+
+
 			self.jsoninit = False # Just while we are dialing in the JSON dict file, this needs to be removed when we convert all HK types to the new method
+
 			
 			# Get the indigo class for this object
 			if objId in indigo.devices:
@@ -1250,6 +1262,19 @@ class Service (object):
 				else:
 					invalidType = True
 					
+			elif state == "activeZone":
+				cmd = "sprinkler.setActiveZone"
+				if method == "TF" or method == "01":	
+					self.actions.append (HomeKitAction(characteristic, "equal", falseValue, cmd, [self.objId, 0], 0, {self.objId: "state_activeZone"}))
+					self.actions.append (HomeKitAction(characteristic, "equal", trueValue, cmd, [self.objId, 1], 0, {self.objId: "state_activeZone"}))
+				
+				elif method == "RANGE":	
+					self.actions.append (HomeKitAction(characteristic, "equal", minValue, cmd, [self.objId, "=value="], 0, {self.objId: "state_activeZone"}))
+					self.actions.append (HomeKitAction(characteristic, "between", minValue + minStep, cmd, [self.objId, "=value="], maxValue, {self.objId: "state_activeZone"}))	
+				
+				else:
+					invalidType = True	
+					
 			else:
 				# Whatever else, if we didn't specify it, will get a dummy action associated with it and it could cause errors if the characteristic is
 				# not read-only, but we need this so the plugin will monitor for any changes to the state
@@ -1298,10 +1323,19 @@ class Service (object):
 				if vtype == "int" and atype == "float":
 					obj.value = float(obj.value)
 					converted = True
+				if vtype == "float" and atype == "int":
+					obj.value = int(round(obj.value))
+					converted = True
 			
 				if not converted:
 					self.logger.warning ("Unable to set the value of {} on {} to {} because that attribute requires {} and it was given {}".format(attribute, self.alias.value, unicode(value), atype, vtype))
 					return False
+					
+					
+			# Now that we have made sure the value type matches, make sure it conforms to the min/max/valid values
+			if type(value) != bool and type(value) != str and type(value) != unicode:
+				if "minValue" in dir(obj) and obj.value < obj.minValue: obj.value = obj.minValue
+				if "maxValue" in dir(obj) and obj.value > obj.maxValue: obj.value = obj.maxValue
 	
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -1360,10 +1394,10 @@ class Service (object):
 					if lowbattery > 0: lowbattery = lowbattery / 100
 					if obj.batteryLevel < ((100 * lowbattery) + 1): 
 						self.setAttributeValue (characteristic, 1)
-						self.characterDict[characteristic] = 1
+						self.characterDict[characteristic] = getattr (self, characteristic).value
 					else:
 						self.setAttributeValue (characteristic, 0)
-						self.characterDict[characteristic] = 0
+						self.characterDict[characteristic] = getattr (self, characteristic).value
 					
 					# So we get notified of any changes, add a trigger for this in actions, it won't do anything other than monitor
 					self.actions.append (HomeKitAction(characteristic, "equal", False, "device.turnOff", [self.objId], 0, {self.objId: "attr_batteryLevel"}))
@@ -1380,7 +1414,7 @@ class Service (object):
 			obj = indigo.devices[self.objId]
 			if "sensorValue" in dir(obj) and obj.sensorValue is not None:
 				self.setAttributeValue (characteristic, 1)
-				self.characterDict[characteristic] = 1
+				self.characterDict[characteristic] = getattr (self, characteristic).value
 				
 				self.actions.append (HomeKitAction(characteristic, "between", 0, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["filterSensorChange", self.objId]], 100, {self.objId: "attr_sensorValue"}))		
 		
@@ -1397,17 +1431,17 @@ class Service (object):
 				# It supports energy reporting
 				if obj.energyCurLevel > 0:
 					self.setAttributeValue (characteristic, True)
-					self.characterDict[characteristic] = True
+					self.characterDict[characteristic] = getattr (self, characteristic).value
 				else:
 					self.setAttributeValue (characteristic, False)
-					self.characterDict[characteristic] = False
+					self.characterDict[characteristic] = getattr (self, characteristic).value
 			else:
 				if "onState" in dir(obj) and obj.onState:
 					self.setAttributeValue (characteristic, True)
-					self.characterDict[characteristic] = True
+					self.characterDict[characteristic] = getattr (self, characteristic).value
 				else:
 					self.setAttributeValue (characteristic, False)
-					self.characterDict[characteristic] = False
+					self.characterDict[characteristic] = getattr (self, characteristic).value
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
@@ -1422,13 +1456,13 @@ class Service (object):
 			if "onState" in dir(obj):
 				if obj.onState:
 					self.setAttributeValue (characteristic, False)
-					self.characterDict[characteristic] = False 
+					self.characterDict[characteristic] = getattr (self, characteristic).value 
 				else:
 					self.setAttributeValue (characteristic, True)
-					self.characterDict[characteristic] = True 
+					self.characterDict[characteristic] = getattr (self, characteristic).value
 			else:
 				self.setAttributeValue (characteristic, False)
-				self.characterDict[characteristic] = False 
+				self.characterDict[characteristic] = getattr (self, characteristic).value
 				
 			self.actions.append (HomeKitAction(characteristic, "equal", False, "device.turnOn", [self.objId], 0, {self.objId: "attr_onState"}))
 			self.actions.append (HomeKitAction(characteristic, "between", True, "device.turnOff", [self.objId], 100, {self.objId: "attr_onState"}))
@@ -1453,13 +1487,13 @@ class Service (object):
 			if "onState" in dir(obj):
 				if obj.onState:
 					self.setAttributeValue (characteristic, onValue)
-					self.characterDict[characteristic] = onValue 
+					self.characterDict[characteristic] = getattr (self, characteristic).value
 				else:
 					self.setAttributeValue (characteristic, offValue)
-					self.characterDict[characteristic] = offValue 
+					self.characterDict[characteristic] = getattr (self, characteristic).value
 			else:
 				self.setAttributeValue (characteristic, offValue)
-				self.characterDict[characteristic] = offValue 
+				self.characterDict[characteristic] = getattr (self, characteristic).value 
 				
 			if self.invertOnState:	
 				# Remove all default actions or we'll end up just appending these on top and they won't get fired
@@ -1488,16 +1522,16 @@ class Service (object):
 			if "hvacMode" in dir(obj):
 				if unicode(obj.hvacMode) == "Heat" or unicode(obj.hvacMode) == "ProgramHeat":
 					self.setAttributeValue (characteristic, 1)
-					self.characterDict[characteristic] = 1 
+					self.characterDict[characteristic] = getattr (self, characteristic).value
 				elif unicode(obj.hvacMode) == "Cool" or unicode(obj.hvacMode) == "ProgramCool":
 					self.setAttributeValue (characteristic, 2)
-					self.characterDict[characteristic] = 2 
+					self.characterDict[characteristic] = getattr (self, characteristic).value
 				elif unicode(obj.hvacMode) == "HeatCool" or unicode(obj.hvacMode) == "ProgramHeatCool":
 					self.setAttributeValue (characteristic, 3)
-					self.characterDict[characteristic] = 3 		
+					self.characterDict[characteristic] = getattr (self, characteristic).value
 				else:
 					self.setAttributeValue (characteristic, 0)
-					self.characterDict[characteristic] = 0 
+					self.characterDict[characteristic] = getattr (self, characteristic).value
 				
 				#self.actions.append (HomeKitAction(characteristic, "equal", falseValue, cmd, [self.objId, 0], 0, {self.objId: "attr_brightness"}))
 					
@@ -1523,10 +1557,10 @@ class Service (object):
 				if svr.pluginProps["tempunits"] == "f":	value = (value - 32) / 1.8000
 				
 				self.setAttributeValue (characteristic, round(value, 2))
-				self.characterDict[characteristic] = round(value, 2) 
+				self.characterDict[characteristic] = getattr (self, characteristic).value
 			else:
 				self.setAttributeValue (characteristic, round(float(obj.coolSetpoint), 2))
-				self.characterDict[characteristic] = round(float(obj.coolSetpoint), 2) 
+				self.characterDict[characteristic] = getattr (self, characteristic).value
 										
 			if unicode(obj.hvacMode) == "Heat" or unicode(obj.hvacMode) == "ProgramHeat":
 				self.actions.append (HomeKitAction(characteristic, "between", 0.0, "homekit.commandSetTargetThermostatTemperature", [self.objId, self.serverId, "=value="], 100.0, {self.objId: "attr_heatSetpoint"}))
@@ -1558,19 +1592,19 @@ class Service (object):
 					value = (value - 32) / 1.8000
 					
 					self.setAttributeValue (characteristic, round(value, 2))
-					self.characterDict[characteristic] = round(value, 2) 
+					self.characterDict[characteristic] = getattr (self, characteristic).value
 					
 					# Dummy action just so we get status updates for temperature	
 					self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "state_temperature_F"}))
 				else:
 					self.setAttributeValue (characteristic, float(obj.states["temperature_C"]))
-					self.characterDict[characteristic] = float(obj.states["temperature_C"]) 
+					self.characterDict[characteristic] = getattr (self, characteristic).value
 					
 					# Dummy action just so we get status updates for temperature	
 					self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "state_temperature_C"}))
 			else:
 				self.setAttributeValue (characteristic, float(obj.states["temperature_C"]))
-				self.characterDict[characteristic] = float(obj.states["temperature_C"])	
+				self.characterDict[characteristic] = getattr (self, characteristic).value
 				
 				# Dummy action just so we get status updates for temperature	
 				self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "state_temperature_C"}))
@@ -1595,13 +1629,13 @@ class Service (object):
 					value = (value - 32) / 1.8000
 					
 					self.setAttributeValue (characteristic, round(value, 2))
-					self.characterDict[characteristic] = round(value, 2) 
+					self.characterDict[characteristic] = getattr (self, characteristic).value
 				else:
 					self.setAttributeValue (characteristic, float(obj.states["temp"]))
-					self.characterDict[characteristic] = float(obj.states["temp"]) 
+					self.characterDict[characteristic] = getattr (self, characteristic).value
 			else:
 				self.setAttributeValue (characteristic, float(obj.states["temp"]))
-				self.characterDict[characteristic] = float(obj.states["temp"])	
+				self.characterDict[characteristic] = getattr (self, characteristic).value
 				
 			# Dummy action just so we get status updates for temperature	
 			self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "state_temp"}))	
@@ -1625,13 +1659,13 @@ class Service (object):
 					value = (value - 32) / 1.8000
 					
 					self.setAttributeValue (characteristic, round(value, 2))
-					self.characterDict[characteristic] = round(value, 2) 
+					self.characterDict[characteristic] = getattr (self, characteristic).value
 				else:
 					self.setAttributeValue (characteristic, float(obj.states["temperatureInput1"]))
-					self.characterDict[characteristic] = float(obj.states["temperatureInput1"]) 
+					self.characterDict[characteristic] = getattr (self, characteristic).value
 			else:
 				self.setAttributeValue (characteristic, float(obj.states["temperatureInput1"]))
-				self.characterDict[characteristic] = float(obj.states["temperatureInput1"])
+				self.characterDict[characteristic] = getattr (self, characteristic).value
 			
 			# Dummy action just so we get status updates for temperature	
 			self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "state_temperatureInput1"}))	
@@ -1651,16 +1685,141 @@ class Service (object):
 			if "tempunits" in obj.pluginProps:
 				if obj.pluginProps["tempunits"] == "f":
 					self.setAttributeValue (characteristic, 1)
-					self.characterDict[characteristic] = 1 
+					self.characterDict[characteristic] = getattr (self, characteristic).value
 				else:
 					self.setAttributeValue (characteristic, 1)
-					self.characterDict[characteristic] = 1 
+					self.characterDict[characteristic] = getattr (self, characteristic).value
 			else:
 				self.setAttributeValue (characteristic, 1)
-				self.characterDict[characteristic] = 1 	
+				self.characterDict[characteristic] = getattr (self, characteristic).value
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+			
+
+	#
+	# Sprinkler program mode
+	#
+	def special_sprinklerProgramMode (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			if self.serverId == 0: return
+		
+			obj = indigo.devices[self.objId]
+			if "activeZone" in dir(obj):
+				if obj.activeZone is None or obj.activeZone == 0:
+					self.setAttributeValue (characteristic, 0)
+					self.characterDict[characteristic] = getattr (self, characteristic).value
+			
+				else:
+					if len(obj.zoneScheduledDurations) == 0:
+						# Manually running
+						self.setAttributeValue (characteristic, 2)
+						self.characterDict[characteristic] = getattr (self, characteristic).value
+						
+					else:
+						# Program running 
+						self.setAttributeValue (characteristic, 1)
+						self.characterDict[characteristic] = getattr (self, characteristic).value
+			else:
+				self.setAttributeValue (characteristic, 1)
+				self.characterDict[characteristic] = getattr (self, characteristic).value 	
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+			
+	#
+	# Sprinkler remaining duration
+	#
+	def special_sprinklerRemainingDuration (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			if self.serverId == 0: return
+			
+			obj = indigo.devices[self.objId]
+			if "activeZone" in dir(obj):
+				if obj.activeZone is None or obj.activeZone == 0:
+					self.recurringUpdate = False
+					self.setAttributeValue (characteristic, 0)
+					self.characterDict[characteristic] = 0 
+			
+				else:
+					self.recurringUpdate = True
+					self.recurringSeconds = 5 # Update every second during runtime
+					
+					totalScheduledTime = 0
+					secondsRunTimeRemaining = 0
+					
+					if len(obj.zoneScheduledDurations) == 0:
+						# Manual run, use max times
+						totalScheduledTime = obj.zoneMaxDurations[obj.activeZone - 1]
+						
+					else:
+						# Scheduled run, use schedule times
+						totalScheduledTime = obj.zoneScheduledDurations[obj.activeZone - 1]
+						
+					# Convert scheduled time to seconds, since Indigo runs in minutes
+					totalScheduledTime = totalScheduledTime * 60
+					
+					# Calculate number of seconds that have transpired since the last time the device was updated, it should only update when we
+					# make changes that impact this routine anyway
+					seconds = dtutil.dateDiff ("seconds", indigo.server.getTime(), obj.lastChanged)
+					
+					# The remaining runtime should be total time less seconds since last change
+					secondsRunTimeRemaining = int(totalScheduledTime - seconds)
+
+					self.setAttributeValue (characteristic, secondsRunTimeRemaining)
+					self.characterDict[characteristic] = getattr (self, characteristic).value
+					
+					if getattr (self, characteristic).value == 0:
+						# They ran past the time, could be an Indigo problem, stop the auto refreshing as it's always going to be zero anyway
+						self.recurringUpdate = False
+					
+			else:
+				pass # Do nothing, it's an optional characteristic so if we don't populate it then it just simply won't display
+		
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))				
+			
+		
+	#
+	# DSC Alarm Plugin Keypad
+	#
+	def special_dscKeypadState (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			if self.serverId == 0: return
+		
+			obj = indigo.devices[self.objId]
+			if "ArmedState" in obj.states:
+				if obj.states["ArmedState.disarmed"]:
+					self.setAttributeValue (characteristic, 3)
+					self.characterDict[characteristic] = getattr (self, characteristic).value
+					
+				if obj.states["ArmedState.stay"]:
+					self.setAttributeValue (characteristic, 0)
+					self.characterDict[characteristic] = getattr (self, characteristic).value	
+					
+				if obj.states["ArmedState.away"]:
+					self.setAttributeValue (characteristic, 1)
+					self.characterDict[characteristic] = getattr (self, characteristic).value
+					
+				if obj.states["state.tripped"]:
+					self.setAttributeValue (characteristic, 4)
+					self.characterDict[characteristic] = getattr (self, characteristic).value			
+			else:
+				self.setAttributeValue (characteristic, 3)
+				self.characterDict[characteristic] = getattr (self, characteristic).value	
+				
+			self.actions.append (HomeKitAction(characteristic, "equal", 0, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionArmStay", self.objId]], 100, {self.objId: "state_ArmedState.stay"}))			
+			self.actions.append (HomeKitAction(characteristic, "equal", 1, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionArmAway", self.objId]], 100, {self.objId: "state_ArmedState.away"}))			
+			self.actions.append (HomeKitAction(characteristic, "equal", 2, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionArmStay", self.objId]], 100, {self.objId: "state_ArmedState.stay"}))			
+			self.actions.append (HomeKitAction(characteristic, "equal", 3, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionDisarm", self.objId]], 100, {self.objId: "state_ArmedState.disarmed"}))			
+
+			self.actions.append (HomeKitAction(characteristic, "equal", 99, "STUB", [indigo.devices[self.objId].pluginId, None, ["actionDisarm", self.objId]], 100, {self.objId: "state_state.tripped"}))			
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))		
+			
+				
 			
 ################################################################################
 # HOMEKIT ACTIONS
@@ -1980,6 +2139,39 @@ class Dummy (Service):
 		#self.logger.warning ('{} has no automatic conversion to HomeKit and will not be usable unless custom mapped'.format(self.alias.value))	
 
 # ==============================================================================
+# AIR PURIFIER
+# ==============================================================================
+class service_AirPurifier (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "AirPurifier"
+		desc = "Air Purifier"
+		
+		super(service_AirPurifier, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = ["Active", "CurrentAirPurifierState", "TargetAirPurifierState"]
+		self.optional = ["LockPhysicalControls", "Name", "SwingMode", "RotationSpeed"]
+		
+		self.requiredv2 = {}
+		self.requiredv2["Active"] = {"*": "attr_onState"}
+		self.requiredv2["CurrentAirPurifierState"] = {"*": "attr_onState"}
+		self.requiredv2["TargetAirPurifierState"] = {"*": "attr_onState"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["LockPhysicalControls"] = {}
+		self.optionalv2["Name"] = {}
+		self.optionalv2["SwingMode"] = {}
+		self.optionalv2["RotationSpeed"] = {"*": "attr_brightness"}
+					
+		super(service_AirPurifier, self).setAttributesv2 ()					
+		#super(service_LockMechanism, self).setAttributes ()
+				
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+
+# ==============================================================================
 # BATTERY SERVICE
 # ==============================================================================
 class service_BatteryService (Service):
@@ -1989,7 +2181,9 @@ class service_BatteryService (Service):
 	#
 	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "BatteryService"
-		desc = "Battery Service (Unsupported)"
+		desc = "Battery Service (3rd Party Only)"
+		
+		self.wiki = "This service is unsupported by the native Apple Home application but is supported, in varying degrees, in 3rd party HomeKit apps.  Apps tested with this service that work are the [non-Apple version of Home](https://itunes.apple.com/us/app/home-smart-home-automation/id995994352?mt=8) and [Elgato Eve](https://itunes.apple.com/us/app/elgato-eve/id917695792?mt=8)."
 	
 		super(service_BatteryService, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
@@ -2041,7 +2235,37 @@ class service_CarbonDioxideSensor (Service):
 		super(service_CarbonDioxideSensor, self).setAttributesv2 ()				
 		#super(service_MotionSensor, self).setAttributes ()
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		
+# ==============================================================================
+# CARBON MONOXIDE SENSOR
+# ==============================================================================
+class service_CarbonMonoxideSensor (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "CarbonMonoxideSensor"
+		desc = "Carbon Monoxide (CO) Sensor"
+	
+		super(service_CarbonMonoxideSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.requiredv2 = {}
+		self.requiredv2["CarbonMonoxideDetected"] = {"*": "attr_onState"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["StatusActive"] = {}
+		self.optionalv2["StatusFault"] = {}
+		self.optionalv2["StatusTampered"] = {}
+		self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
+		self.optionalv2["Name"] = {}
+		self.optionalv2["CarbonMonoxideLevel"] = {"indigo.SensorDevice": "attr_sensorValue", "indigo.DimmerDevice": "attr_brightness"}
+		self.optionalv2["CarbonMonoxidePeakLevel"] = {}
+					
+		super(service_CarbonMonoxideSensor, self).setAttributesv2 ()				
+				
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
 
 # ==============================================================================
 # CONTACT SENSOR
@@ -2107,7 +2331,35 @@ class service_Door (Service):
 		super(service_Door, self).setAttributesv2 ()			
 		#super(service_GarageDoorOpener, self).setAttributes ()
 						
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
+		
+# ==============================================================================
+# DOOR BELL
+# ==============================================================================
+class service_Doorbell (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "Doorbell"
+		desc = "Doorbell (Experimental & Unsupported)"
+		
+		self.wiki = "This service is completely experimental as it relies on an undocumented HomeKit method that is still being decoded, consider this unusable until further notice and only appears in the plugin for development testing"
+	
+		super(service_Doorbell, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.requiredv2 = {}
+		self.requiredv2["ProgrammableSwitchEvent"] = {"*": "attr_onState"}
+
+		self.optionalv2 = {}
+		self.optionalv2["Brightness"] = {"*": "attr_brightness"}
+		self.optionalv2["Volume"] = {}
+		self.optionalv2["Name"] = {}
+					
+		super(service_Doorbell, self).setAttributesv2 ()			
+						
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))							
 
 # ==============================================================================
 # FAN V2
@@ -2144,6 +2396,31 @@ class service_Fanv2 (Service):
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
 		
 # ==============================================================================
+# FAUCET
+# ==============================================================================
+class service_Faucet (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "Faucet"
+		desc = "Faucet"
+		
+		super(service_Faucet, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.requiredv2 = {}
+		self.requiredv2["Active"] = {"*": "attr_onState"}
+
+		self.optionalv2 = {}
+		self.optionalv2["StatusFault"] = {}
+		self.optionalv2["Name"] = {}
+					
+		super(service_Faucet, self).setAttributesv2 ()			
+						
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
+		
+# ==============================================================================
 # FILTER MAINTENANCE
 # ==============================================================================
 class service_FilterMaintenance (Service):
@@ -2153,7 +2430,9 @@ class service_FilterMaintenance (Service):
 	#
 	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "FilterMaintenance"
-		desc = "Filter Maintenance (Unsupported)"
+		desc = "Filter Maintenance (3rd Party Only)"
+
+		self.wiki = "This service is unsupported by the native Apple Home application but is supported, in varying degrees, in 3rd party HomeKit apps.  Apps tested with this service that work are the [non-Apple version of Home](https://itunes.apple.com/us/app/home-smart-home-automation/id995994352?mt=8) and [Elgato Eve](https://itunes.apple.com/us/app/elgato-eve/id917695792?mt=8)."
 
 		super(service_FilterMaintenance, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 	
@@ -2237,6 +2516,41 @@ class service_HumiditySensor (Service):
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
+		
+# ==============================================================================
+# IRRIGATION SYSTEM
+# ==============================================================================
+class service_IrrigationSystem (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "IrrigationSystem"
+		desc = "Irrigation System"
+		
+		self.wiki = "This service will automatically refresh back to HomeKit every 5 seconds if it is connected to an Indigo irrigation controller and if the controller has an active zone running so it can inform HomeKit of the number of remaining seconds left on the __current zone__."
+	
+		super(service_IrrigationSystem, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = ["Active", "ProgramMode", "InUse"]
+		self.optional = ["RemainingDuration", "StatusFault", "Name"]
+		
+		self.requiredv2 = {}
+		self.requiredv2["Active"] = {"*": "attr_onState", "indigo.SprinklerDevice": "state_activeZone"}
+		self.requiredv2["ProgramMode"] = {"*": "special_sprinklerProgramMode"}
+		self.requiredv2["InUse"] = {"*": "attr_onState", "indigo.SprinklerDevice": "state_activeZone"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["RemainingDuration"] = {"indigo.SprinklerDevice": "special_sprinklerRemainingDuration"} #- maybe in the future, need to create an ongoing scheduled update to HomeKit for this to be effective
+		self.optionalv2["StatusFault"] = {}
+		self.optionalv2["Name"] = {}
+					
+		super(service_IrrigationSystem, self).setAttributesv2 ()				
+		#super(service_MotionSensor, self).setAttributes ()
+				
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+				
 
 # ==============================================================================
 # LEAK SENSOR
@@ -2344,7 +2658,9 @@ class service_Microphone (Service):
 	#
 	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "Microphone"
-		desc = "Microphone (Unsupported)"
+		desc = "Microphone (3rd Party Only)"
+		
+		self.wiki = "This service is unsupported by the native Apple Home application but is supported, in varying degrees, in 3rd party HomeKit apps.  Apps tested with this service that work are the [non-Apple version of Home](https://itunes.apple.com/us/app/home-smart-home-automation/id995994352?mt=8) and [Elgato Eve](https://itunes.apple.com/us/app/elgato-eve/id917695792?mt=8)."
 	
 		super(service_Microphone, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
@@ -2483,6 +2799,64 @@ class service_LockMechanism (Service):
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
 # ==============================================================================
+# SECURITY SYSTEM
+# ==============================================================================
+class service_SecuritySystem (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "SecuritySystem"
+		desc = "Security System"
+		
+		super(service_SecuritySystem, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.requiredv2 = {}
+		self.requiredv2["SecuritySystemCurrentState"] = {"*": "attr_onState", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmKeypad": "special_dscKeypadState"}
+		self.requiredv2["SecuritySystemTargetState"] = {"*": "attr_onState", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmKeypad": "special_dscKeypadState"}
+
+		self.optionalv2 = {}
+		self.optionalv2["StatusFault"] = {}
+		self.optionalv2["StatusTampered"] = {}
+		self.optionalv2["SecuritySystemAlarmType"] = {}
+		self.optionalv2["Name"] = {}
+					
+		super(service_SecuritySystem, self).setAttributesv2 ()			
+						
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
+		
+# ==============================================================================
+# SLAT
+# ==============================================================================
+class service_Slat (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "Slat"
+		desc = "Slat (3rd Party Only)"
+		
+		self.wiki = "This service is unsupported by the native Apple Home application but is supported, in varying degrees, in 3rd party HomeKit apps.  Apps tested with this service that work are the [non-Apple version of Home](https://itunes.apple.com/us/app/home-smart-home-automation/id995994352?mt=8) and [Elgato Eve](https://itunes.apple.com/us/app/elgato-eve/id917695792?mt=8)."
+		
+		super(service_Slat, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.requiredv2 = {}
+		self.requiredv2["SlatType"] = {}
+		self.requiredv2["CurrentSlatState"] = {"*": "attr_onState"}
+
+		self.optionalv2 = {}
+		self.optionalv2["CurrentTiltAngle"] = {}
+		self.optionalv2["TargetTiltAngle"] = {}
+		self.optionalv2["SwingMode"] = {}
+		self.optionalv2["Name"] = {}
+					
+		super(service_Slat, self).setAttributesv2 ()			
+						
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
+		
+# ==============================================================================
 # SMOKE SENSOR
 # ==============================================================================
 class service_SmokeSensor (Service):
@@ -2524,7 +2898,9 @@ class service_Speaker (Service):
 	#
 	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "Speaker"
-		desc = "Speaker (Unsupported)"
+		desc = "Speaker (3rd Party Only)"
+		
+		self.wiki = "This service is unsupported by the native Apple Home application but is supported, in varying degrees, in 3rd party HomeKit apps.  Apps tested with this service that work are the [non-Apple version of Home](https://itunes.apple.com/us/app/home-smart-home-automation/id995994352?mt=8) and [Elgato Eve](https://itunes.apple.com/us/app/elgato-eve/id917695792?mt=8)."
 	
 		super(service_Speaker, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
@@ -2635,6 +3011,41 @@ class service_Thermostat (Service):
 		#super(service_Thermostat, self).setAttributes ()
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
+		
+		
+# ==============================================================================
+# VALVE
+# ==============================================================================
+class service_Valve (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "Valve"
+		desc = "Valve"
+		
+		self.wiki = "This service is unsupported by the native Apple Home application but is supported, in varying degrees, in 3rd party HomeKit apps.  Apps tested with this service that work are the [non-Apple version of Home](https://itunes.apple.com/us/app/home-smart-home-automation/id995994352?mt=8) and [Elgato Eve](https://itunes.apple.com/us/app/elgato-eve/id917695792?mt=8)."
+		
+		super(service_Valve, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.requiredv2 = {}
+		self.requiredv2["Active"] = {"*": "attr_onState"}
+		self.requiredv2["InUse"] = {"*": "attr_onState"}
+		self.requiredv2["ValveType"] = {}
+
+		self.optionalv2 = {}
+		self.optionalv2["SetDuration"] = {}
+		self.optionalv2["RemainingDuration"] = {}
+		self.optionalv2["IsConfigured"] = {}
+		self.optionalv2["ServiceLabelIndex"] = {}
+		self.optionalv2["StatusFault"] = {}
+		self.optionalv2["Name"] = {}
+					
+		super(service_Valve, self).setAttributesv2 ()			
+						
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+				
 
 # ==============================================================================
 # WINDOW
@@ -2787,6 +3198,45 @@ class characteristic_CarbonDioxidePeakLevel:
 		self.minValue = 0
 		
 		self.readonly = False
+		self.notify = True			
+		
+# ==============================================================================
+# CARBON MONOXIDE DETECTED
+# ==============================================================================
+class characteristic_CarbonMonoxideDetected:	
+	def __init__(self):
+		self.value = 0 
+		self.maxValue = 1
+		self.minValue = 0
+		
+		self.validValues = [0, 1]
+		self.validValuesStr = "[levels normal, levels abnormal]"
+		
+		self.readonly = True
+		self.notify = True	
+		
+# ==============================================================================
+# CARBON MONOXIDE LEVEL
+# ==============================================================================
+class characteristic_CarbonMonoxideLevel:
+	def __init__(self):
+		self.value = 0.0
+		self.maxValue = 100
+		self.minValue = 0
+		
+		self.readonly = False
+		self.notify = True	
+		
+# ==============================================================================
+# CARBON MONOXIDE PEAK LEVEL
+# ==============================================================================
+class characteristic_CarbonMonoxidePeakLevel:
+	def __init__(self):
+		self.value = 0.0
+		self.maxValue = 100
+		self.minValue = 0
+		
+		self.readonly = False
 		self.notify = True						
 		
 # ==============================================================================
@@ -2855,6 +3305,21 @@ class characteristic_CurrentAmbientLightLevel:
 		self.minValue = 0.0001
 		self.minStep = 0.0001
 
+		self.readonly = True
+		self.notify = True			
+	
+# ==============================================================================
+# CURRENT AIR PURIFIER STATE
+# ==============================================================================
+class characteristic_CurrentAirPurifierState:	
+	def __init__(self):
+		self.value = 0 # open [closed, opening, closing, stopped]
+		self.maxValue = 2
+		self.minValue = 0
+		
+		self.validValues = [0, 1, 2]
+		self.validValuesStr = "[inactive, idle, purifying air]"
+		
 		self.readonly = True
 		self.notify = True			
 				
@@ -2940,7 +3405,22 @@ class characteristic_CurrentRelativeHumidity:
 		self.minStep = 1
 
 		self.readonly = True
-		self.notify = True			
+		self.notify = True		
+		
+# ==============================================================================
+# CURRENT SLAT STATE
+# ==============================================================================
+class characteristic_CurrentSlatState:	
+	def __init__(self):
+		self.value = 0 
+		self.maxValue = 2
+		self.minValue = 0
+		
+		self.validValues = [0, 1, 2]
+		self.validValuesStr = "[fixed, jammed, swinging]"
+		
+		self.readonly = False
+		self.notify = True				
 		
 # ==============================================================================
 # CURRENT TEMPERATURE (Need to update homebridge/hap-nodejs/lib/gen/HomeKitTypes.js to extend this range)
@@ -2956,6 +3436,19 @@ class characteristic_CurrentTemperature:
 
 		self.readonly = True
 		self.notify = True	
+		
+# ==============================================================================
+# CURRENT TILT ANGLE
+# ==============================================================================		
+class characteristic_CurrentVerticalTiltAngle:
+	def __init__(self):
+		self.value = 0
+		self.maxValue = 90
+		self.minValue = -90
+		self.minStep = 1
+
+		self.readonly = True
+		self.notify = True				
 		
 # ==============================================================================
 # CURRENT VERTICAL TILT ANGLE
@@ -3035,6 +3528,36 @@ class characteristic_Hue:
 		
 		self.readonly = False
 		self.notify = True
+		
+# ==============================================================================
+# IN USE
+# ==============================================================================
+class characteristic_InUse:	
+	def __init__(self):
+		self.value = 0 
+		self.maxValue = 1
+		self.minValue = 0
+		
+		self.validValues = [0, 1]
+		self.validValuesStr = "[not in use, in use]"
+		
+		self.readonly = True
+		self.notify = True		
+		
+# ==============================================================================
+# IS CONFIGURED
+# ==============================================================================
+class characteristic_IsConfigured:	
+	def __init__(self):
+		self.value = 0 
+		self.maxValue = 1
+		self.minValue = 0
+		
+		self.validValues = [0, 1]
+		self.validValuesStr = "[not configured, is configured]"
+		
+		self.readonly = False
+		self.notify = True				
 		
 # ==============================================================================
 # LEAK DETECTED
@@ -3194,6 +3717,49 @@ class characteristic_PositionState:
 		self.notify = True		
 		
 # ==============================================================================
+# PROGRAM MODE
+# ==============================================================================
+class characteristic_ProgramMode:	
+	def __init__(self):
+		self.value = 0
+		self.maxValue = 2
+		self.minValue = 0
+		
+		self.validValues = [0, 1, 2]
+		self.validValuesStr = "[no program scheduled, program scheduled, manual mode]"
+		
+		self.readonly = True
+		self.notify = True		
+		
+# ==============================================================================
+# PROGRAMMABLE SWITCH EVENT
+# ==============================================================================
+class characteristic_ProgrammableSwitchEvent:	
+	def __init__(self):
+		self.value = 0
+		self.maxValue = 2
+		self.minValue = 0
+		
+		self.validValues = [0, 1, 2]
+		self.validValuesStr = "[single press, double press, long press]"
+		
+		self.readonly = True
+		self.notify = True			
+		
+# ==============================================================================
+# REMAINING DURATION (Need to update homebridge/hap-nodejs/lib/gen/HomeKitTypes.js to extend this range)
+# ==============================================================================
+class characteristic_RemainingDuration:	
+	def __init__(self):
+		self.value = 0
+		self.maxValue = 43200 # This is in seconds and defaulted to a ridiculous 3600 seconds or 5 minute duration!  Updated it to be 12 hours
+		self.minValue = 0
+		self.minStep = 1
+				
+		self.readonly = True
+		self.notify = True				
+		
+# ==============================================================================
 # RESET FILTER INDICATION
 # ==============================================================================
 class characteristic_ResetFilterIndication:	
@@ -3248,6 +3814,47 @@ class characteristic_Saturation:
 
 		self.readonly = False
 		self.notify = True
+		
+# ==============================================================================
+# SERVICE LABEL INDEX
+# ==============================================================================		
+class characteristic_ServiceLabelIndex:
+	def __init__(self):
+		self.value = 1
+		self.maxValue = 255
+		self.minValue = 1
+		self.minStep = 1
+
+		self.readonly = False
+		self.notify = False		
+		
+# ==============================================================================
+# SET DURATION (Need to update homebridge/hap-nodejs/lib/gen/HomeKitTypes.js to extend this range)
+# ==============================================================================
+class characteristic_SetDuration:	
+	def __init__(self):
+		self.value = 0
+		self.maxValue = 43200 # This is in seconds and defaulted to a ridiculous 3600 seconds or 5 minute duration!  Updated it to be 12 hours
+		self.minValue = 0
+		self.minStep = 1
+				
+		self.readonly = False
+		self.notify = True						
+		
+# ==============================================================================
+# SLAT TYPE
+# ==============================================================================
+class characteristic_SlatType:	
+	def __init__(self):
+		self.value = 0 # clockwise [counter-clockwise]
+		self.maxValue = 1
+		self.minValue = 0
+		
+		self.validValues = [0, 1]
+		self.validValuesStr = "[horizontal, vertical]"
+		
+		self.readonly = True
+		self.notify = True			
 		
 # ==============================================================================
 # SMOKE DETECTED
@@ -3326,7 +3933,7 @@ class characteristic_StatusTampered:
 # ==============================================================================
 class characteristic_SwingMode:	
 	def __init__(self):
-		self.value = 0 # disabled [enabled]
+		self.value = 0 
 		self.maxValue = 1
 		self.minValue = 0
 		
@@ -3335,6 +3942,66 @@ class characteristic_SwingMode:
 		
 		self.readonly = False
 		self.notify = True		
+		
+# ==============================================================================
+# SECURITY SYSTEM ALARM TYPE
+# ==============================================================================
+class characteristic_SecuritySystemAlarmType:	
+	def __init__(self):
+		self.value = 0
+		self.maxValue = 1
+		self.minValue = 0
+		
+		self.validValues = [0, 1]
+		self.validValuesStr = "[no alarm, alarm]"
+		
+		self.readonly = True
+		self.notify = True			
+		
+# ==============================================================================
+# SECURITY SYSTEM CURRENT STATE
+# ==============================================================================
+class characteristic_SecuritySystemCurrentState:	
+	def __init__(self):
+		self.value = 0 
+		self.maxValue = 4
+		self.minValue = 0
+		
+		self.validValues = [0, 1, 2, 3, 4]
+		self.validValuesStr = "[stay armed, away armed, night armed, disarmed, alarm triggered]"
+		
+		self.readonly = True
+		self.notify = True			
+		
+# ==============================================================================
+# SECURITY SYSTEM TARGET STATE
+# ==============================================================================
+class characteristic_SecuritySystemTargetState:	
+	def __init__(self):
+		self.value = 0 # disabled [enabled]
+		self.maxValue = 4
+		self.minValue = 0
+		
+		self.validValues = [0, 1, 2, 3]
+		self.validValuesStr = "[stay arm, away arm, night arm, disarm]"
+		
+		self.readonly = False
+		self.notify = True			
+		
+# ==============================================================================
+# TARGET AIR PURIFIER STATE
+# ==============================================================================
+class characteristic_TargetAirPurifierState:	
+	def __init__(self):
+		self.value = 0 
+		self.maxValue = 2
+		self.minValue = 0
+		
+		self.validValues = [0, 1]
+		self.validValuesStr = "[manual, auto]"
+		
+		self.readonly = False
+		self.notify = True			
 		
 # ==============================================================================
 # TARGET DOOR STATE
@@ -3436,6 +4103,19 @@ class characteristic_TargetRelativeHumidity:
 		self.notify = True	
 		
 # ==============================================================================
+# TARGET TILT ANGLE
+# ==============================================================================		
+class characteristic_TargetTiltAngle:
+	def __init__(self):
+		self.value = 0
+		self.maxValue = 90
+		self.minValue = -90
+		self.minStep = 1
+
+		self.readonly = False
+		self.notify = True				
+		
+# ==============================================================================
 # TARGET VERTICAL TILT ANGLE
 # ==============================================================================		
 class characteristic_TargetVerticalTiltAngle:
@@ -3474,4 +4154,19 @@ class characteristic_Volume:
 		self.minStep = 1
 
 		self.readonly = False
-		self.notify = True					
+		self.notify = True		
+		
+# ==============================================================================
+# VALVE TYPE
+# ==============================================================================
+class characteristic_ValveType:	
+	def __init__(self):
+		self.value = 0 # celsius [fahrenheit]
+		self.maxValue = 3
+		self.minValue = 0
+		
+		self.validValues = [0, 1, 2, 3]
+		self.validValuesStr = "[generic, irrigation, shower head, water faucet]"
+		
+		self.readonly = True
+		self.notify = True						
