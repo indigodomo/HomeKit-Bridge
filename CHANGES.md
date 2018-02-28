@@ -1,14 +1,16 @@
 Release Notes
 ==========
 
-Version 0.13.0 (Beta 13)
+Version 0.13.1 (Beta 13 Release 1)
 ==========
-* This marks the next milestone of inviting the next group of beta testers in since the new plugin install issue has been resolved
-* Fixed issue with Contact Sensors where they may not get status updates when the device changes Indigo because the sensor is read-only and using a special "invertedOnState" method
-* Fixed bug where creating a server without doing anything other than immediately saving and closing it (i.e., not changing anything or adding devices) would cause it to save with empty ports and usernames and then cause error messages
-* Fixed new plugin installation bug (and any possible post-install new server startup issues) by moving the folder check routines into the server startup routine
-* Fixed bug where if there were no servers the Homebridge Buddy/Homebridge-Indigo migration routine would run and appear succesful, now it will state that neither was found
-* FINALLY removed known issue: FRESH INSTALLATION ISSUE: It seems fairly universal that the first server you add does not work until you restart the plugin (this likely has been resolved in Beta 9, needs tested to be sure)
+* New device type added: [Filter Maintenance](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#filtermaintenance) - I was so excited about this until the dreaded "unsupported" came up.  Hopefully one day soon it will work because I even created a special device for this in Device Extensions.  That's OK, the device extensions device is super cool anyway :)
+* New device type added: [Carbon Dioxide Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#carbondioxidesensor)
+* Added checkbox to the plugin menu Item Mover utility to show HBB devices with a special suffix, allowing the user to begin to redefine hold HBB Wrappers and Aliases that now have native support and are not needed anymore
+* Added 3rd party API framework and integration libraries (more on this later as it's not something the beta testers will be testing at this point)
+* Fixed bug in Homebridge Buddy / Homebridge-Indigo migration utility (in Advanced Plugin menu option) that migrated Alias devices when it was supposed to use the native device instead, now it will NOT migrate HBB Alias devices since that device is no longer needed with the ability to define alias names up front
+* Fixed bug where under certain circumstances a user could save a device that didn't have a defined HomeKit device type
+* Fixed bug where removing a server would cause it to stay in the ID array and cause errors any time a device that was a part of that server is updated in Indigo by rebuilding the ID index after each form save
+* Fixed bug where removing a device would cause it to stay in the ID array and cause errors
 
 Known Issues
 ---------------
@@ -18,6 +20,7 @@ Known Issues
 * Changing the port on a running server will result in the plugin reporting that the port is in use when it's only in use by the currently running server (resolve by stopping the server before attempting to manually change any HB settings)
 * Errors getting smoke detector working as [reported by Different Computers](http://forums.indigodomo.com/viewtopic.php?p=154957#p154957)
 * Removing a device from Indigo that is part of a server will cause a bunch of errors when that server starts, need to add better device presense checking in code as well as delete detection
+* Moving items between servers appears to restart the destination server for each move rather than at the end
 
 Wish List
 ---------------
@@ -28,6 +31,15 @@ Wish List
 
 Previous Release Notes
 ==========
+
+Version 0.13.0 (Beta 13)
+---------------
+* This marks the next milestone of inviting the next group of beta testers in since the new plugin install issue has been resolved
+* Fixed issue with Contact Sensors where they may not get status updates when the device changes Indigo because the sensor is read-only and using a special "invertedOnState" method
+* Fixed bug where creating a server without doing anything other than immediately saving and closing it (i.e., not changing anything or adding devices) would cause it to save with empty ports and usernames and then cause error messages
+* Fixed new plugin installation bug (and any possible post-install new server startup issues) by moving the folder check routines into the server startup routine
+* Fixed bug where if there were no servers the Homebridge Buddy/Homebridge-Indigo migration routine would run and appear succesful, now it will state that neither was found
+* FINALLY removed known issue: FRESH INSTALLATION ISSUE: It seems fairly universal that the first server you add does not work until you restart the plugin (this likely has been resolved in Beta 9, needs tested to be sure)
 
 Version 0.12.04 (Beta 12 Build 4)
 ---------------

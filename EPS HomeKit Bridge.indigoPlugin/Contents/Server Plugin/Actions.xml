@@ -6,4 +6,10 @@
 	
 	<Action id="sep_1" uiPath="DeviceActions"/>
 	
+	<!-- Hidden Actions For API -->
+	<Action id="voiceAPI" uiPath="hidden">
+		<Name>API</Name>
+		<CallbackMethod>apiCall</CallbackMethod>
+	</Action>
+	
 </Actions>

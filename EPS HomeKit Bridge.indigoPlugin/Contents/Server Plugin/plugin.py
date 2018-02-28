@@ -93,10 +93,10 @@ class Plugin(indigo.PluginBase):
 			#eps.api.stopServer ()
 			#eps.api.run (self.pluginPrefs.get('apiport', '8558'))
 			
-			#x = eps.homekit.getServiceObject (145155245, 1794022133, "service_Window")
+			x = eps.homekit.getServiceObject (1074591219, 1794022133, "service_CarbonDioxideSensor")
 			#x.invertOnState = True
 			#if x.invertOnState: x.setAttributesv2()
-			#indigo.server.log (unicode(x))
+			indigo.server.log (unicode(x))
 			
 			#x = eps.homekit.getServiceObject (361446525, 1794022133, "service_Fanv2")
 			#indigo.server.log (unicode(x))
@@ -602,6 +602,8 @@ class Plugin(indigo.PluginBase):
 			if newDev.id in self.SERVER_ID:
 				self.logger.debug ("Indigo device {} changed and is linked to HomeKit, checking if that change impacts HomeKit".format(newDev.name))
 				devId = newDev.id
+				
+				
 				for serverId in self.SERVER_ID[devId]:
 					valuesDict = self.serverCheckForJSONKeys (indigo.devices[serverId].pluginProps)	
 					includedDevices = json.loads(valuesDict["includedDevices"])
@@ -610,6 +612,12 @@ class Plugin(indigo.PluginBase):
 					r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", devId)
 					if r is None: r = eps.jstash.getRecordWithFieldEquals (includedActions, "id", devId)
 					if r is None: continue
+					
+					# See if this is an API linked device and update the server stash if it is
+					#if self.apiDeviceIsLinked (devId):
+					#	r["hktype"] = newDev.ownerProps["voiceHKBDeviceType"]
+					#	r["alias"] = newDev.ownerProps["voiceAlias"]
+				
 					
 					#hk = getattr (hkapi, r["hktype"]) # Find the class matching the selection
 					#obj = hk (int(r["id"]), {}, [], True)
@@ -939,6 +947,262 @@ class Plugin(indigo.PluginBase):
 			self.logger.error (ext.getException(e))	
 	
 	################################################################################
+	# API
+	################################################################################	
+	
+	#
+	# Check if a given device is API enabled
+	#
+	def apiDeviceIsLinked (self, devId):
+		try:
+			if str(devId) == "-fill-" or str(devId) == "-line-": return False
+			if int(devId) not in indigo.devices: return False
+			dev = indigo.devices[int(devId)]
+			
+			if "voiceIntegrated" in dev.ownerProps and dev.ownerProps["voiceIntegrated"]:
+				if "voiceIntegration" in dev.ownerProps and (dev.ownerProps["voiceIntegration"] == "ALL" or dev.ownerProps["voiceIntegration"] == "HomeKit"):
+					if "voiceHKBAvailable" in dev.ownerProps and dev.ownerProps["voiceHKBAvailable"]:
+						return True
+			
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+		return False
+	
+	#
+	# Server API commands
+	#
+	def apiCall (self, action):
+		try:	
+			success = True
+			errors = indigo.Dict()
+			data = indigo.Dict() # Default, can be changed as needed
+			payload = {}
+			
+			props = action.props
+			
+			libversion = props["libversion"]
+			libver = libversion.split(".")
+			if int(libver[0]) < 1:
+				errors["param"] = "libversion"
+				errors["message"] = "The version of HomeKit Bridge you have installed requires an API lib version of 1.0.0.  Please upgrade your plugin to the latest version or contact the plugin developer so that they can update to the latest Indigo Voice API."
+				return (False, data, payload, errors)	
+				
+			self.logger.debug ("Received {} API request".format(props["command"]))
+				
+			if props["command"] == "getServerList":
+				#indigo.server.log(unicode(props))
+				if "devId" not in props:
+					errors["param"] = "devId"
+					errors["message"] = "HomeKit Bridge Voice API received the '{0}' command, but the device ID was not passed.  Unable to complete API call.".format(props["command"])
+					return (False, data, payload, errors)
+				
+				data = []
+				
+				for dev in indigo.devices.iter(self.pluginId + ".Server"):
+					data.append( (str(dev.id), dev.name) )			
+					
+			elif props["command"] == "getDeviceTypes":
+				services = eps.homekit.getHomeKitServices ()
+				sortedservices = sorted(services.items(), key=operator.itemgetter(0))
+			
+				data = []
+			
+				valuesDict = {}
+				validTypes = {}
+				
+				if "valuesDict" in props: valuesDict = props["valuesDict"]
+				
+				if "voiceHKBDeviceTypeList" in valuesDict and valuesDict["voiceHKBDeviceTypeList"] != "":
+					validTypes = valuesDict["voiceHKBDeviceTypeList"].split(",")
+			
+				for name, desc in sortedservices:
+					#indigo.server.log (name)
+					if "service_" in name:
+						if len(validTypes) == 0 or name.replace("service_", "") in validTypes:
+							data.append ((name.replace("service_", ""), desc))
+			
+			elif props["command"] == "loadDevice":
+				return self.apiCall_loadDevice (action)
+				
+			elif props["command"] == "updateDevice":
+				return self.apiCall_updateDevice (action)
+				
+			elif props["command"] == "none":
+				pass
+						
+			else:
+				errors["param"] = "command"
+				errors["message"] = "HomeKit Bridge Voice API received the '{0}' command, but that command is not implemented.  Unable to complete API call.".format(props["command"])
+				return (False, data, payload, errors)
+				
+		except Exception as e:
+			self.logger.error (ext.getException(e))		
+			errors["param"] = "command"
+			errors["message"] = "HomeKit Bridge Indigo Voice API got an exception:\n\n".format(ext.getException(e))
+			return (False, data, payload, errors)
+			
+		return (success, data, payload, errors)	
+		
+	#
+	# Server API commands
+	#
+	def apiCall_updateDevice (self, action):	
+		try:
+			success = True
+			errors = indigo.Dict()
+			data = indigo.Dict() # Default, can be changed as needed
+			payload = {}	
+			
+			props = action.props
+			
+			valuesDict = {}
+			if "valuesDict" in props: valuesDict = props["valuesDict"]
+			#indigo.server.log(unicode(valuesDict))
+			
+			if not valuesDict["voiceIntegrated"] or not valuesDict["voiceHKBAvailable"]:
+				
+				# Integration is turned off, if we have a copy of this around we need to remove it
+				dev = indigo.devices[int(props["devId"])]
+				self.logger.info ("Processing inbound device de-integration request for {}".format(dev.name))				
+				
+				if dev.id in self.SERVER_ID:
+					if len(self.SERVER_ID[dev.id]) > 1:
+						msg = "API request to de-integrate {} failed because that device is assigned to more than one server.  Please remove this manually.".format(dev.name)
+						self.logger.warning (msg)
+						errors["param"] = "command"
+						errors["message"] = "msg"
+			
+						return (False, data, payload, errors)	
+						
+					else:
+						server = indigo.devices[self.SERVER_ID[dev.id][0]]
+						props = server.pluginProps
+						includedDevices = json.loads(props["includedDevices"])
+						r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", dev.id)
+						if r is None: 
+							msg = "API request to de-integrate {} failed because the server that it is supposed to be attached do doesn't have it attached.".format(dev.name)
+							self.logger.warning (msg)
+							errors["param"] = "command"
+							errors["message"] = "msg"
+						else:
+							# Have to remove it if it is there so we don't create a duplicate
+							includedDevices = json.loads(props["includedDevices"])
+							includedDevices = eps.jstash.removeRecordFromStash (includedDevices, "id", int(dev.id))
+							props["includedDevices"] = json.dumps(includedDevices)
+							server.replacePluginPropsOnServer (props)
+							
+							self.catalogServerDevices () # Always re-catalog so we don't show this device in the array
+				
+			else:			
+				server = indigo.devices[int(valuesDict["voiceHKBServer"])]
+				dev = indigo.devices[int(props["devId"])]
+			
+				self.logger.info ("Processing inbound device update request for {} on server {}".format(dev.name, server.name))
+			
+				includedDevices = []
+				props = server.pluginProps
+				if "includedDevices" in props: includedDevices = json.loads(props["includedDevices"])
+
+				r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", dev.id)
+				if r is None: 
+					r = self.createJSONItemRecord (dev, valuesDict["voiceAlias"])
+				else:
+					# Have to remove it if it is there so we don't create a duplicate
+					includedDevices = eps.jstash.removeRecordFromStash (includedDevices, "id", int(dev.id))
+				
+				r["hktype"] = "service_" + valuesDict["voiceHKBDeviceType"]
+				r["alias"] = valuesDict["voiceAlias"]
+				r["api"] = True
+				r["apilock"] = False
+				
+				includedDevices.append(r)
+			
+				props["includedDevices"] = json.dumps(includedDevices)
+				server.replacePluginPropsOnServer (props)
+			
+	
+		except Exception as e:
+			self.logger.error (ext.getException(e))		
+			errors["param"] = "command"
+			errors["message"] = "HomeKit Bridge Indigo Voice API got an exception:\n\n".format(ext.getException(e))
+			return (False, data, payload, errors)
+			
+		return (success, data, payload, errors)				
+		
+	#
+	# Server API commands
+	#
+	def apiCall_loadDevice (self, action):		
+		try:
+			success = True
+			errors = indigo.Dict()
+			data = indigo.Dict() # Default, can be changed as needed
+			payload = {}
+			
+			props = action.props
+			
+			if "devId" not in props:
+				errors["param"] = "devId"
+				errors["message"] = "HomeKit Bridge Voice API received the '{0}' command, but the device ID was not passed.  Unable to complete API call.".format(props["command"])
+				return (False, data, payload, errors)
+				
+			# See if this device is already in use elsewhere
+			if int(props["devId"]) in self.SERVER_ID:
+				devId = int(props["devId"])
+				serverId = int(self.SERVER_ID[devId][0])
+				server = indigo.devices[serverId]
+				
+				includedDevices = []
+				if "includedDevices" in server.pluginProps: includedDevices = json.loads(server.pluginProps["includedDevices"])
+				r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", devId)
+				
+				if not r is None:				
+					hktype = r["hktype"]
+					hktype = hktype.replace("service_", "")
+			
+					if len(self.SERVER_ID[devId]) > 1:
+						# Multiple servers, they cannot edit from the API
+						payload["serverId"] = serverId
+						payload["voiceDataType"] = hktype
+						payload["eligible"] = False
+						payload["uimessage"] = "This device is assigned to multiple HomeKit Bridge servers and cannot be changed from here.\n\nPlease edit this device's link to HomeKit Bridge from the servers it has been assigned to instead."
+					
+					else:
+						# One server, fill it in
+						payload["serverId"] = serverId
+						payload["voiceDataType"] = hktype
+					
+			else:
+				# Give them a default server and device type, first find a server with room
+				serverId = 0
+				
+				obj = eps.homekit.getServiceObject (int(props["devId"]), 0, None, True, True)
+				hktype = obj.type # Set to the default type	
+				
+				for dev in indigo.devices.iter(self.pluginId + ".Server"):
+					includedDevices = []
+					if "includedDevices" in dev.pluginProps: 
+						includedDevices = json.loads(dev.pluginProps["includedDevices"])
+						
+					if len(includedDevices) < 99:
+						serverId = dev.id
+						break
+						
+				payload["serverId"] = serverId
+				payload["voiceDataType"] = hktype
+		
+	
+		except Exception as e:
+			self.logger.error (ext.getException(e))		
+			errors["param"] = "command"
+			errors["message"] = "HomeKit Bridge Indigo Voice API got an exception:\n\n".format(ext.getException(e))
+			return (False, data, payload, errors)
+			
+		return (success, data, payload, errors)	
+	
+	################################################################################
 	# GENERAL METHODS
 	################################################################################
 	
@@ -1074,7 +1338,10 @@ class Plugin(indigo.PluginBase):
 							if dev.deviceTypeId == "Homebridge-Alias":
 								# We don't need these anymore, instead use the alias name and point to the parent device
 								dev = indigo.devices[int(dev.ownerProps["device"])]
-								
+								#indigo.server.log ("Using {} instead of {} because it was an HBB alias".format(dev.name, indigo.devices[int(devId)].name))
+								rec = self.createJSONItemRecord (dev, indigo.devices[int(devId)].name)
+								rec["invert"] = False
+																
 							# As a failsafe make sure we aren't adding the same device ID, particularly since we are using the
 							# referenced Alias ID if it was an HBB alias
 							r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", dev.id)
@@ -1335,6 +1602,8 @@ class Plugin(indigo.PluginBase):
 	#
 	def catalogServerDevices (self, serverId = 0):
 		try:
+			self.SERVERS = []
+			
 			if serverId == 0:
 				for dev in indigo.devices.iter(self.pluginId + ".Server"):
 					self._catalogServerDevices (dev)
@@ -1552,6 +1821,8 @@ class Plugin(indigo.PluginBase):
 			rec["link"]			= []	# List of other added devices this is linked to
 			rec["complex"]		= False	# If this device is the primary device in a complication
 			rec["invert"]		= False # If this device will invert it's on/off state (requires that devices has boolean onState attribute
+			rec["api"]			= False # If the device was created by an API call rather than directly
+			rec["apilock"]		= False	# If the device was created by an API call and cannot be altered by us, must be altered by the plugin
 			
 			eps.jstash.createRecordDefinition ("item", rec)
 			
@@ -1745,10 +2016,23 @@ class Plugin(indigo.PluginBase):
 				if rec is None: rec = eps.jstash.getRecordWithFieldEquals (includedActionsDest, "id", d["id"])
 				if not rec is None: suffix = " [Unmovable]"
 				
+				if d["id"] not in indigo.devices and d["id"] not in indigo.actionGroups:
+					self.logger.error ("Object '{}' ID {} is no longer part of Indigo, please remove this device from your server!".format(d["alias"], d["id"]))
+
+				
 				name = d["alias"]
 				if name == "": name = d["name"]
 				name = "{0}: {1}".format(d["object"], name)
 				name += suffix
+				
+				# Homebridge Buddy Legacy support
+				if d["id"] in indigo.devices and "indicateHBB" in valuesDict and valuesDict["indicateHBB"]:
+					dev = indigo.devices[d["id"]]
+					if dev.pluginId == "com.eps.indigoplugin.homebridge":
+						if dev.deviceTypeId == "Homebridge-Wrapper":
+							name += " => [HBB " + dev.ownerProps["treatAs"].upper() + " Wrapper]"
+						elif dev.deviceTypeId == "Homebridge-Alias":
+							name += " => [HBB " + dev.ownerProps["treatAs"].upper() + " Alias]"
 				
 				retList.append ( (str(d["id"]), name) )
 				
@@ -2324,7 +2608,8 @@ class Plugin(indigo.PluginBase):
 			
 		return valuesDict
 		
-				
+
+					
 		
 	#
 	# HomeKit device types
@@ -2337,10 +2622,21 @@ class Plugin(indigo.PluginBase):
 			services = eps.homekit.getHomeKitServices ()
 			sortedservices = sorted(services.items(), key=operator.itemgetter(0))
 			
+			validTypes = []
+			if valuesDict["device"] != "":
+				if self.apiDeviceIsLinked(valuesDict["device"]):
+					dev = indigo.devices[int(valuesDict["device"])]
+					if "voiceHKBDeviceTypeList" in dev.ownerProps and dev.ownerProps["voiceHKBDeviceTypeList"] != "":
+						validTypes = dev.ownerProps["voiceHKBDeviceTypeList"].split(",")
+			
 			for name, desc in sortedservices:
 				#indigo.server.log (name)
 				if "service_" in name:
-					retList.append ((name, desc))
+					if len(validTypes) > 0 and name.replace("service_", "") in validTypes:
+						retList.append ((name, desc + " (Plugin API Restricted)"))
+						
+					elif len(validTypes) == 0:
+						retList.append ((name, desc))
 					
 			#indigo.server.log(unicode(retList))
 			
@@ -2720,6 +3016,11 @@ class Plugin(indigo.PluginBase):
 							valuesDict["invertOnOff"] = r["invert"]
 						else:
 							valuesDict["invertOnOff"] = False
+							
+						if "api" in r: 
+							valuesDict["isAPIDevice"] = r["api"]
+						else:
+							valuesDict["isAPIDevice"] = False
 						
 						
 						valuesDict["deviceLimitReached"] = False # Since we only allow 99 we are now at 98 and valid again
@@ -2945,7 +3246,11 @@ class Plugin(indigo.PluginBase):
 					errorsDict = eps.ui.setErrorStatus (errorsDict, "{} is not a valid action ID, please verify your selection.".format(valuesDict["action"]))
 					errorsDict["action"] = "Invalid action"
 					return (valuesDict, errorsDict)
-			
+					
+			if valuesDict["hkType"] == "":
+				errorsDict = eps.ui.setErrorStatus (errorsDict, "Select a valid HomeKit device type.")
+				errorsDict["hkType"] = "Invalid type"
+				return (valuesDict, errorsDict)
 			
 			(includeList, max) = self.getIncludeStashList (thistype, valuesDict)
 			
@@ -2996,6 +3301,12 @@ class Plugin(indigo.PluginBase):
 					#device['treatas'] = valuesDict["treatAs"] # Homebridge Buddy Legacy
 					device['hktype'] = valuesDict["hkType"]
 					if "enableOnOffInvert" in valuesDict and valuesDict["enableOnOffInvert"]: device["invert"] = valuesDict["invertOnOff"]
+					if "isAPIDevice" in valuesDict and valuesDict["isAPIDevice"]: 
+						device["api"] = True
+					else:
+						device["api"] = False
+						device["apilock"] = False
+					
 					#device["url"] = "/HomeKit?cmd=setCharacteristic&objId={}&serverId={}".format(str(dev.id), str(serverId))
 					#device["url"] = "/HomeKit?objId={}&serverId={}".format(str(dev.id), str(serverId))	
 					#device["char"] = valuesDict["hkStatesJSON"]
@@ -3218,7 +3529,7 @@ class Plugin(indigo.PluginBase):
 				valuesDict["enableOnOffInvert"] = False
 				valuesDict["invertOnOff"] = False
 				valuesDict["deviceOrActionSelected"] = False
-				
+				valuesDict["isAPIDevice"] = False
 				
 				
 				# See if any of our critical items changed from the current config (or if this is a new device)
@@ -3248,13 +3559,36 @@ class Plugin(indigo.PluginBase):
 				if not "includedActions" in valuesDict: valuesDict["includedActions"] = json.dumps([])
 
 			# Re-catalog the server just to be safe
-			self._catalogServerDevices (server)
+			#self._catalogServerDevices (server)
+			self.catalogServerDevices ()
 				
 			# No matter what happens, if we are hiding objects for this session only then remove that cache now
 			if "hiddenIds" in valuesDict:
 				del valuesDict["hiddenIds"]
 				
-			
+			# For our API we need to go through all devices and see if they were added by an API so we can update them
+			includedDevices = json.loads(valuesDict["includedDevices"])
+			for i in includedDevices:
+				if "api" in i and i["api"]:
+					dev = indigo.devices[i["id"]]
+					
+					plugin = indigo.server.getPlugin (dev.pluginId)
+					props = {}
+					props["command"] = "updateDevice"
+					
+					values = indigo.Dict()
+					values["voiceIntegrated"] = True
+					values["voiceHKBAvailable"] = True
+					values["voiceHKBServer"] = str(devId)
+					values["voiceHKBDeviceType"] = i["hktype"].replace("service_", "")
+					values["voiceAlias"] = i["alias"]
+					
+					props["valuesDict"] = values
+					
+					(apisuccess, data, payload, errors) = plugin.executeAction("voiceAPI", deviceId=i["id"], waitUntilDone=True, props=props)
+					
+					if not apisuccess:
+						self.logger.error ("Attempted to update {} on {} but the plugin returned an error: {}.".format(dev.name, plugin.pluginDisplayName, errors["message"]))
 						
 		except Exception as e:
 			self.logger.error (ext.getException(e))	

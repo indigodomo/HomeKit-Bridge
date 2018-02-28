@@ -913,6 +913,8 @@ class Service (object):
 				elif "*" in getters:
 					getter = getters["*"]
 					
+				#indigo.server.log ("{} is {}".format(characteristic, getter))
+					
 				if getter is None: 
 					if isOptional: 
 						continue # Nothing to do
@@ -1097,6 +1099,12 @@ class Service (object):
 				
 				else:
 					invalidType = True
+					
+			# SENSORS
+			elif attrib == "sensorValue":
+				cmd = "speedcontrol.setSpeedLevel"
+				# Nothing to do, this is almost always read-only but here we can trigger change orders
+				self.actions.append (HomeKitAction(characteristic, "between", minValue, cmd, [self.objId, "=value="], maxValue, {self.objId: "attr_sensorValue"}))	
 			
 			# THERMOSTAT	
 			elif attrib == "fanIsOn":
@@ -1364,6 +1372,20 @@ class Service (object):
 		except Exception as e:
 			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
 			
+	#
+	# DEVICE EXTENSIONS: Replace Filter
+	#
+	def special_deReplaceFilter	 (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			obj = indigo.devices[self.objId]
+			if "sensorValue" in dir(obj) and obj.sensorValue is not None:
+				self.setAttributeValue (characteristic, 1)
+				self.characterDict[characteristic] = 1
+				
+				self.actions.append (HomeKitAction(characteristic, "between", 0, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["filterSensorChange", self.objId]], 100, {self.objId: "attr_sensorValue"}))		
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))		
 
 	#
 	# Check if an outlet is in use by looking at its power consumption
@@ -1986,6 +2008,40 @@ class service_BatteryService (Service):
 		#super(service_LockMechanism, self).setAttributes ()
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		
+# ==============================================================================
+# CARBON DIOXIDE SENSOR
+# ==============================================================================
+class service_CarbonDioxideSensor (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "CarbonDioxideSensor"
+		desc = "Carbon Dioxide (CO2) Sensor"
+	
+		super(service_CarbonDioxideSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = ["CarbonDioxideDetected"]
+		self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name", "CarbonDioxideLevel", "CarbonDioxidePeakLevel"]
+		
+		self.requiredv2 = {}
+		self.requiredv2["CarbonDioxideDetected"] = {"*": "attr_onState"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["StatusActive"] = {}
+		self.optionalv2["StatusFault"] = {}
+		self.optionalv2["StatusTampered"] = {}
+		self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
+		self.optionalv2["Name"] = {}
+		self.optionalv2["CarbonDioxideLevel"] = {"indigo.SensorDevice": "attr_sensorValue", "indigo.DimmerDevice": "attr_brightness"}
+		self.optionalv2["CarbonDioxidePeakLevel"] = {}
+					
+		super(service_CarbonDioxideSensor, self).setAttributesv2 ()				
+		#super(service_MotionSensor, self).setAttributes ()
+				
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 
 # ==============================================================================
 # CONTACT SENSOR
@@ -2086,6 +2142,35 @@ class service_Fanv2 (Service):
 		#super(service_Fanv2, self).setAttributes ()
 			
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+		
+# ==============================================================================
+# FILTER MAINTENANCE
+# ==============================================================================
+class service_FilterMaintenance (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "FilterMaintenance"
+		desc = "Filter Maintenance (Unsupported)"
+
+		super(service_FilterMaintenance, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+	
+		self.required = ["FilterChangeIndication"]
+		self.optional = ["FilterLifeLevel", "ResetFilterIndication", "Name"]
+	
+		self.requiredv2 = {}
+		self.requiredv2["FilterChangeIndication"] = {"*": "attr_onState"}
+	
+		self.optionalv2 = {}
+		self.optionalv2["FilterLifeLevel"] = {"*": "attr_brightness", "indigo.SensorDevice": "attr_sensorValue"}
+		self.optionalv2["ResetFilterIndication"] = {"indigo.Device.com.eps.indigoplugin.device-extensions.Filter-Sensor": "special_deReplaceFilter"}
+				
+		super(service_FilterMaintenance, self).setAttributesv2 ()
+		#super(service_Fanv2, self).setAttributes ()
+			
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 
 		
 # ==============================================================================
@@ -2666,6 +2751,45 @@ class characteristic_Brightness:
 		self.notify = True
 		
 # ==============================================================================
+# CARBON DIOXIDE DETECTED
+# ==============================================================================
+class characteristic_CarbonDioxideDetected:	
+	def __init__(self):
+		self.value = 0 
+		self.maxValue = 1
+		self.minValue = 0
+		
+		self.validValues = [0, 1]
+		self.validValuesStr = "[levels normal, levels abnormal]"
+		
+		self.readonly = True
+		self.notify = True	
+		
+# ==============================================================================
+# CARBON DIOXIDE LEVEL
+# ==============================================================================
+class characteristic_CarbonDioxideLevel:
+	def __init__(self):
+		self.value = 0.0
+		self.maxValue = 10000
+		self.minValue = 0
+		
+		self.readonly = False
+		self.notify = True	
+		
+# ==============================================================================
+# CARBON DIOXIDE PEAK LEVEL
+# ==============================================================================
+class characteristic_CarbonDioxidePeakLevel:
+	def __init__(self):
+		self.value = 0.0
+		self.maxValue = 10000
+		self.minValue = 0
+		
+		self.readonly = False
+		self.notify = True						
+		
+# ==============================================================================
 # CHARGING STATE
 # ==============================================================================
 class characteristic_ChargingState:	
@@ -2841,6 +2965,34 @@ class characteristic_CurrentVerticalTiltAngle:
 		self.value = 0
 		self.maxValue = 90
 		self.minValue = -90
+		self.minStep = 1
+
+		self.readonly = True
+		self.notify = True				
+		
+# ==============================================================================
+# FILTER CHANGE INDICATION
+# ==============================================================================
+class characteristic_FilterChangeIndication:	
+	def __init__(self):
+		self.value = 0 
+		self.maxValue = 1
+		self.minValue = 0
+		
+		self.validValues = [0, 1]
+		self.validValuesStr = "[filter OK, change filter]"
+		
+		self.readonly = False
+		self.notify = True		
+		
+# ==============================================================================
+# FILTER LIFE LEVEL
+# ==============================================================================		
+class characteristic_FilterLifeLevel:
+	def __init__(self):
+		self.value = 0.0
+		self.maxValue = 100
+		self.minValue = 0
 		self.minStep = 1
 
 		self.readonly = True
@@ -3039,7 +3191,22 @@ class characteristic_PositionState:
 		self.validValuesStr = "[decreasing, increasing, stopped]"
 		
 		self.readonly = True
-		self.notify = True				
+		self.notify = True		
+		
+# ==============================================================================
+# RESET FILTER INDICATION
+# ==============================================================================
+class characteristic_ResetFilterIndication:	
+	def __init__(self):
+		self.value = 1
+		self.maxValue = 1
+		self.minValue = 1
+		
+		self.validValues = [1]
+		self.validValuesStr = "[reset filter indication]"
+		
+		self.readonly = False
+		self.notify = True					
 		
 # ==============================================================================
 # ROTATION DIRECTION

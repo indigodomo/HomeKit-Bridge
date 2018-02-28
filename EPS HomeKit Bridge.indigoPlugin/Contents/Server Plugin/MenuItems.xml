@@ -21,6 +21,17 @@
 				<Label>Move:</Label>
 				<List class="self" filter="#plugin#[index=moveItems, callback=objectMoverItemsList, ref=hideWrappedItems]" method="getCustomList" dynamicReload="true" />
 			</Field>
+			
+			<Field type="label" id="lbl_sep_1" >
+				<Label>
+				</Label>
+			</Field>
+			
+			<Field type="checkbox" id="indicateHBB" defaultValue="false" >
+				<Label> </Label>
+				<Description>Indicate Homebridge Buddy devices</Description>
+				<CallbackMethod>objectMoverFormFieldChanged</CallbackMethod>
+			</Field>
 		</ConfigUI>
     </MenuItem>
 
