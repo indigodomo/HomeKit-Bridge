@@ -78,6 +78,10 @@
 					"*": {
 						"special_lowbattery": [
 							{
+								"indigoValue": "None",
+								"characteristic": "None"
+							},
+							{
 								"indigoValue": true,
 								"characteristic": 1
 							},

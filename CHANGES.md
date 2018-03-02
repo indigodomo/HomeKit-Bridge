@@ -1,8 +1,23 @@
 Release Notes
 ==========
 
-Version 0.14 (Beta 14)
+Version 0.14.1 (Beta 14 Release 1)
 ==========
+* NOTE: All known issues and wishlist items have been moved to [Git issues](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues) instead
+* Added support for the Hue bulb plugin, if you use the hueBulb device then the plugin will now support the color settings of the bulb.  This is functional but still under construction so expect timeouts when you change colors on the app until I dial that in, but it WILL change - just don't go doing a thousand color changes until it's completed
+* Renamed the device from being "HomeKit Bridge Server" to being "HomeKit Accessory Server" to bring it more in line with what it is: a HomeKit Accessory and also in pursuance of keeping the terms as user friendly and universal as possible
+* Changed max value of Color Temperature to 15,000
+* Changed the description of "Fan Version 2" to simply "Fan" to avoid confusion.  There is a Fan Version 1 but I don't see ever using it since the V2 does everything the V1 did anyway
+* Fixed fairly large bug where conversion from an Indigo type of integer or float to a characteristic required value of the opposite (float or integer) was using the wrong value for calculation, meaning the result was always whatever the default for the characteristic was (often zero) - if you had issues with a device not reporting correctly please try it now to see if it resolved your issue
+* Fixed minor bug on new server creation where if you do not add any devices you might get an error when saving the server that "key device not found in dict"
+* Removed first revision service initializers (code cleanup)
+
+
+Previous Release Notes
+==========
+
+Version 0.14.0 (Beta 14)
+---------------
 * New device type added: [Irrigation System](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#irrigationsystem) - Note that complications have not yet been coded so you cannot yet tie zone valves to this but you can see the running state of your sprinklers here
 * New device type added: [Air Purifier](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#airpurifier)
 * New device type added: [Carbon Monoxide Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#carbonmonoxidesensor)
@@ -16,26 +31,6 @@ Version 0.14 (Beta 14)
 * Fixed bug where float values would not convert to int values on characteristic validation
 * Fixed bug in cache rebuilding that would leave deleted devices or servers in the cache and could cause errors when the plugin would try to access them
 * Fixed bug when devices attached to the server are updated but reference a deleted server, the system will now make sure the server ID still exists in Indigo [reported by siclark](http://forums.indigodomo.com/viewtopic.php?p=155668#p155668)
-
-Known Issues
----------------
-* Nest thermostats (perhaps others) will appear to hang in HomeKit when changing temperature setpoints because of how the Nest plugin operates, the changes will be implemented but the Indigo UI will show timeout errors
-* Need to remove API port from the plugin config and autodetect it instead when building the server configuration
-* The current API is not locked to Localhost but will need to be prior to being publicly released for security purposes
-* Changing the port on a running server will result in the plugin reporting that the port is in use when it's only in use by the currently running server (resolve by stopping the server before attempting to manually change any HB settings)
-* Errors getting smoke detector working as [reported by Different Computers](http://forums.indigodomo.com/viewtopic.php?p=154957#p154957)
-* Removing a device from Indigo that is part of a server will cause a bunch of errors when that server starts, need to add better device presense checking in code as well as delete detection
-* Moving items between servers appears to restart the destination server for each move rather than at the end
-
-Wish List
----------------
-* Dev device wishlist: Camera RTP Stream Management, Lock Management
-* Add a feature to read in HBB and Alexa items to build a cache of already used alias names
-* Redo complications to be a selectable list of different complications or the ability to not use one at all
-* Suggestions [from Jon](http://forums.indigodomo.com/viewtopic.php?p=155453#p155453)
-
-Previous Release Notes
-==========
 
 Version 0.13.1 (Beta 13 Release 1)
 ---------------

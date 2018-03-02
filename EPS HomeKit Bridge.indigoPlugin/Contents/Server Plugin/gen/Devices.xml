@@ -3,7 +3,7 @@
 <Devices>
 	<!-- =========== HomeKit Server =========== -->
 	<Device type="relay" id="Server">
-		<Name>HomeKit Accessory Server</Name>
+		<Name>HomeKit Bridge Server</Name>
 		<ConfigUI>
 			<Field type="label" id="lbl_deviceLimitReached" visibleBindingId="deviceLimitReached" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true">
 				<Label>HomeKit can handle up to 99 devices and/or actions per server, you have reached this limit.  You can create additional servers if you need more than 99 devices and/or actions.
@@ -193,5 +193,4 @@
 		<UiDisplayStateId>onOffState</UiDisplayStateId>
 		
 	</Device>
-
 </Devices>

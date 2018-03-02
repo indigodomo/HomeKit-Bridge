@@ -63,8 +63,8 @@ class HomeKit:
 					optionalItems = ""
 					values = ""
 					
-					if "requiredv2" in dir(obj): 
-						for characteristic, getter in obj.requiredv2.iteritems():
+					if "required" in dir(obj): 
+						for characteristic, getter in obj.required.iteritems():
 							requiredItems += "[{}](#{}) | ".format(characteristic, characteristic.lower())
 							
 							values += "* {}: ".format(characteristic)
@@ -86,8 +86,8 @@ class HomeKit:
 						
 					d += "**Required**: {}\n\n".format(unicode(requiredItems))
 					
-					if "optionalv2" in dir(obj): 
-						for characteristic, getter in obj.optionalv2.iteritems():
+					if "optional" in dir(obj): 
+						for characteristic, getter in obj.optional.iteritems():
 							optionalItems += "[{}](#{}) | ".format(characteristic, characteristic.lower())
 							
 							values += "* {}: ".format(characteristic)
@@ -838,7 +838,7 @@ class Service (object):
 	#
 	# Set device attributes from the required and optional parameters
 	#
-	def setAttributes (self):
+	def setAttributesXXX (self):
 		try:
 			# Build a list of all classes in this module and turn it into a dict for lookup
 			clsmembers = inspect.getmembers(sys.modules[__name__], inspect.isclass)
@@ -874,7 +874,7 @@ class Service (object):
 	#
 	# Set device attributes from the required and optional parameters
 	#
-	def setAttributesv2 (self):
+	def setAttributes (self):
 		global HomeKitServiceList
 		
 		try:
@@ -897,10 +897,10 @@ class Service (object):
 				classes[cls[0]] = cls[1]
 				
 			# Add all required characteristics
-			self.detCharacteristicValues (classes, self.requiredv2)
+			self.detCharacteristicValues (classes, self.required)
 			
 			# Add all optional characteristics
-			self.detCharacteristicValues (classes, self.optionalv2, True)
+			self.detCharacteristicValues (classes, self.optional, True)
 					
 			
 		except Exception as e:
@@ -925,7 +925,8 @@ class Service (object):
 				elif "*" in getters:
 					getter = getters["*"]
 					
-				#indigo.server.log ("{} is {}".format(characteristic, getter))
+				#indigo.server.log ("{}: {} is {}".format(self.alias.value, characteristic, getter))
+				#if getter is None: indigo.server.log ("{}: {}".format(self.alias.value, self.pluginType))
 					
 				if getter is None: 
 					if isOptional: 
@@ -992,6 +993,8 @@ class Service (object):
 						if "states" in dir(obj) and getter.replace("state_", "") in obj.states:
 							self.setAttributeValue (characteristic, obj.states[getter.replace("state_", "")])
 							if characteristic not in self.characterDict: self.characterDict[characteristic] = getattr (self, characteristic).value
+							
+							#if obj.id == 624004987: indigo.server.log("{} Set to {} adjusted to {}".format(getter, unicode(obj.states[getter.replace("state_", "")]), unicode(getattr (self, characteristic).value)  ))
 							
 							# Since we are here we can calculate the actions needed to change this attribute
 							self.calculateDefaultActionsForState (getter.replace("state_", ""), characteristic)
@@ -1275,6 +1278,72 @@ class Service (object):
 				else:
 					invalidType = True	
 					
+					
+			# Hue Bulbs		
+			elif state == "hue":
+				cmd = "homekit.runPluginAction"
+				
+				obj = indigo.devices[self.objId]
+				
+				# Replicate the values using all the current device values for anything but this and the form default values for everything else
+				valuesDict = {'rgbColor': "=", 'hue': "=value=", 'saturation': obj.states['saturation'], 'brightnessSource': 'custom', 'brightness': obj.brightness, 'useRateVariable': False, 'rate': 0, 'rateVariable':  '', 'rampRateLabel': 0}
+				
+				if method == "RANGE":	
+				
+					self.actions.append (HomeKitAction(characteristic, "equal", minValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setHSB", self.objId, valuesDict]], 0, {self.objId: "state_hue"}))
+					self.actions.append (HomeKitAction(characteristic, "between", minValue + minStep, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setHSB", self.objId, valuesDict]], maxValue, {self.objId: "state_hue"}))	
+				
+				else:
+					invalidType = True
+					
+			elif state == "saturation":
+				cmd = "homekit.runPluginAction"
+				
+				obj = indigo.devices[self.objId]
+				
+				# Replicate the values using all the current device values for anything but this and the form default values for everything else
+				valuesDict = {'rgbColor': "=", 'hue': obj.states['hue'], 'saturation': '=value=', 'brightnessSource': 'custom', 'brightness': obj.brightness, 'useRateVariable': False, 'rate': 0, 'rateVariable':  '', 'rampRateLabel': 0}
+				
+				if method == "RANGE":	
+				
+					self.actions.append (HomeKitAction(characteristic, "equal", minValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setHSB", self.objId, valuesDict]], 0, {self.objId: "state_hue"}))
+					self.actions.append (HomeKitAction(characteristic, "between", minValue + minStep, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setHSB", self.objId, valuesDict]], maxValue, {self.objId: "state_hue"}))	
+				
+				else:
+					invalidType = True		
+					
+			elif state == "brightness":
+				cmd = "homekit.runPluginAction"
+				
+				obj = indigo.devices[self.objId]
+				
+				# Replicate the values using all the current device values for anything but this and the form default values for everything else
+				valuesDict = {'rgbColor': "=", 'hue': obj.states['hue'], 'saturation': obj.states['saturation'], 'brightnessSource': 'custom', 'brightness': '=value=', 'useRateVariable': False, 'rate': 0, 'rateVariable':  '', 'rampRateLabel': 0}
+				
+				if method == "RANGE":	
+				
+					self.actions.append (HomeKitAction(characteristic, "equal", minValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setHSB", self.objId, valuesDict]], 0, {self.objId: "state_hue"}))
+					self.actions.append (HomeKitAction(characteristic, "between", minValue + minStep, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setHSB", self.objId, valuesDict]], maxValue, {self.objId: "state_hue"}))	
+				
+				else:
+					invalidType = True	
+					
+			elif state == "colorTemp":
+				cmd = "homekit.runPluginAction"
+				
+				obj = indigo.devices[self.objId]
+				
+				# Replicate the values using all the current device values for anything but this and the form default values for everything else
+				valuesDict = {'preset': "relax", 'temperatureSource': 'custom', 'temperature': "=value=", 'brightnessSource': 'custom', 'brightness': obj.brightness, 'useRateVariable': False, 'rate': 0, 'rateVariable':  '', 'rampRateLabel': 0}
+				
+				if method == "RANGE":	
+				
+					self.actions.append (HomeKitAction(characteristic, "equal", minValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setCT", self.objId, valuesDict]], 0, {self.objId: "state_hue"}))
+					self.actions.append (HomeKitAction(characteristic, "between", minValue + minStep, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setCT", self.objId, valuesDict]], maxValue, {self.objId: "state_hue"}))	
+				
+				else:
+					invalidType = True						
+					
 			else:
 				# Whatever else, if we didn't specify it, will get a dummy action associated with it and it could cause errors if the characteristic is
 				# not read-only, but we need this so the plugin will monitor for any changes to the state
@@ -1314,6 +1383,7 @@ class Service (object):
 				atype = str(type(obj.value)).replace("<type '", "").replace("'>", "")
 				
 				self.logger.threaddebug ("Converting value type of {} to charateristic type of {} for {}".format(vtype, atype, attribute))
+				#if self.objId == 624004987: self.logger.info ("Converting value type of {} to charateristic type of {} for {}".format(vtype, atype, attribute))
 			
 				converted = False
 				if vtype == "bool": converted = self.convertFromBoolean (attribute, value, atype, vtype, obj)
@@ -1321,10 +1391,10 @@ class Service (object):
 					obj.value = value
 					converted = True
 				if vtype == "int" and atype == "float":
-					obj.value = float(obj.value)
+					obj.value = float(value)
 					converted = True
 				if vtype == "float" and atype == "int":
-					obj.value = int(round(obj.value))
+					obj.value = int(round(value))
 					converted = True
 			
 				if not converted:
@@ -1334,8 +1404,9 @@ class Service (object):
 					
 			# Now that we have made sure the value type matches, make sure it conforms to the min/max/valid values
 			if type(value) != bool and type(value) != str and type(value) != unicode:
-				if "minValue" in dir(obj) and obj.value < obj.minValue: obj.value = obj.minValue
-				if "maxValue" in dir(obj) and obj.value > obj.maxValue: obj.value = obj.maxValue
+				#if "minValue" in dir(obj) and obj.value < obj.minValue: obj.value = obj.minValue
+				#if "maxValue" in dir(obj) and obj.value > obj.maxValue: obj.value = obj.maxValue
+				pass
 	
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -1817,8 +1888,39 @@ class Service (object):
 			self.actions.append (HomeKitAction(characteristic, "equal", 99, "STUB", [indigo.devices[self.objId].pluginId, None, ["actionDisarm", self.objId]], 100, {self.objId: "state_state.tripped"}))			
 		
 		except Exception as e:
-			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))		
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
 			
+			
+				
+	#
+	# Convert RGB to Hue, Saturation and Color Temperature
+	#
+	def special_HSL (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			if self.serverId == 0: return
+		
+			obj = indigo.devices[self.objId]
+			if "activeZone" in dir(obj):
+				if obj.activeZone is None or obj.activeZone == 0:
+					self.setAttributeValue (characteristic, 0)
+					self.characterDict[characteristic] = getattr (self, characteristic).value
+			
+				else:
+					if len(obj.zoneScheduledDurations) == 0:
+						# Manually running
+						self.setAttributeValue (characteristic, 2)
+						self.characterDict[characteristic] = getattr (self, characteristic).value
+						
+					else:
+						# Program running 
+						self.setAttributeValue (characteristic, 1)
+						self.characterDict[characteristic] = getattr (self, characteristic).value
+			else:
+				self.setAttributeValue (characteristic, 1)
+				self.characterDict[characteristic] = getattr (self, characteristic).value 	
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))		
 				
 			
 ################################################################################
@@ -2152,22 +2254,18 @@ class service_AirPurifier (Service):
 		
 		super(service_AirPurifier, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["Active", "CurrentAirPurifierState", "TargetAirPurifierState"]
-		self.optional = ["LockPhysicalControls", "Name", "SwingMode", "RotationSpeed"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["Active"] = {"*": "attr_onState"}
-		self.requiredv2["CurrentAirPurifierState"] = {"*": "attr_onState"}
-		self.requiredv2["TargetAirPurifierState"] = {"*": "attr_onState"}
+		self.required = {}
+		self.required["Active"] = {"*": "attr_onState"}
+		self.required["CurrentAirPurifierState"] = {"*": "attr_onState"}
+		self.required["TargetAirPurifierState"] = {"*": "attr_onState"}
 	
-		self.optionalv2 = {}
-		self.optionalv2["LockPhysicalControls"] = {}
-		self.optionalv2["Name"] = {}
-		self.optionalv2["SwingMode"] = {}
-		self.optionalv2["RotationSpeed"] = {"*": "attr_brightness"}
+		self.optional = {}
+		self.optional["LockPhysicalControls"] = {}
+		self.optional["Name"] = {}
+		self.optional["SwingMode"] = {}
+		self.optional["RotationSpeed"] = {"*": "attr_brightness"}
 					
-		super(service_AirPurifier, self).setAttributesv2 ()					
-		#super(service_LockMechanism, self).setAttributes ()
+		super(service_AirPurifier, self).setAttributes ()					
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
 
@@ -2187,19 +2285,15 @@ class service_BatteryService (Service):
 	
 		super(service_BatteryService, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["BatteryLevel", "ChargingState", "StatusLowBattery"]
-		self.optional = ["Name"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["BatteryLevel"] = {"*": "attr_batteryLevel"}
-		self.requiredv2["ChargingState"] = {}
-		self.requiredv2["StatusLowBattery"] = {"*": "special_lowbattery"}
+		self.required = {}
+		self.required["BatteryLevel"] = {"*": "attr_batteryLevel"}
+		self.required["ChargingState"] = {}
+		self.required["StatusLowBattery"] = {"*": "special_lowbattery"}
 	
-		self.optionalv2 = {}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["Name"] = {}
 					
-		super(service_BatteryService, self).setAttributesv2 ()					
-		#super(service_LockMechanism, self).setAttributes ()
+		super(service_BatteryService, self).setAttributes ()					
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
@@ -2217,23 +2311,19 @@ class service_CarbonDioxideSensor (Service):
 	
 		super(service_CarbonDioxideSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["CarbonDioxideDetected"]
-		self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name", "CarbonDioxideLevel", "CarbonDioxidePeakLevel"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["CarbonDioxideDetected"] = {"*": "attr_onState"}
+		self.required = {}
+		self.required["CarbonDioxideDetected"] = {"*": "attr_onState"}
 	
-		self.optionalv2 = {}
-		self.optionalv2["StatusActive"] = {}
-		self.optionalv2["StatusFault"] = {}
-		self.optionalv2["StatusTampered"] = {}
-		self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
-		self.optionalv2["Name"] = {}
-		self.optionalv2["CarbonDioxideLevel"] = {"indigo.SensorDevice": "attr_sensorValue", "indigo.DimmerDevice": "attr_brightness"}
-		self.optionalv2["CarbonDioxidePeakLevel"] = {}
+		self.optional = {}
+		self.optional["StatusActive"] = {}
+		self.optional["StatusFault"] = {}
+		self.optional["StatusTampered"] = {}
+		self.optional["StatusLowBattery"] = {"*": "special_lowbattery"}
+		self.optional["Name"] = {}
+		self.optional["CarbonDioxideLevel"] = {"indigo.SensorDevice": "attr_sensorValue", "indigo.DimmerDevice": "attr_brightness"}
+		self.optional["CarbonDioxidePeakLevel"] = {}
 					
-		super(service_CarbonDioxideSensor, self).setAttributesv2 ()				
-		#super(service_MotionSensor, self).setAttributes ()
+		super(service_CarbonDioxideSensor, self).setAttributes ()				
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
@@ -2251,19 +2341,19 @@ class service_CarbonMonoxideSensor (Service):
 	
 		super(service_CarbonMonoxideSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.requiredv2 = {}
-		self.requiredv2["CarbonMonoxideDetected"] = {"*": "attr_onState"}
+		self.required = {}
+		self.required["CarbonMonoxideDetected"] = {"*": "attr_onState"}
 	
-		self.optionalv2 = {}
-		self.optionalv2["StatusActive"] = {}
-		self.optionalv2["StatusFault"] = {}
-		self.optionalv2["StatusTampered"] = {}
-		self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
-		self.optionalv2["Name"] = {}
-		self.optionalv2["CarbonMonoxideLevel"] = {"indigo.SensorDevice": "attr_sensorValue", "indigo.DimmerDevice": "attr_brightness"}
-		self.optionalv2["CarbonMonoxidePeakLevel"] = {}
+		self.optional = {}
+		self.optional["StatusActive"] = {}
+		self.optional["StatusFault"] = {}
+		self.optional["StatusTampered"] = {}
+		self.optional["StatusLowBattery"] = {"*": "special_lowbattery"}
+		self.optional["Name"] = {}
+		self.optional["CarbonMonoxideLevel"] = {"indigo.SensorDevice": "attr_sensorValue", "indigo.DimmerDevice": "attr_brightness"}
+		self.optional["CarbonMonoxidePeakLevel"] = {}
 					
-		super(service_CarbonMonoxideSensor, self).setAttributesv2 ()				
+		super(service_CarbonMonoxideSensor, self).setAttributes ()				
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
 
@@ -2282,21 +2372,17 @@ class service_ContactSensor (Service):
 		super(service_ContactSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		if not self.jsoninit:
-			self.required = ["ContactSensorState"]
-			self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name"]
-		
-			self.requiredv2 = {}
-			self.requiredv2["ContactSensorState"] = {"*": "special_invertedOnState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedBoolean", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open"}
+			self.required = {}
+			self.required["ContactSensorState"] = {"*": "special_invertedOnState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedBoolean", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open"}
 	
-			self.optionalv2 = {}
-			self.optionalv2["StatusActive"] = {}
-			self.optionalv2["StatusFault"] = {}
-			self.optionalv2["StatusTampered"] = {}
-			self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
-			self.optionalv2["Name"] = {}
+			self.optional = {}
+			self.optional["StatusActive"] = {}
+			self.optional["StatusFault"] = {}
+			self.optional["StatusTampered"] = {}
+			self.optional["StatusLowBattery"] = {"*": "special_lowbattery"}
+			self.optional["Name"] = {}
 					
-		super(service_ContactSensor, self).setAttributesv2 ()				
-		#super(service_MotionSensor, self).setAttributes ()
+		super(service_ContactSensor, self).setAttributes ()				
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
@@ -2314,23 +2400,18 @@ class service_Door (Service):
 	
 		super(service_Door, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		
-		self.required = ["CurrentPosition", "PositionState", "TargetPosition"]
-		self.optional = ["HoldPosition", "ObstructionDetected", "Name"]
-	
-		self.requiredv2 = {}
-		self.requiredv2["CurrentPosition"] = {"*": "attr_brightness", "indigo.RelayDevice": "special_onStateToFullBrightness"}
-		self.requiredv2["PositionState"] = {}
-		self.requiredv2["TargetPosition"] = {"*": "attr_brightness", "indigo.RelayDevice": "special_onStateToFullBrightness"}
+		self.required = {}
+		self.required["CurrentPosition"] = {"*": "attr_brightness", "indigo.RelayDevice": "special_onStateToFullBrightness"}
+		self.required["PositionState"] = {}
+		self.required["TargetPosition"] = {"*": "attr_brightness", "indigo.RelayDevice": "special_onStateToFullBrightness"}
 
-		self.optionalv2 = {}
-		self.optionalv2["HoldPosition"] = {}
-		self.optionalv2["ObstructionDetected"] = {}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["HoldPosition"] = {}
+		self.optional["ObstructionDetected"] = {}
+		self.optional["Name"] = {}
 					
-		super(service_Door, self).setAttributesv2 ()			
-		#super(service_GarageDoorOpener, self).setAttributes ()
-						
+		super(service_Door, self).setAttributes ()			
+		
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
 # ==============================================================================
@@ -2349,15 +2430,15 @@ class service_Doorbell (Service):
 	
 		super(service_Doorbell, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.requiredv2 = {}
-		self.requiredv2["ProgrammableSwitchEvent"] = {"*": "attr_onState"}
+		self.required = {}
+		self.required["ProgrammableSwitchEvent"] = {"*": "attr_onState"}
 
-		self.optionalv2 = {}
-		self.optionalv2["Brightness"] = {"*": "attr_brightness"}
-		self.optionalv2["Volume"] = {}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["Brightness"] = {"*": "attr_brightness"}
+		self.optional["Volume"] = {}
+		self.optional["Name"] = {}
 					
-		super(service_Doorbell, self).setAttributesv2 ()			
+		super(service_Doorbell, self).setAttributes ()			
 						
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))							
 
@@ -2371,27 +2452,23 @@ class service_Fanv2 (Service):
 	#
 	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "Fanv2"
-		desc = "Fan Version 2"
+		desc = "Fan"
 
 		super(service_Fanv2, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 	
-		self.required = ["Active"]
-		self.optional = ["CurrentFanState", "TargetFanState", "LockPhysicalControls", "Name", "RotationDirection", "RotationSpeed", "SwingMode"]
+		self.required = {}
+		self.required["Active"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
 	
-		self.requiredv2 = {}
-		self.requiredv2["Active"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
-	
-		self.optionalv2 = {}
-		self.optionalv2["CurrentFanState"] = {}
-		self.optionalv2["TargetFanState"] = {}
-		self.optionalv2["LockPhysicalControls"] = {}
-		self.optionalv2["Name"] = {}
-		self.optionalv2["RotationDirection"] = {}
-		self.optionalv2["RotationSpeed"] = {"indigo.DimmerDevice": "attr_brightness", "indigo.SpeedControlDevice": "attr_speedLevel"}
-		self.optionalv2["SwingMode"] = {}
+		self.optional = {}
+		self.optional["CurrentFanState"] = {}
+		self.optional["TargetFanState"] = {}
+		self.optional["LockPhysicalControls"] = {}
+		self.optional["Name"] = {}
+		self.optional["RotationDirection"] = {}
+		self.optional["RotationSpeed"] = {"indigo.DimmerDevice": "attr_brightness", "indigo.SpeedControlDevice": "attr_speedLevel"}
+		self.optional["SwingMode"] = {}
 				
-		super(service_Fanv2, self).setAttributesv2 ()
-		#super(service_Fanv2, self).setAttributes ()
+		super(service_Fanv2, self).setAttributes ()
 			
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
 		
@@ -2409,14 +2486,14 @@ class service_Faucet (Service):
 		
 		super(service_Faucet, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.requiredv2 = {}
-		self.requiredv2["Active"] = {"*": "attr_onState"}
+		self.required = {}
+		self.required["Active"] = {"*": "attr_onState"}
 
-		self.optionalv2 = {}
-		self.optionalv2["StatusFault"] = {}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["StatusFault"] = {}
+		self.optional["Name"] = {}
 					
-		super(service_Faucet, self).setAttributesv2 ()			
+		super(service_Faucet, self).setAttributes ()			
 						
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
 		
@@ -2436,18 +2513,14 @@ class service_FilterMaintenance (Service):
 
 		super(service_FilterMaintenance, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 	
-		self.required = ["FilterChangeIndication"]
-		self.optional = ["FilterLifeLevel", "ResetFilterIndication", "Name"]
+		self.required = {}
+		self.required["FilterChangeIndication"] = {"*": "attr_onState"}
 	
-		self.requiredv2 = {}
-		self.requiredv2["FilterChangeIndication"] = {"*": "attr_onState"}
-	
-		self.optionalv2 = {}
-		self.optionalv2["FilterLifeLevel"] = {"*": "attr_brightness", "indigo.SensorDevice": "attr_sensorValue"}
-		self.optionalv2["ResetFilterIndication"] = {"indigo.Device.com.eps.indigoplugin.device-extensions.Filter-Sensor": "special_deReplaceFilter"}
+		self.optional = {}
+		self.optional["FilterLifeLevel"] = {"*": "attr_brightness", "indigo.SensorDevice": "attr_sensorValue"}
+		self.optional["ResetFilterIndication"] = {"indigo.Device.com.eps.indigoplugin.device-extensions.Filter-Sensor": "special_deReplaceFilter"}
 				
-		super(service_FilterMaintenance, self).setAttributesv2 ()
-		#super(service_Fanv2, self).setAttributes ()
+		super(service_FilterMaintenance, self).setAttributes ()
 			
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 
@@ -2466,21 +2539,17 @@ class service_GarageDoorOpener (Service):
 	
 		super(service_GarageDoorOpener, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["CurrentDoorState", "TargetDoorState", "ObstructionDetected"]
-		self.optional = ["LockCurrentState", "LockTargetState", "Name"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["CurrentDoorState"] = {"*": "attr_onState", "indigo.MultiIODevice": "state_binaryInput1"}
-		self.requiredv2["TargetDoorState"] = {"*": "attr_onState", "indigo.MultiIODevice": "state_binaryInput1"}
-		self.requiredv2["ObstructionDetected"] = {}
+		self.required = {}
+		self.required["CurrentDoorState"] = {"*": "attr_onState", "indigo.MultiIODevice": "state_binaryInput1"}
+		self.required["TargetDoorState"] = {"*": "attr_onState", "indigo.MultiIODevice": "state_binaryInput1"}
+		self.required["ObstructionDetected"] = {}
 	
-		self.optionalv2 = {}
-		self.optionalv2["LockCurrentState"] = {}
-		self.optionalv2["LockTargetState"] = {}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["LockCurrentState"] = {}
+		self.optional["LockTargetState"] = {}
+		self.optional["Name"] = {}
 					
-		super(service_GarageDoorOpener, self).setAttributesv2 ()			
-		#super(service_GarageDoorOpener, self).setAttributes ()
+		super(service_GarageDoorOpener, self).setAttributes ()			
 						
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 
@@ -2498,21 +2567,17 @@ class service_HumiditySensor (Service):
 	
 		super(service_HumiditySensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["CurrentRelativeHumidity"]
-		self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["CurrentRelativeHumidity"] = {"*": "attr_sensorValue", "indigo.ThermostatDevice": "state_humidityInput1", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "state_relativeHumidity"}
+		self.required = {}
+		self.required["CurrentRelativeHumidity"] = {"*": "attr_sensorValue", "indigo.ThermostatDevice": "state_humidityInput1", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "state_relativeHumidity"}
 	
-		self.optionalv2 = {}
-		self.optionalv2["StatusActive"] = {}
-		self.optionalv2["StatusFault"] = {}
-		self.optionalv2["StatusTampered"] = {}
-		self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["StatusActive"] = {}
+		self.optional["StatusFault"] = {}
+		self.optional["StatusTampered"] = {}
+		self.optional["StatusLowBattery"] = {"*": "special_lowbattery"}
+		self.optional["Name"] = {}
 					
-		super(service_HumiditySensor, self).setAttributesv2 ()				
-		#super(service_MotionSensor, self).setAttributes ()
+		super(service_HumiditySensor, self).setAttributes ()				
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
@@ -2533,22 +2598,18 @@ class service_IrrigationSystem (Service):
 	
 		super(service_IrrigationSystem, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["Active", "ProgramMode", "InUse"]
-		self.optional = ["RemainingDuration", "StatusFault", "Name"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["Active"] = {"*": "attr_onState", "indigo.SprinklerDevice": "state_activeZone"}
-		self.requiredv2["ProgramMode"] = {"*": "special_sprinklerProgramMode"}
-		self.requiredv2["InUse"] = {"*": "attr_onState", "indigo.SprinklerDevice": "state_activeZone"}
+		self.required = {}
+		self.required["Active"] = {"*": "attr_onState", "indigo.SprinklerDevice": "state_activeZone"}
+		self.required["ProgramMode"] = {"*": "special_sprinklerProgramMode"}
+		self.required["InUse"] = {"*": "attr_onState", "indigo.SprinklerDevice": "state_activeZone"}
 	
-		self.optionalv2 = {}
-		self.optionalv2["RemainingDuration"] = {"indigo.SprinklerDevice": "special_sprinklerRemainingDuration"} #- maybe in the future, need to create an ongoing scheduled update to HomeKit for this to be effective
-		self.optionalv2["StatusFault"] = {}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["RemainingDuration"] = {"indigo.SprinklerDevice": "special_sprinklerRemainingDuration"} #- maybe in the future, need to create an ongoing scheduled update to HomeKit for this to be effective
+		self.optional["StatusFault"] = {}
+		self.optional["Name"] = {}
 					
-		super(service_IrrigationSystem, self).setAttributesv2 ()				
-		#super(service_MotionSensor, self).setAttributes ()
-				
+		super(service_IrrigationSystem, self).setAttributes ()				
+		
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
 				
 
@@ -2566,21 +2627,17 @@ class service_LeakSensor (Service):
 	
 		super(service_LeakSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["LeakDetected"]
-		self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["LeakDetected"] = {"*": "attr_onState"}
+		self.required = {}
+		self.required["LeakDetected"] = {"*": "attr_onState"}
 	
-		self.optionalv2 = {}
-		self.optionalv2["StatusActive"] = {}
-		self.optionalv2["StatusFault"] = {}
-		self.optionalv2["StatusTampered"] = {}
-		self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["StatusActive"] = {}
+		self.optional["StatusFault"] = {}
+		self.optional["StatusTampered"] = {}
+		self.optional["StatusLowBattery"] = {"*": "special_lowbattery"}
+		self.optional["Name"] = {}
 					
-		super(service_LeakSensor, self).setAttributesv2 ()				
-		#super(service_MotionSensor, self).setAttributes ()
+		super(service_LeakSensor, self).setAttributes ()				
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
@@ -2598,21 +2655,17 @@ class service_Lightbulb (Service):
 	
 		super(service_Lightbulb, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["On"]
-		self.optional = ["Brightness", "Hue", "Saturation", "Name", "ColorTemperature"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_status.connected"}
+		self.required = {}
+		self.required["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_status.connected"}
 	
-		self.optionalv2 = {}
-		self.optionalv2["Brightness"] = {"indigo.DimmerDevice": "attr_brightness", "indigo.SpeedControlDevice": "attr_speedLevel", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_volume"}
-		self.optionalv2["Hue"] = {}
-		self.optionalv2["Saturation"] = {}
-		self.optionalv2["Name"] = {}
-		self.optionalv2["ColorTemperature"] = {}
+		self.optional = {}
+		self.optional["Brightness"] = {"indigo.DimmerDevice": "attr_brightness", "indigo.SpeedControlDevice": "attr_speedLevel", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_volume"}
+		self.optional["Hue"] = {"indigo.DimmerDevicexxx": "special_HSL", "indigo.DimmerDevice.com.nathansheldon.indigoplugin.HueLights.hueBulb": "state_hue"}
+		self.optional["Saturation"] = {"indigo.DimmerDevicexxx": "special_HSL", "indigo.DimmerDevice.com.nathansheldon.indigoplugin.HueLights.hueBulb": "state_saturation"}
+		self.optional["Name"] = {}
+		self.optional["ColorTemperature"] = {"indigo.DimmerDevicexxx": "special_HSL", "indigo.DimmerDevice.com.nathansheldon.indigoplugin.HueLights.hueBulb": "state_colorTemp"}
 					
-		super(service_Lightbulb, self).setAttributesv2 ()					
-		#super(service_Lightbulb, self).setAttributes ()
+		super(service_Lightbulb, self).setAttributes ()					
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
@@ -2630,21 +2683,17 @@ class service_LightSensor (Service):
 	
 		super(service_LightSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["CurrentAmbientLightLevel"]
-		self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["CurrentAmbientLightLevel"] = {"*": "attr_sensorValue"}
+		self.required = {}
+		self.required["CurrentAmbientLightLevel"] = {"*": "attr_sensorValue"}
 	
-		self.optionalv2 = {}
-		self.optionalv2["StatusActive"] = {}
-		self.optionalv2["StatusFault"] = {}
-		self.optionalv2["StatusTampered"] = {}
-		self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["StatusActive"] = {}
+		self.optional["StatusFault"] = {}
+		self.optional["StatusTampered"] = {}
+		self.optional["StatusLowBattery"] = {"*": "special_lowbattery"}
+		self.optional["Name"] = {}
 					
-		super(service_LightSensor, self).setAttributesv2 ()				
-		#super(service_MotionSensor, self).setAttributes ()
+		super(service_LightSensor, self).setAttributes ()				
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
 		
@@ -2664,17 +2713,14 @@ class service_Microphone (Service):
 	
 		super(service_Microphone, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["Mute"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["Mute"] = {"*": "attr_onState", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_status.disconnected"}
+		self.required = {}
+		self.required["Mute"] = {"*": "attr_onState", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_status.disconnected"}
 	
-		self.optionalv2 = {}
-		self.optionalv2["Volume"] = {"*": "attr_brightness", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_volume"}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["Volume"] = {"*": "attr_brightness", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_volume"}
+		self.optional["Name"] = {}
 					
-		super(service_Microphone, self).setAttributesv2 ()	
-		#super(service_Switch, self).setAttributes ()
+		super(service_Microphone, self).setAttributes ()	
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
@@ -2692,21 +2738,17 @@ class service_MotionSensor (Service):
 	
 		super(service_MotionSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["MotionDetected"]
-		self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["MotionDetected"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+		self.required = {}
+		self.required["MotionDetected"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
 	
-		self.optionalv2 = {}
-		self.optionalv2["StatusActive"] = {}
-		self.optionalv2["StatusFault"] = {}
-		self.optionalv2["StatusTampered"] = {}
-		self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["StatusActive"] = {}
+		self.optional["StatusFault"] = {}
+		self.optional["StatusTampered"] = {}
+		self.optional["StatusLowBattery"] = {"*": "special_lowbattery"}
+		self.optional["Name"] = {}
 					
-		super(service_MotionSensor, self).setAttributesv2 ()				
-		#super(service_MotionSensor, self).setAttributes ()
+		super(service_MotionSensor, self).setAttributes ()				
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
@@ -2724,21 +2766,17 @@ class service_OccupancySensor (Service):
 	
 		super(service_OccupancySensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["OccupancyDetected"]
-		self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["OccupancyDetected"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+		self.required = {}
+		self.required["OccupancyDetected"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
 	
-		self.optionalv2 = {}
-		self.optionalv2["StatusActive"] = {}
-		self.optionalv2["StatusFault"] = {}
-		self.optionalv2["StatusTampered"] = {}
-		self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["StatusActive"] = {}
+		self.optional["StatusFault"] = {}
+		self.optional["StatusTampered"] = {}
+		self.optional["StatusLowBattery"] = {"*": "special_lowbattery"}
+		self.optional["Name"] = {}
 					
-		super(service_OccupancySensor, self).setAttributesv2 ()				
-		#super(service_MotionSensor, self).setAttributes ()
+		super(service_OccupancySensor, self).setAttributes ()				
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
 		
@@ -2756,16 +2794,13 @@ class service_Outlet (Service):
 	
 		super(service_Outlet, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["On", "OutletInUse"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
-		self.requiredv2["OutletInUse"] = {"*": "special_inuse"}
+		self.required = {}
+		self.required["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+		self.required["OutletInUse"] = {"*": "special_inuse"}
 	
-		self.optionalv2 = {}
+		self.optional = {}
 					
-		super(service_Outlet, self).setAttributesv2 ()							
-		#super(service_Outlet, self).setAttributes ()
+		super(service_Outlet, self).setAttributes ()							
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
@@ -2783,18 +2818,14 @@ class service_LockMechanism (Service):
 	
 		super(service_LockMechanism, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["LockCurrentState", "LockTargetState"]
-		self.optional = ["Name"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["LockCurrentState"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
-		self.requiredv2["LockTargetState"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+		self.required = {}
+		self.required["LockCurrentState"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+		self.required["LockTargetState"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
 	
-		self.optionalv2 = {}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["Name"] = {}
 					
-		super(service_LockMechanism, self).setAttributesv2 ()					
-		#super(service_LockMechanism, self).setAttributes ()
+		super(service_LockMechanism, self).setAttributes ()					
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
@@ -2812,17 +2843,17 @@ class service_SecuritySystem (Service):
 		
 		super(service_SecuritySystem, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.requiredv2 = {}
-		self.requiredv2["SecuritySystemCurrentState"] = {"*": "attr_onState", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmKeypad": "special_dscKeypadState"}
-		self.requiredv2["SecuritySystemTargetState"] = {"*": "attr_onState", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmKeypad": "special_dscKeypadState"}
+		self.required = {}
+		self.required["SecuritySystemCurrentState"] = {"*": "attr_onState", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmKeypad": "special_dscKeypadState"}
+		self.required["SecuritySystemTargetState"] = {"*": "attr_onState", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmKeypad": "special_dscKeypadState"}
 
-		self.optionalv2 = {}
-		self.optionalv2["StatusFault"] = {}
-		self.optionalv2["StatusTampered"] = {}
-		self.optionalv2["SecuritySystemAlarmType"] = {}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["StatusFault"] = {}
+		self.optional["StatusTampered"] = {}
+		self.optional["SecuritySystemAlarmType"] = {}
+		self.optional["Name"] = {}
 					
-		super(service_SecuritySystem, self).setAttributesv2 ()			
+		super(service_SecuritySystem, self).setAttributes ()			
 						
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
@@ -2842,17 +2873,17 @@ class service_Slat (Service):
 		
 		super(service_Slat, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.requiredv2 = {}
-		self.requiredv2["SlatType"] = {}
-		self.requiredv2["CurrentSlatState"] = {"*": "attr_onState"}
+		self.required = {}
+		self.required["SlatType"] = {}
+		self.required["CurrentSlatState"] = {"*": "attr_onState"}
 
-		self.optionalv2 = {}
-		self.optionalv2["CurrentTiltAngle"] = {}
-		self.optionalv2["TargetTiltAngle"] = {}
-		self.optionalv2["SwingMode"] = {}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["CurrentTiltAngle"] = {}
+		self.optional["TargetTiltAngle"] = {}
+		self.optional["SwingMode"] = {}
+		self.optional["Name"] = {}
 					
-		super(service_Slat, self).setAttributesv2 ()			
+		super(service_Slat, self).setAttributes ()			
 						
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
 		
@@ -2870,21 +2901,17 @@ class service_SmokeSensor (Service):
 	
 		super(service_SmokeSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["SmokeDetected"]
-		self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["SmokeDetected"] = {"*": "attr_onState"}
+		self.required = {}
+		self.required["SmokeDetected"] = {"*": "attr_onState"}
 	
-		self.optionalv2 = {}
-		self.optionalv2["StatusActive"] = {}
-		self.optionalv2["StatusFault"] = {}
-		self.optionalv2["StatusTampered"] = {}
-		self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["StatusActive"] = {}
+		self.optional["StatusFault"] = {}
+		self.optional["StatusTampered"] = {}
+		self.optional["StatusLowBattery"] = {"*": "special_lowbattery"}
+		self.optional["Name"] = {}
 					
-		super(service_SmokeSensor, self).setAttributesv2 ()				
-		#super(service_MotionSensor, self).setAttributes ()
+		super(service_SmokeSensor, self).setAttributes ()				
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))										
 
@@ -2904,17 +2931,14 @@ class service_Speaker (Service):
 	
 		super(service_Speaker, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["Mute"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["Mute"] = {"*": "attr_onState", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_status.disconnected"}
+		self.required = {}
+		self.required["Mute"] = {"*": "attr_onState", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_status.disconnected"}
 	
-		self.optionalv2 = {}
-		self.optionalv2["Volume"] = {"*": "attr_brightness", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_volume"}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["Volume"] = {"*": "attr_brightness", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_volume"}
+		self.optional["Name"] = {}
 					
-		super(service_Speaker, self).setAttributesv2 ()	
-		#super(service_Switch, self).setAttributes ()
+		super(service_Speaker, self).setAttributes ()	
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
 		
@@ -2932,15 +2956,12 @@ class service_Switch (Service):
 	
 		super(service_Switch, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["On"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+		self.required = {}
+		self.required["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
 	
-		self.optionalv2 = {}
+		self.optional = {}
 					
-		super(service_Switch, self).setAttributesv2 ()	
-		#super(service_Switch, self).setAttributes ()
+		super(service_Switch, self).setAttributes ()	
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
@@ -2958,21 +2979,17 @@ class service_TemperatureSensor (Service):
 	
 		super(service_TemperatureSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["CurrentTemperature"]
-		self.optional = ["StatusActive", "StatusFault", "StatusTampered", "StatusLowBattery", "Name"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["CurrentTemperature"] = {"indigo.SensorDevice": "attr_sensorValue", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "special_wuTemperature", "indigo.ThermostatDevice": "special_thermTemperature", "indigo.Device.com.perceptiveautomation.indigoplugin.weathersnoop.ws3station": "special_wsTemperature"}
+		self.required = {}
+		self.required["CurrentTemperature"] = {"indigo.SensorDevice": "attr_sensorValue", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "special_wuTemperature", "indigo.ThermostatDevice": "special_thermTemperature", "indigo.Device.com.perceptiveautomation.indigoplugin.weathersnoop.ws3station": "special_wsTemperature"}
 	
-		self.optionalv2 = {}
-		self.optionalv2["StatusActive"] = {}
-		self.optionalv2["StatusFault"] = {}
-		self.optionalv2["StatusTampered"] = {}
-		self.optionalv2["StatusLowBattery"] = {"*": "special_lowbattery"}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["StatusActive"] = {}
+		self.optional["StatusFault"] = {}
+		self.optional["StatusTampered"] = {}
+		self.optional["StatusLowBattery"] = {"*": "special_lowbattery"}
+		self.optional["Name"] = {}
 					
-		super(service_TemperatureSensor, self).setAttributesv2 ()				
-		#super(service_MotionSensor, self).setAttributes ()
+		super(service_TemperatureSensor, self).setAttributes ()				
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))					
 		
@@ -2990,25 +3007,21 @@ class service_Thermostat (Service):
 	
 		super(service_Thermostat, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["CurrentHeatingCoolingState", "TargetHeatingCoolingState", "CurrentTemperature", "TargetTemperature", "TemperatureDisplayUnits"]
-		self.optional = ["CurrentRelativeHumidity", "TargetRelativeHumidity", "CoolingThresholdTemperature", "HeatingThresholdTemperature", "Name"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["CurrentHeatingCoolingState"] = {"indigo.ThermostatDevice": "special_thermHVACMode"}
-		self.requiredv2["TargetHeatingCoolingState"] = {"indigo.ThermostatDevice": "special_thermHVACMode"}
-		self.requiredv2["CurrentTemperature"] = {"indigo.ThermostatDevice": "special_thermTemperature"}
-		self.requiredv2["TargetTemperature"] = {"indigo.ThermostatDevice": "special_thermTemperatureSetPoint"}
-		self.requiredv2["TemperatureDisplayUnits"] = {"indigo.ThermostatDevice": "special_serverCorFSetting"}
+		self.required = {}
+		self.required["CurrentHeatingCoolingState"] = {"indigo.ThermostatDevice": "special_thermHVACMode"}
+		self.required["TargetHeatingCoolingState"] = {"indigo.ThermostatDevice": "special_thermHVACMode"}
+		self.required["CurrentTemperature"] = {"indigo.ThermostatDevice": "special_thermTemperature"}
+		self.required["TargetTemperature"] = {"indigo.ThermostatDevice": "special_thermTemperatureSetPoint"}
+		self.required["TemperatureDisplayUnits"] = {"indigo.ThermostatDevice": "special_serverCorFSetting"}
 	
-		self.optionalv2 = {}
-		self.optionalv2["CurrentRelativeHumidity"] = {"indigo.ThermostatDevice": "state_humidityInput1"}
-		self.optionalv2["TargetRelativeHumidity"] = {}
-		#self.optionalv2["CoolingThresholdTemperature"] = {"indigo.ThermostatDevice": "special_thermCoolSet"}
-		#self.optionalv2["HeatingThresholdTemperature"] = {"indigo.ThermostatDevice": "special_thermHeatSet"}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["CurrentRelativeHumidity"] = {"indigo.ThermostatDevice": "state_humidityInput1"}
+		self.optional["TargetRelativeHumidity"] = {}
+		#self.optional["CoolingThresholdTemperature"] = {"indigo.ThermostatDevice": "special_thermCoolSet"}
+		#self.optional["HeatingThresholdTemperature"] = {"indigo.ThermostatDevice": "special_thermHeatSet"}
+		self.optional["Name"] = {}
 					
-		super(service_Thermostat, self).setAttributesv2 ()	
-		#super(service_Thermostat, self).setAttributes ()
+		super(service_Thermostat, self).setAttributes ()	
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
@@ -3029,20 +3042,20 @@ class service_Valve (Service):
 		
 		super(service_Valve, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.requiredv2 = {}
-		self.requiredv2["Active"] = {"*": "attr_onState"}
-		self.requiredv2["InUse"] = {"*": "attr_onState"}
-		self.requiredv2["ValveType"] = {}
+		self.required = {}
+		self.required["Active"] = {"*": "attr_onState"}
+		self.required["InUse"] = {"*": "attr_onState"}
+		self.required["ValveType"] = {}
 
-		self.optionalv2 = {}
-		self.optionalv2["SetDuration"] = {}
-		self.optionalv2["RemainingDuration"] = {}
-		self.optionalv2["IsConfigured"] = {}
-		self.optionalv2["ServiceLabelIndex"] = {}
-		self.optionalv2["StatusFault"] = {}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["SetDuration"] = {}
+		self.optional["RemainingDuration"] = {}
+		self.optional["IsConfigured"] = {}
+		self.optional["ServiceLabelIndex"] = {}
+		self.optional["StatusFault"] = {}
+		self.optional["Name"] = {}
 					
-		super(service_Valve, self).setAttributesv2 ()			
+		super(service_Valve, self).setAttributes ()			
 						
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 				
@@ -3061,21 +3074,17 @@ class service_Window (Service):
 	
 		super(service_Window, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["CurrentPosition", "PositionState", "TargetPosition"]
-		self.optional = ["HoldPosition", "ObstructionDetected", "Name"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["CurrentPosition"] = {"*": "attr_brightness", "indigo.RelayDevice": "special_onStateToFullBrightness"}
-		self.requiredv2["PositionState"] = {}
-		self.requiredv2["TargetPosition"] = {"*": "attr_brightness", "indigo.RelayDevice": "special_onStateToFullBrightness"}
+		self.required = {}
+		self.required["CurrentPosition"] = {"*": "attr_brightness", "indigo.RelayDevice": "special_onStateToFullBrightness"}
+		self.required["PositionState"] = {}
+		self.required["TargetPosition"] = {"*": "attr_brightness", "indigo.RelayDevice": "special_onStateToFullBrightness"}
 	
-		self.optionalv2 = {}
-		self.optionalv2["HoldPosition"] = {}
-		self.optionalv2["ObstructionDetected"] = {}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["HoldPosition"] = {}
+		self.optional["ObstructionDetected"] = {}
+		self.optional["Name"] = {}
 					
-		super(service_Window, self).setAttributesv2 ()			
-		#super(service_GarageDoorOpener, self).setAttributes ()
+		super(service_Window, self).setAttributes ()			
 						
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
@@ -3093,25 +3102,21 @@ class service_WindowCovering (Service):
 	
 		super(service_WindowCovering, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["CurrentPosition", "PositionState", "TargetPosition"]
-		self.optional = ["HoldPosition", "ObstructionDetected", "Name", "HoldPosition", "ObstructionDetected", "Name", "DDD"]
-		
-		self.requiredv2 = {}
-		self.requiredv2["CurrentPosition"] = {"*": "attr_brightness","indigo.RelayDevice": "special_onStateToFullBrightness"}
-		self.requiredv2["PositionState"] = {}
-		self.requiredv2["TargetPosition"] = {"*": "attr_brightness","indigo.RelayDevice": "special_onStateToFullBrightness"}
+		self.required = {}
+		self.required["CurrentPosition"] = {"*": "attr_brightness","indigo.RelayDevice": "special_onStateToFullBrightness"}
+		self.required["PositionState"] = {}
+		self.required["TargetPosition"] = {"*": "attr_brightness","indigo.RelayDevice": "special_onStateToFullBrightness"}
 	
-		self.optionalv2 = {}
-		self.optionalv2["HoldPosition"] = {}
-		self.optionalv2["TargetHorizontalTiltAngle"] = {}
-		self.optionalv2["TargetVerticalTiltAngle"] = {}
-		self.optionalv2["CurrentHorizontalTiltAngle"] = {}
-		self.optionalv2["CurrentVerticalTiltAngle"] = {}
-		self.optionalv2["ObstructionDetected"] = {}
-		self.optionalv2["Name"] = {}
+		self.optional = {}
+		self.optional["HoldPosition"] = {}
+		self.optional["TargetHorizontalTiltAngle"] = {}
+		self.optional["TargetVerticalTiltAngle"] = {}
+		self.optional["CurrentHorizontalTiltAngle"] = {}
+		self.optional["CurrentVerticalTiltAngle"] = {}
+		self.optional["ObstructionDetected"] = {}
+		self.optional["Name"] = {}
 					
-		super(service_WindowCovering, self).setAttributesv2 ()			
-		#super(service_GarageDoorOpener, self).setAttributes ()
+		super(service_WindowCovering, self).setAttributes ()			
 						
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
@@ -3255,13 +3260,14 @@ class characteristic_ChargingState:
 		self.notify = True			
 		
 # ==============================================================================
-# COLOR TEMPERATURE
+# COLOR TEMPERATURE (Need to update homebridge/hap-nodejs/lib/gen/HomeKitTypes.js to extend this range)
 # ==============================================================================		
 class characteristic_ColorTemperature:
 	def __init__(self):
 		self.value = 140
 		self.minValue = 140
-		self.maxValue = 500
+		#self.maxValue = 500
+		self.maxValue = 15000
 		self.minStep = 1	
 		
 		self.readonly = False
@@ -3522,8 +3528,8 @@ class characteristic_HoldPosition:
 class characteristic_Hue:
 	def __init__(self):
 		self.value = 0.0
-		self.maxValue = 360
-		self.minValue = 0
+		self.maxValue = 360.0
+		self.minValue = 0.0
 		self.minStep = 1
 		
 		self.readonly = False
@@ -3808,8 +3814,8 @@ class characteristic_RotationSpeed:
 class characteristic_Saturation:
 	def __init__(self):
 		self.value = 0.0
-		self.maxValue = 100
-		self.minValue = 0
+		self.maxValue = 100.0
+		self.minValue = 0.0
 		self.minStep = 1
 
 		self.readonly = False

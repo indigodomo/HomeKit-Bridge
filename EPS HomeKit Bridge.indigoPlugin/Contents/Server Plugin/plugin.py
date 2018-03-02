@@ -93,10 +93,10 @@ class Plugin(indigo.PluginBase):
 			#eps.api.stopServer ()
 			#eps.api.run (self.pluginPrefs.get('apiport', '8558'))
 			
-			x = eps.homekit.getServiceObject (1551819695, 1794022133, "service_IrrigationSystem")
+			x = eps.homekit.getServiceObject (624004987, 1794022133, "service_Lightbulb")
 			#x.invertOnState = True
-			#if x.invertOnState: x.setAttributesv2()
-			indigo.server.log (unicode(x))
+			#if x.invertOnState: x.setAttributes()
+			#indigo.server.log (unicode(x))
 			
 			#x = eps.homekit.getServiceObject (361446525, 1794022133, "service_Fanv2")
 			#indigo.server.log (unicode(x))
@@ -772,7 +772,7 @@ class Plugin(indigo.PluginBase):
 					# Invert if configured
 					if "invert" in r: 
 						obj.invertOnState = r["invert"]
-						if obj.invertOnState: obj.setAttributesv2() # Force it to refresh values so we get our inverted action
+						if obj.invertOnState: obj.setAttributes() # Force it to refresh values so we get our inverted action
 					
 					# Loop through actions to see if any of them are in the query
 					processedActions = False
@@ -875,7 +875,7 @@ class Plugin(indigo.PluginBase):
 			# Invert if configured
 			if "invert" in r: 
 				obj.invertOnState = r["invert"]
-				if obj.invertOnState: obj.setAttributesv2() # Force it to refresh values so we get our inverted onState
+				if obj.invertOnState: obj.setAttributes() # Force it to refresh values so we get our inverted onState
 			
 			# Add model and firmware
 			if r["object"] != "Action":
@@ -2636,7 +2636,7 @@ class Plugin(indigo.PluginBase):
 			sortedservices = sorted(services.items(), key=operator.itemgetter(0))
 			
 			validTypes = []
-			if valuesDict["device"] != "":
+			if "device" in valuesDict and valuesDict["device"] != "":
 				if self.apiDeviceIsLinked(valuesDict["device"]):
 					dev = indigo.devices[int(valuesDict["device"])]
 					if "voiceHKBDeviceTypeList" in dev.ownerProps and dev.ownerProps["voiceHKBDeviceTypeList"] != "":
@@ -2683,9 +2683,9 @@ class Plugin(indigo.PluginBase):
 			
 			# Add our custom options
 			#retList.append (("-all-", "All Indigo Devices"))
-			retList.append (("-fill-", "Fill With Unassigned Devices"))
+			#retList.append (("-fill-", "Fill With Unassigned Devices"))
 			#retList.append (("-none-", "Don't Include Any Devices"))
-			retList = eps.ui.addLine (retList)
+			#retList = eps.ui.addLine (retList)
 			
 			# Build a block list of current devices
 			used = []
