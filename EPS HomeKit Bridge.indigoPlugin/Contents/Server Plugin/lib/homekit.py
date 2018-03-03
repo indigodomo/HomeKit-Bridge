@@ -1342,7 +1342,60 @@ class Service (object):
 					self.actions.append (HomeKitAction(characteristic, "between", minValue + minStep, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setCT", self.objId, valuesDict]], maxValue, {self.objId: "state_hue"}))	
 				
 				else:
-					invalidType = True						
+					invalidType = True	
+					
+			# LIFX Bulbs		
+			elif state == "hsbkHue":
+				cmd = "homekit.runPluginAction"
+				
+				obj = indigo.devices[self.objId]
+				
+				# Replicate the values using all the current device values for anything but this and the form default values for everything else
+				#valuesDictColor = {'actionType':'Standard', 'modeStandard':'Color', 'hueStandard': obj.states['hsbkHue'], 'saturationStandard': obj.states['hsbkSaturation'], 'brightnessStandard':obj.brightness, 'durationStandard':1.0 }
+				#valuesDictWhite = {'actionType':'Standard', 'modeStandard':'White', 'kelvinStandard': obj.states['hsbkKelvin'], 'brightnessStandard':obj.brightness, 'durationStandard':1.0 })
+				
+				valuesDictColor = {'actionType':'Standard', 'modeStandard':'Color', 'hueStandard': "=value=", 'saturationStandard': obj.states['hsbkSaturation'], 'brightnessStandard':obj.brightness, 'durationStandard':1.0 }
+				valuesDictWhite = {'actionType':'Standard', 'modeStandard':'White', 'kelvinStandard': 9000, 'brightnessStandard':obj.brightness, 'durationStandard':1.0 }
+								
+				if method == "RANGE":	
+				
+					self.actions.append (HomeKitAction(characteristic, "equal", minValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setColorWhite", self.objId, valuesDictWhite]], 0, {self.objId: "state_hsbkHue"}))
+					self.actions.append (HomeKitAction(characteristic, "between", minValue + minStep, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setColorWhite", self.objId, valuesDictColor]], maxValue, {self.objId: "state_hsbkHue"}))	
+				
+				else:
+					invalidType = True
+					
+			elif state == "hsbkSaturation":
+				cmd = "homekit.runPluginAction"
+				
+				obj = indigo.devices[self.objId]
+				
+				valuesDictColor = {'actionType':'Standard', 'modeStandard':'Color', 'hueStandard': obj.states['hsbkHue'], 'saturationStandard': "=value=", 'brightnessStandard':obj.brightness, 'durationStandard':1.0 }
+				valuesDictWhite = {'actionType':'Standard', 'modeStandard':'White', 'kelvinStandard': obj.states['hsbkKelvin'], 'brightnessStandard':obj.brightness, 'durationStandard':1.0 }
+								
+				if method == "RANGE":	
+				
+					self.actions.append (HomeKitAction(characteristic, "equal", minValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setColorWhite", self.objId, valuesDictWhite]], 0, {self.objId: "state_hsbkSaturation"}))
+					self.actions.append (HomeKitAction(characteristic, "between", minValue + minStep, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setColorWhite", self.objId, valuesDictColor]], maxValue, {self.objId: "state_hsbkSaturation"}))	
+
+				else:
+					invalidType = True		
+					
+			elif state == "hsbkKelvin":
+				cmd = "homekit.runPluginAction"
+				
+				obj = indigo.devices[self.objId]
+				
+				valuesDictColor = {'actionType':'Standard', 'modeStandard':'Color', 'hueStandard': obj.states['hsbkHue'], 'saturationStandard': obj.states['hsbkSaturation'], 'brightnessStandard':obj.brightness, 'durationStandard':1.0 }
+				valuesDictWhite = {'actionType':'Standard', 'modeStandard':'White', 'kelvinStandard': "=value=", 'brightnessStandard':obj.brightness, 'durationStandard':1.0 }
+				
+				if method == "RANGE":	
+				
+					self.actions.append (HomeKitAction(characteristic, "equal", minValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setColorWhite", self.objId, valuesDictWhite]], 0, {self.objId: "state_hsbkKelvin"}))
+					self.actions.append (HomeKitAction(characteristic, "between", minValue + minStep, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setColorWhite", self.objId, valuesDictColor]], maxValue, {self.objId: "state_hsbkKelvin"}))	
+
+				else:
+					invalidType = True							
 					
 			else:
 				# Whatever else, if we didn't specify it, will get a dummy action associated with it and it could cause errors if the characteristic is
@@ -2047,6 +2100,7 @@ class HomeKitAction ():
 						retval = func()
 						
 					if waitForComplete:
+						self.logger.info ("Waiting for {} to complete".format(self.command))
 						# We never do this for action groups, the HTML return will immediately return success so we can do a call back, this is only for devices
 						if "actionGroup" not in self.command:
 							for devId, prop in self.monitors.iteritems():							
@@ -2660,10 +2714,10 @@ class service_Lightbulb (Service):
 	
 		self.optional = {}
 		self.optional["Brightness"] = {"indigo.DimmerDevice": "attr_brightness", "indigo.SpeedControlDevice": "attr_speedLevel", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_volume"}
-		self.optional["Hue"] = {"indigo.DimmerDevicexxx": "special_HSL", "indigo.DimmerDevice.com.nathansheldon.indigoplugin.HueLights.hueBulb": "state_hue"}
-		self.optional["Saturation"] = {"indigo.DimmerDevicexxx": "special_HSL", "indigo.DimmerDevice.com.nathansheldon.indigoplugin.HueLights.hueBulb": "state_saturation"}
+		self.optional["Hue"] = {"indigo.DimmerDevicexxx": "special_HSL", "indigo.DimmerDevice.com.nathansheldon.indigoplugin.HueLights.hueBulb": "state_hue", "indigo.DimmerDevice.com.autologplugin.indigoplugin.lifxcontroller.lifxDevice": "state_hsbkHue"}
+		self.optional["Saturation"] = {"indigo.DimmerDevicexxx": "special_HSL", "indigo.DimmerDevice.com.nathansheldon.indigoplugin.HueLights.hueBulb": "state_saturation", "indigo.DimmerDevice.com.autologplugin.indigoplugin.lifxcontroller.lifxDevice": "state_hsbkSaturation"}
 		self.optional["Name"] = {}
-		self.optional["ColorTemperature"] = {"indigo.DimmerDevicexxx": "special_HSL", "indigo.DimmerDevice.com.nathansheldon.indigoplugin.HueLights.hueBulb": "state_colorTemp"}
+		self.optional["ColorTemperature"] = {"indigo.DimmerDevicexxx": "special_HSL", "indigo.DimmerDevice.com.nathansheldon.indigoplugin.HueLights.hueBulb": "state_colorTemp", "indigo.DimmerDevice.com.autologplugin.indigoplugin.lifxcontroller.lifxDevice": "state_hsbkKelvin"}
 					
 		super(service_Lightbulb, self).setAttributes ()					
 				

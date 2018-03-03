@@ -1,8 +1,31 @@
 Release Notes
 ==========
 
-Version 0.14.1 (Beta 14 Release 1)
+Version 0.15.0 (Beta 15)
 ==========
+* Added _experimental_ support for LIFX color bulbs (may experience similar issues to Hue where the colors WILL change but may generate timeout issues on the plugin and it may take 30 seconds to change the color)
+* Added version control for better upgrade processing
+* Added device deletion detection where if any device that is currently linked to a HomeKit Bridge server is removed from Indigo the plugin will detect that it was removed and then remove it from all impacted servers (and restart them if needed)
+* Added device reindexing on server device save as new device adds were not being added to the cache after saving the server which was fine 99% of the time but could cause issues in a few non critical areas
+* Removed the FILL option from the UI, now the action and device list will only show actions and devices (for now, future changes to this are still possible)
+* Fixed slow response time of device changes and, in particular, rapid device changes no longer beachball ([Issue #17](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/17)) was resolved but it may be at the cost that HomeKit won't always know immediately if the action failed)
+* Fixed Nest temperature set point issue ([Issue #18](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/18)) as a result of fixing [Issue #17](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/17).  Executing the online action still takes longer but it will respond in less than 30 seconds now and no longer beachball
+* Fixed issue where special characters (backslash, quote, single quote, etc) would not work, they now will appear in HomeKit as literally as they are added into Indigo ([Issue #11](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/11))
+* Fixed issue of the server complaining of in-use ports when trying to change the ports on a running server, it now will not allow port changes while the server is running so it can validate ports properly ([Issue #4](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/4))
+* Fixed issue where moving items between servers (plugin menu option) would cause the source and destination server to restart after each item moved rather than at the end of all items being moved [Issue #25](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/25)
+* Fixed issue where deleting a device in Indigo that is attached to a HomeKit Bridge server would cause the server to throw errors when it started up (and could subsequently throw errors while running).  While the solution will cause the server to start, stop and start again this is an acceptable solution given the rarity of this occurrence.  For the most part this fix is a failsafe as device deletion detection was also added in this release that should proactively remove deleted devices from servers ([Issue #26](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/26))
+* [Issue #17](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/17) resolved
+* [Issue #18](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/18) resolved
+* [Issue #11](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/11) resolved
+* [Issue #4](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/4) resolved
+* [Issue #25](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/25) resolved
+* [Issue #26](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/26) resolved
+
+Previous Release Notes
+==========
+
+Version 0.14.1 (Beta 14 Release 1)
+---------------
 * NOTE: All known issues and wishlist items have been moved to [Git issues](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues) instead
 * Added support for the Hue bulb plugin, if you use the hueBulb device then the plugin will now support the color settings of the bulb.  This is functional but still under construction so expect timeouts when you change colors on the app until I dial that in, but it WILL change - just don't go doing a thousand color changes until it's completed
 * Renamed the device from being "HomeKit Bridge Server" to being "HomeKit Accessory Server" to bring it more in line with what it is: a HomeKit Accessory and also in pursuance of keeping the terms as user friendly and universal as possible
@@ -11,10 +34,6 @@ Version 0.14.1 (Beta 14 Release 1)
 * Fixed fairly large bug where conversion from an Indigo type of integer or float to a characteristic required value of the opposite (float or integer) was using the wrong value for calculation, meaning the result was always whatever the default for the characteristic was (often zero) - if you had issues with a device not reporting correctly please try it now to see if it resolved your issue
 * Fixed minor bug on new server creation where if you do not add any devices you might get an error when saving the server that "key device not found in dict"
 * Removed first revision service initializers (code cleanup)
-
-
-Previous Release Notes
-==========
 
 Version 0.14.0 (Beta 14)
 ---------------

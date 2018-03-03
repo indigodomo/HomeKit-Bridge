@@ -93,10 +93,17 @@ class Plugin(indigo.PluginBase):
 			#eps.api.stopServer ()
 			#eps.api.run (self.pluginPrefs.get('apiport', '8558'))
 			
-			x = eps.homekit.getServiceObject (624004987, 1794022133, "service_Lightbulb")
+			indigo.server.log ("Test #1: Device onState is {}".format(unicode(indigo.devices[41059771].onState)))
+			x = eps.homekit.getServiceObject (41059771, 0, "service_ContactSensor")
 			#x.invertOnState = True
 			#if x.invertOnState: x.setAttributes()
-			#indigo.server.log (unicode(x))
+			indigo.server.log (unicode(x))
+			
+			indigo.server.log ("Test #2: Device onState is {}".format(unicode(indigo.devices[41059771].onState)))
+			x = eps.homekit.getServiceObject (41059771, 0, "service_ContactSensor")
+			x.invertOnState = True
+			x.setAttributes()
+			indigo.server.log (unicode(x))
 			
 			#x = eps.homekit.getServiceObject (361446525, 1794022133, "service_Fanv2")
 			#indigo.server.log (unicode(x))
@@ -443,7 +450,25 @@ class Plugin(indigo.PluginBase):
 			indigo.server.log(unicode(json.dumps(complications)))
 		
 		except Exception as e:
-			self.logger.error (ext.getException(e))				
+			self.logger.error (ext.getException(e))		
+			
+	#
+	# Plugin upgraded
+	#
+	def pluginUpgradedxxx (self, lastVersion, currentVersion):
+		try:
+			lastmajor, lastminor, lastrev = lastVersion.split(".")
+			
+			if lastVersion == "0.0.1": # Prior to adding version to prefs
+				self.logger.info ("Upgrading plugin to {}".format(currentVersion))
+			else:
+				self.logger.info ("Upgrading plugin from {} to {}".format(lastVersion, currentVersion))
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e))		
+			return False
+			
+		return True
 			
 	#
 	# Plugin shutdown
@@ -579,6 +604,38 @@ class Plugin(indigo.PluginBase):
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))		
+		
+	#
+	# Device delete
+	#
+	def onAfter_nonpluginDeviceDeleted (self, dev):		
+		try:
+			if dev.id in self.SERVER_ID:
+				self.logger.warning ("Indigo device {} was removed and is linked to HomeKit, removing from any impacted servers".format(dev.name))
+				
+				for serverId in self.SERVER_ID[dev.id]:
+					if serverId not in indigo.devices:
+						self.logger.debug ("Server ID {} has been removed from Indigo but is still in cache, ignoring this update and removing it from cache to avoid further message or false positives".format(str(serverId)))
+						rebuildRequired = True
+						continue
+						
+					valuesDict = self.serverCheckForJSONKeys (indigo.devices[serverId].pluginProps)	
+					includedDevices = json.loads(valuesDict["includedDevices"])
+					includedActions = json.loads(valuesDict["includedActions"])
+					
+					includedDevices = eps.jstash.removeRecordFromStash (includedDevices, "id", dev.id)
+					includedActions = eps.jstash.removeRecordFromStash (includedActions, "id", dev.id)
+					
+					props = indigo.devices[serverId].pluginProps
+					props["includedDevices"] = json.dumps(includedDevices)
+					props["includedActions"] = json.dumps(includedActions)				
+					indigo.devices[serverId].replacePluginPropsOnServer(props)
+					
+				self.catalogServerDevices() # Reindex everything
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
 			
 	#
 	# Device update
@@ -777,7 +834,8 @@ class Plugin(indigo.PluginBase):
 					# Loop through actions to see if any of them are in the query
 					processedActions = False
 					response = False
-					
+					thisCharacteristic = None
+					thisValue = None
 					#indigo.server.log(unicode(obj))
 					
 					for a in obj.actions:
@@ -785,14 +843,18 @@ class Plugin(indigo.PluginBase):
 						if a.characteristic in query and not processedActions: 
 							self.logger.debug ("Received {} in query, setting to {} using {} if rules apply".format(a.characteristic, query[a.characteristic][0], a.command))
 							#processedActions.append(a.characteristic)
-							ret = a.run (query[a.characteristic][0], r["id"], True)
+							#ret = a.run (query[a.characteristic][0], r["id"], True)
+							
+							thisCharacteristic = a.characteristic
+							thisValue = query[a.characteristic][0]
+							ret = a.run (thisValue, r["id"])
 							#self.HKREQUESTQUEUE[obj.id] = a.characteristic # It's ok that this overwrites, it's the same
 							if ret: 
 								response = True # Only change it if its true, that way we know the operation was a success
 								processedActions = True
 								break # we only ever get a single command on each query
 										
-					r = self.buildHKAPIDetails (devId, serverId, r["jkey"], isAction)		
+					r = self.buildHKAPIDetails (devId, serverId, r["jkey"], thisCharacteristic, thisValue, isAction)		
 					return "text/css",	json.dumps(r, indent=4)
 				
 				if "cmd" in query and query["cmd"][0] == "getInfo":
@@ -853,8 +915,9 @@ class Plugin(indigo.PluginBase):
 	#
 	# Build HK API details for object ID
 	#
-	def buildHKAPIDetails (self, objId, serverId, jkey, runningAction = False):
+	def buildHKAPIDetails (self, objId, serverId, jkey, characteristic = None, value = None, runningAction = False):
 		try:
+			#http://10.1.200.3:8558/HomeKit?cmd=deviceList&serverId=1794022133
 			valuesDict = self.serverCheckForJSONKeys (indigo.devices[serverId].pluginProps)	
 			includedDevices = json.loads(valuesDict["includedDevices"])
 			includedActions = json.loads(valuesDict["includedActions"])
@@ -902,6 +965,7 @@ class Plugin(indigo.PluginBase):
 				charItem["value"] = charValue
 				
 				if runningAction and charItem["name"] == "On": charItem["value"] = True
+				if not characteristic is None and not value is None and charItem["name"] == characteristic: charItem["value"] = value # Force it to see what it expects to see so it doesn't beachball
 				
 				charItem["readonly"] = characteristic.readonly
 				charItem["notify"] = characteristic.notify
@@ -939,6 +1003,9 @@ class Plugin(indigo.PluginBase):
 			r["deviceId"] = r["id"] # So we still have it
 			r["id"] = r["jkey"]
 			del r["jkey"]
+			
+			# Fix up the alias name for any problematic characters
+			alias = r"{}".format(r["alias"]) # Convert to raw string (will escape backslashes)
 			
 			return r
 		
@@ -2143,6 +2210,9 @@ class Plugin(indigo.PluginBase):
 				return (False, valuesDict, errorsDict)
 				
 			# Move the items
+			sourceProps = source.pluginProps
+			destProps = dest.pluginProps
+			
 			for devId in valuesDict["moveItems"]:
 				suffix = ""
 				
@@ -2166,15 +2236,14 @@ class Plugin(indigo.PluginBase):
 				self.logger.info ("Moving '{}' from '{}' to '{}' as name '{}'".format(srcrec["alias"], source.name, dest.name, srcrec["alias"] + suffix))
 				srcrec["alias"] += suffix
 				
-				sourceProps = source.pluginProps
-				sourceProps["includedDevices"] = json.dumps(includedDevicesSource)
-				sourceProps["includedActions"] = json.dumps(includedActionsSource)				
-				source.replacePluginPropsOnServer(sourceProps)
 				
-				destProps = dest.pluginProps
-				destProps["includedDevices"] = json.dumps(includedDevicesDest)
-				destProps["includedActions"] = json.dumps(includedActionsDest)				
-				dest.replacePluginPropsOnServer(destProps)
+			sourceProps["includedDevices"] = json.dumps(includedDevicesSource)
+			sourceProps["includedActions"] = json.dumps(includedActionsSource)				
+			source.replacePluginPropsOnServer(sourceProps)
+			
+			destProps["includedDevices"] = json.dumps(includedDevicesDest)
+			destProps["includedActions"] = json.dumps(includedActionsDest)				
+			dest.replacePluginPropsOnServer(destProps)
 				
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -2776,9 +2845,9 @@ class Plugin(indigo.PluginBase):
 			
 			# Add our custom options
 			#retList.append (("-all-", "All Indigo Action Groups"))
-			retList.append (("-fill-", "Fill With Unassigned Action Groups"))
+			#retList.append (("-fill-", "Fill With Unassigned Action Groups"))
 			#retList.append (("-none-", "Don't Include Any Action Groups"))
-			retList = eps.ui.addLine (retList)
+			#retList = eps.ui.addLine (retList)
 			
 			used = []
 				
@@ -3547,6 +3616,11 @@ class Plugin(indigo.PluginBase):
 				
 				# See if any of our critical items changed from the current config (or if this is a new device)
 				if "port" not in server.pluginProps or server.pluginProps["port"] != valuesDict["port"] or server.pluginProps["listenPort"] != valuesDict["listenPort"] or server.pluginProps["username"] != valuesDict["username"]:
+					if server.onState:
+						currentports = "Port: {}\nCallback: {}".format(server.pluginProps["port"], server.pluginProps["listenPort"])
+						errorsDict["showAlertText"] = "You cannot change the server port while the server is running.  If you want to change the server port then please turn off the server first so that the plugin can perform an accurate port validation to prevent possible collisions and failure.\n\nFor your reference, the port values should remain at:\n\n{}".format(currentports)
+						return (False, valuesDict, errorsDict)
+					
 					# This is a new device or we changed it manually because these things wouldn't change if it were all automatic
 					self.logger.info ("Server '{}' has changed ports or users, validating config".format(server.name))
 					
@@ -3630,6 +3704,9 @@ class Plugin(indigo.PluginBase):
 						break
 					
 			if needsRestart:
+				# Rebuild indexes
+				self.catalogServerDevices()	
+				
 				# Save the configuration
 				self.saveConfigurationToDisk (newDev)
 				
@@ -3667,6 +3744,9 @@ class Plugin(indigo.PluginBase):
 						break
 					
 			if needsRestart:
+				# Rebuild indexes
+				self.catalogServerDevices()	
+				
 				# Save the configuration
 				self.saveConfigurationToDisk (newDev)
 				
@@ -3777,19 +3857,40 @@ class Plugin(indigo.PluginBase):
 	#
 	def shellHBStartServer (self, dev, noCheck = False):
 		try:
-			self.logger.info ("Rebuilding configuration for '{0}'".format(dev.name))
-			self.saveConfigurationToDisk (dev)
-			
 			includedDevices = []
 			includedActions = []
 				
 			if "includedDevices" in dev.pluginProps: includedDevices = json.loads(dev.pluginProps["includedDevices"])
 			if "includedActions" in dev.pluginProps: includedActions = json.loads(dev.pluginProps["includedActions"])	
-			
+
 			if len(includedDevices) + len(includedActions) == 0:
 				self.logger.info ("Server '{}' has no devices to publish to HomeKit, the server won't be started since there is nothing to serve".format(dev.name))
 				return False
-
+			
+			# Since we are here and have the devices and actions, verify that each of these actions and devices are valid
+			propschanged = False
+			for rec in includedDevices:
+				if rec["id"] not in indigo.devices:
+					self.logger.warning ("Device ID {} ({}) is linked to server '{}' but that device ID no longer exists in Indigo and will be removed from the configuration".format(unicode(rec["id"]), rec["name"], dev.name))
+					includedDevices = eps.jstash.removeRecordFromStash (includedDevices, "id", int(rec["id"]))
+					propschanged = True
+					
+			for rec in includedActions:
+				if rec["id"] not in indigo.actionGroups:
+					self.logger.warning ("Action group ID {} ({}) is linked to server '{}' but that device ID no longer exists in Indigo and will be removed from the configuration".format(unicode(rec["id"]), rec["name"], dev.name))
+					includedActions = eps.jstash.removeRecordFromStash (includedActions, "id", int(rec["id"]))		
+					propschanged = True
+					
+			if propschanged:
+				props = dev.pluginProps
+				props["includedDevices"] = json.dumps(includedDevices)
+				props["includedActions"] = json.dumps(includedActions)				
+				dev.replacePluginPropsOnServer(props)
+				self.catalogServerDevices() # Reindex everything
+							
+			self.logger.info ("Rebuilding configuration for '{0}'".format(dev.name))
+			self.saveConfigurationToDisk (dev)
+			
 			# Start the HB server
 			self.logger.threaddebug ('Running: "' + self.HBDIR + '/load" "' + self.CONFIGDIR + "/" + str(dev.id) + '"')
 			os.system('"' + self.HBDIR + '/load" "' + self.CONFIGDIR + "/" + str(dev.id) + '"')

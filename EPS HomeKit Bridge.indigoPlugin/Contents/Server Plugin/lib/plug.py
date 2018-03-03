@@ -141,7 +141,15 @@ class plug:
 		try:
 			self.logger.threaddebug ("Plugin '{0}' is starting".format(self.factory.plugin.pluginDisplayName))
 			
-			self._callBack (NOTHING, [], "pluginUpgrade")
+			if "pluginVersion" not in self.factory.plugin.pluginPrefs:
+				self.factory.plugin.pluginPrefs["pluginVersion"] = "0.0.1" # This will force the next line to call the plugin upgrade
+				
+			if self.factory.plugin.pluginPrefs["pluginVersion"] != unicode(self.factory.plugin.pluginVersion):
+				if self._callBack (NOTHING, [self.factory.plugin.pluginPrefs["pluginVersion"], self.factory.plugin.pluginVersion], "pluginUpgraded"):
+					self.logger.info ("Upgrade success")
+					self.factory.plugin.pluginPrefs["pluginVersion"] = unicode(self.factory.plugin.pluginVersion)
+							
+			self._callBack (NOTHING, [], "pluginUpgrade") # Legacy and needs to be depreciated
 			
 			self._callBack (BEFORE, [])	
 			
@@ -152,7 +160,7 @@ class plug:
 			if "act" in dir(self): self.factory.ui.action = self.act
 			
 			self._callBack (AFTER, [])
-		
+			
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
 	
