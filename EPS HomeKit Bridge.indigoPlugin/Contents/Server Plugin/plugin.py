@@ -45,7 +45,7 @@ class Plugin(indigo.PluginBase):
 
 	# Define the plugin-specific things our engine needs to know
 	TVERSION	= "3.3.1"
-	PLUGIN_LIBS = ["api", "actions3", "homekit"] #["cache", "plugcache", "irr"]
+	PLUGIN_LIBS = ["api", "homekit"] #["actions3", "cache", "plugcache", "irr"]
 	UPDATE_URL 	= ""
 	
 	SERVERS = []			# All servers
@@ -93,18 +93,12 @@ class Plugin(indigo.PluginBase):
 			#eps.api.stopServer ()
 			#eps.api.run (self.pluginPrefs.get('apiport', '8558'))
 			
-			indigo.server.log ("Test #1: Device onState is {}".format(unicode(indigo.devices[41059771].onState)))
-			x = eps.homekit.getServiceObject (41059771, 0, "service_ContactSensor")
+			#indigo.server.log ("Test #1: Device onState is {}".format(unicode(indigo.devices[41059771].onState)))
+			#x = eps.homekit.getServiceObject (41059771, 0, "service_ContactSensor")
 			#x.invertOnState = True
 			#if x.invertOnState: x.setAttributes()
-			indigo.server.log (unicode(x))
-			
-			indigo.server.log ("Test #2: Device onState is {}".format(unicode(indigo.devices[41059771].onState)))
-			x = eps.homekit.getServiceObject (41059771, 0, "service_ContactSensor")
-			x.invertOnState = True
-			x.setAttributes()
-			indigo.server.log (unicode(x))
-			
+			#indigo.server.log (unicode(x))
+						
 			#x = eps.homekit.getServiceObject (361446525, 1794022133, "service_Fanv2")
 			#indigo.server.log (unicode(x))
 			
@@ -455,7 +449,7 @@ class Plugin(indigo.PluginBase):
 	#
 	# Plugin upgraded
 	#
-	def pluginUpgradedxxx (self, lastVersion, currentVersion):
+	def pluginUpgraded (self, lastVersion, currentVersion):
 		try:
 			lastmajor, lastminor, lastrev = lastVersion.split(".")
 			
@@ -463,6 +457,9 @@ class Plugin(indigo.PluginBase):
 				self.logger.info ("Upgrading plugin to {}".format(currentVersion))
 			else:
 				self.logger.info ("Upgrading plugin from {} to {}".format(lastVersion, currentVersion))
+				
+			if "enableComplications" in self.pluginPrefs: del (self.pluginPrefs["enableComplications"])
+			if "enableComplicationsDialogs" in self.pluginPrefs: del (self.pluginPrefs["enableComplicationsDialogs"])
 			
 		except Exception as e:
 			self.logger.error (ext.getException(e))		
@@ -781,9 +778,36 @@ class Plugin(indigo.PluginBase):
 	def onAfter_btnAdvPluginAction (self, valuesDict, typeId):	
 		try:
 			if valuesDict["pluginActions"] == "migratehbb": self.migrateFromHomebridgeBuddy()
+			if valuesDict["pluginActions"] == "simhomekit": self.onAfter_btnAdvPluginAction_Simulate (valuesDict, typeId)
 				
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
+			
+	#
+	# Run advanced plugin action to simulate a homekit device
+	#
+	def onAfter_btnAdvPluginAction_Simulate (self, valuesDict, typeId):
+		try:
+			dev = indigo.devices[int(valuesDict["device2"])]
+						
+			self.logger.info ("Simulating HomeKit values for {}".format(dev.name))
+			
+			if valuesDict["showall"]:
+				self.logger.info ("##### DEVICE DATA DUMP #####")
+				self.logger.info (unicode(dev))
+			
+			self.logger.info ("##### DEVICE SIMULATION DATA #####")
+			x = eps.homekit.getServiceObject (dev.id, 0, valuesDict["hkType"])
+			
+			if valuesDict["invert"]:
+				self.logger.info ("##### INVERT IS TRUE #####")
+				x.invertOnState = True
+				x.setAttributes()
+				
+			self.logger.info (unicode(x))
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e))		
 				
 		
 	################################################################################
@@ -3238,77 +3262,6 @@ class Plugin(indigo.PluginBase):
 			
 		return (valuesDict, errorsDict)		
 		
-	#
-	# Check for and return an array of complications for a device or return empty list if no complications
-	#
-	def serverCheckForComplications (self, devId, alias = None):
-		try:
-			ret = []
-			if str(devId) == "-fill-": return ret
-			if str(devId) == "-line-": return ret
-			if int(devId) not in indigo.devices: return ret
-			
-			dev = indigo.devices[int(devId)]
-			
-			# Built-In
-			if type(dev) == indigo.ThermostatDevice:
-				r = self.createJSONItemRecord (dev, alias)
-				r["hktype"] = "service_Thermostat"
-				r["suffix"] = "" # Don't suffix the 1st item because it should show as the user wants it
-
-				ret.append(r)
-				
-				time.sleep(.5) # To make sure our jkey is unique
-
-				r = self.createJSONItemRecord (dev, alias)
-				r["hktype"] = "service_Fanv2"
-				r["suffix"] = "Fan"
-
-				ret.append(r)
-			
-		except Exception as e:
-			self.logger.error (ext.getException(e))	
-			
-		return ret		
-		
-	#
-	# Add a complication to the devices
-	#
-	def serverAddComplicationToConfig (self, valuesDict, includeList):
-		try:
-			c = self.serverCheckForComplications (valuesDict["device"], valuesDict["alias"])	
-			if len(c) == 0: return (False, valuesDict, includeList)
-			
-			if len(c) > 0:
-				includedDevices = json.loads(valuesDict["includedDevices"])
-				includedActions = json.loads(valuesDict["includedActions"])
-				
-				# Build list of all 
-				link = []
-				for r in c:
-					link.append (r["jkey"])
-					
-				# They have already been warned, now just add the device
-				if len(includedDevices) + len(includedActions) < (100 - len(c)):
-					for i in range (0, len(c)):
-						#r = eps.jstash.getRecordWithFieldEquals (includeList, "alias", "{} ({})".format(device["alias"], c[i]["suffix"]))
-						device = c[i]
-						device['hktype'] = c[i]["hktype"]
-						device["link"] = link
-						
-						if i != 0: device['alias'] = "{} ({})".format(device["alias"], c[i]["suffix"])
-						if i == 0: device["complex"] = True	
-						
-						includeList.append (device)
-						#indigo.server.log(unicode(device))
-						
-					return (True, valuesDict, includeList)
-					
-			
-		except Exception as e:
-			self.logger.error (ext.getException(e))	
-			
-		return (False, valuesDict, includeList)
 		
 	#
 	# Add individual object type
@@ -3359,13 +3312,6 @@ class Plugin(indigo.PluginBase):
 			else:
 				dev = indigo.actionGroups[int(valuesDict["action"])]
 				
-			# Check for and process complications
-			if "enableComplications" in self.pluginPrefs and self.pluginPrefs["enableComplications"]:
-				(complex, valuesDict, includeList) = self.serverAddComplicationToConfig (valuesDict, includeList)
-				if complex:
-					valuesDict = self.getIncludeStashList (thistype, valuesDict, includeList)
-					return (valuesDict, errorsDict)
-
 			device = self.createJSONItemRecord (dev, valuesDict["alias"])
 			#indigo.server.log(unicode(device))
 			
@@ -3441,6 +3387,13 @@ class Plugin(indigo.PluginBase):
 					valuesDict["enableOnOffInvert"] = True
 				else:
 					valuesDict["enableOnOffInvert"] = False
+					
+				# Toggle readonly status of the invert checkbox if this device has no onOffState
+				if int(valuesDict["device"]) in indigo.devices:
+					if "onState" not in dir(indigo.devices[int(valuesDict["device"])]):
+						valuesDict["invertenabled"] = False
+					else:
+						valuesDict["invertenabled"] = True
 							
 				# So long as we are not in edit mode then pull the HK defaults for this device and populate it
 				if not valuesDict["editActive"]:
@@ -3462,22 +3415,7 @@ class Plugin(indigo.PluginBase):
 							if hbb.ownerProps["treatAs"] == "drape": valuesDict["hkType"] = "service_WindowCovering"
 							if hbb.ownerProps["treatAs"] == "sensor": valuesDict["hkType"] = "service_MotionSensor"
 							if hbb.ownerProps["treatAs"] == "fan": valuesDict["hkType"] = "service_Fanv2"
-			
-					# Check for a complication if we aren't editing
-					if "enableComplications" in self.pluginPrefs and self.pluginPrefs["enableComplications"]:
-						c = self.serverCheckForComplications (valuesDict["device"])	
-						if len(c) > 0:
-							includedDevices = json.loads(valuesDict["includedDevices"])
-							includedActions = json.loads(valuesDict["includedActions"])
-	
-							if len(includedDevices) + len(includedActions) < (100 - len(c)):
-								if self.pluginPrefs["enableComplicationsDialogs"]: errorsDict["showAlertText"] = "This device has a complication and needs multiple devices to be added to HomeKit in order to have as much control in HomeKit as you do in Indigo.  Adding this device will create {} devices.\n\nThis is only a notice, no action is needed.\n\nYou can control this message as well as how you want the plugin to deal with complications from the plugin preferences on the plugin menu.".format(str(len(c)))
-							else:
-								if self.pluginPrefs["enableComplicationsDialogs"]: errorsDict["showAlertText"] = "This device has a complication and needs multiple devices to be added to HomeKit in order to have as much control in HomeKit as you do in Indigo.  Adding this device will create {} devices.  This will take you past the 99 device limit of the server.\n\nThe complication cannot be used unless you remove devices or add this device to a different server.\n\nYou can control this message as well as how you want the plugin to deal with complications from the plugin preferences on the plugin menu.".format(str(len(c)))
-							
-							r = c[0]
-							valuesDict["hkType"] = r["hktype"]
-						
+				
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
 			
@@ -4009,6 +3947,15 @@ class Plugin(indigo.PluginBase):
 	def buildServerConfigurationDict (self, serverId, debugMode = False):
 		try:
 			if int(serverId) not in indigo.devices: return None
+			if "apiport" not in self.pluginPrefs:
+				msg = "\nSomething is wrong, your plugin preferences should have a setting that it seems to be missing.  The only way to not\n"
+				msg += "have this setting is if you canceled our configuration preferences when you first installed HomeKit Bridge.  Please\n"
+				msg += "go to Plugins -> HomeKit Bridge -> Configure and be absolutely certain that you click the SAVE button in the lower\n"
+				msg += "right-hand part of the window and try to start your server again.  If you tried this and still get the same error\n"
+				msg += "then please post the following on the forum or in Git issues so it can be diagnosed:\n"
+				self.logger.error (msg)
+				self.logger.info (eps.plug.pluginMenuSupportInfo ())
+				return None
 			
 			server = indigo.devices[int(serverId)]
 			includedDevices = json.loads(server.pluginProps["includedDevices"])

@@ -268,7 +268,9 @@ class HomeKit:
 				if "onState" in dir(dev):
 					return "service_Switch"
 				else:
-					return "Dummy"
+					self.logger.warning ("{} is defaulting to a HomeKit switch because the device type cannot be determined but does not support On/Off and likely won't do anything in HomeKit".format(dev.name))
+					return "service_Switch"
+					#return "Dummy"
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -796,7 +798,7 @@ class Service (object):
 			ret += "\t\t\tValue2 : {0} ({1})\n".format(unicode(i.whenvalue2), str(type(i.whenvalue)).replace("<type '", "").replace("'>", ""))
 			ret += "\t\t\tCommand : {0}\n".format(unicode(i.command))
 			ret += "\t\t\tArguments : {0}\n".format(unicode(i.arguments))
-			ret += "\t\tmonitors : {0}\n".format(unicode(i.monitors))
+			ret += "\t\t\tmonitors : {0}\n".format(unicode(i.monitors))
 		
 		ret += "\tloadOptional : {0}\n".format(unicode(self.loadOptional))
 		
@@ -1578,18 +1580,31 @@ class Service (object):
 		try:
 			obj = indigo.devices[self.objId]
 			if "onState" in dir(obj):
-				if obj.onState:
-					self.setAttributeValue (characteristic, False)
-					self.characterDict[characteristic] = getattr (self, characteristic).value 
+				if not self.invertOnState:
+					if obj.onState:
+						self.setAttributeValue (characteristic, False)
+						self.characterDict[characteristic] = getattr (self, characteristic).value 
+					else:
+						self.setAttributeValue (characteristic, True)
+						self.characterDict[characteristic] = getattr (self, characteristic).value
 				else:
-					self.setAttributeValue (characteristic, True)
-					self.characterDict[characteristic] = getattr (self, characteristic).value
+					if not obj.onState:
+						self.setAttributeValue (characteristic, False)
+						self.characterDict[characteristic] = getattr (self, characteristic).value 
+					else:
+						self.setAttributeValue (characteristic, True)
+						self.characterDict[characteristic] = getattr (self, characteristic).value
+						
 			else:
 				self.setAttributeValue (characteristic, False)
 				self.characterDict[characteristic] = getattr (self, characteristic).value
 				
-			self.actions.append (HomeKitAction(characteristic, "equal", False, "device.turnOn", [self.objId], 0, {self.objId: "attr_onState"}))
-			self.actions.append (HomeKitAction(characteristic, "between", True, "device.turnOff", [self.objId], 100, {self.objId: "attr_onState"}))
+			if not self.invertOnState:
+				self.actions.append (HomeKitAction(characteristic, "equal", False, "device.turnOn", [self.objId], 0, {self.objId: "attr_onState"}))
+				self.actions.append (HomeKitAction(characteristic, "between", True, "device.turnOff", [self.objId], 100, {self.objId: "attr_onState"}))
+			else:
+				self.actions.append (HomeKitAction(characteristic, "equal", True, "device.turnOn", [self.objId], 0, {self.objId: "attr_onState"}))
+				self.actions.append (HomeKitAction(characteristic, "between", False, "device.turnOff", [self.objId], 100, {self.objId: "attr_onState"}))
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
@@ -2286,8 +2301,8 @@ class Dummy (Service):
 	
 		super(Dummy, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
-		self.required = ["On"]
-		self.optional = []
+		self.required = {}
+		self.optional = {}
 					
 		super(Dummy, self).setAttributes ()
 				
@@ -2536,7 +2551,9 @@ class service_Faucet (Service):
 	#
 	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "Faucet"
-		desc = "Faucet"
+		desc = "Faucet (3rd Party Only)"
+		
+		self.wiki = "This service is unsupported by the native Apple Home application but is supported, in varying degrees, in 3rd party HomeKit apps.  Apps tested with this service that work are the [non-Apple version of Home](https://itunes.apple.com/us/app/home-smart-home-automation/id995994352?mt=8) and [Elgato Eve](https://itunes.apple.com/us/app/elgato-eve/id917695792?mt=8)."
 		
 		super(service_Faucet, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		

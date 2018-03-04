@@ -1,8 +1,23 @@
 Release Notes
 ==========
 
-Version 0.15.0 (Beta 15)
+Version 0.15.1 (Beta 15.1)
 ==========
+* Added a check system to the server configuration builder to see if there are key fields missing from the plugin prefs.  This is in direct response to two users reporting that their "apiport" was missing ([Issue #12](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/12))
+* Added ability for contact sensors, which already natively invert the on state of a device, to utilize the "invert" checkbox so that it can **not** invert it instead, this in direct response to [Issue #32](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/32)
+* Added new utility to the Advanced Plugin Options (under the plugin menu) to [Simulate a HomeKit device](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Plugin-Menu-Utilities#advanced-plugin-actions) to better diagnose what may be going on, this allows you to see what HomeKit will see when your device is sent to it
+* Removed all complications implementation from the plugin as it's going to be totally different when implemented than it was in the experimental implementation, yet the experimental settings were still in the plugin and causing confusion
+* Changed [Faucet](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#faucet) to be 3rd Party Only since in Home it constantly says "Updating".  You can use [Valve](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#valve) instead if you want that icon and more functionality.  This in direct response to [Issue #38](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/38)
+* Fixed bug where the plugin was loading an unneeded library and **might** cause an error if it ran across a plugin that didn't have an info.plist file
+* Fixed bug where choosing a device that could not be auto detected (for instance a "custom" plugin device) then it would generate an error about being able to "iteritems".  Now non detectable devices will default to a switch and a warning will show in the log that it could not be figured out.
+* [Issue #32](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/32) resolved
+* [Issue #38](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/38) resolved
+
+Previous Release Notes
+==========
+
+Version 0.15.0 (Beta 15)
+---------------
 * Added _experimental_ support for LIFX color bulbs (may experience similar issues to Hue where the colors WILL change but may generate timeout issues on the plugin and it may take 30 seconds to change the color)
 * Added version control for better upgrade processing
 * Added device deletion detection where if any device that is currently linked to a HomeKit Bridge server is removed from Indigo the plugin will detect that it was removed and then remove it from all impacted servers (and restart them if needed)
@@ -20,9 +35,6 @@ Version 0.15.0 (Beta 15)
 * [Issue #4](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/4) resolved
 * [Issue #25](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/25) resolved
 * [Issue #26](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/26) resolved
-
-Previous Release Notes
-==========
 
 Version 0.14.1 (Beta 14 Release 1)
 ---------------

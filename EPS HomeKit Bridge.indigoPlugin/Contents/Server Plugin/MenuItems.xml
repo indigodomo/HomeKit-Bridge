@@ -222,7 +222,7 @@ Using this method is nit-picking performance since polling is almost equally as 
 				</Label>
 			</Field>
 			
-			<Field type="menu" id="device" defaultValue="-all-">
+			<Field type="menu" id="device" defaultValue="">
 				<Label>Device:</Label>
 				<List class="indigo.devices" filter="self"/>
 				<CallbackMethod>advPluginDeviceSelected</CallbackMethod>
@@ -256,8 +256,29 @@ Using this method is nit-picking performance since polling is almost equally as 
 					<Option value="health">Perform Health Check</Option>
 					<Option value="data">Plugin Data Dump</Option>
 					<Option value="compdata">Comprehensive Plugin Data Dump</Option>
+					<Option value="simhomekit">Simulated HomeKit Device Data Dump</Option>
 					<Option value="migratehbb">Migrate From Homebridge Buddy</Option>
 				</List>
+			</Field>
+			
+			<Field type="menu" id="device2" defaultValue="" visibleBindingId="pluginActions" visibleBindingValue="simhomekit" alwaysUseInDialogHeightCalc="true">
+				<Label>Device:</Label>
+				<List class="indigo.devices" filter=""/>
+			</Field>
+			
+			<Field type="menu" id="hkType" defaultValue="" visibleBindingId="pluginActions" visibleBindingValue="simhomekit" alwaysUseInDialogHeightCalc="true">
+                <Label>HomeKit Type:</Label>
+                <List class="self" filter="#plugin#[index=hkType, callback=serverListHomeKitDeviceTypes, ref=hideWrappedItems, nocache=true]" method="getCustomList" dynamicReload="true"/>
+            </Field>
+            
+            <Field type="checkbox" id="invert" defaultValue="false" visibleBindingId="pluginActions" visibleBindingValue="simhomekit" alwaysUseInDialogHeightCalc="true">
+				<Label> </Label>
+				<Description>Invert On/Off</Description>
+			</Field>
+			
+			<Field type="checkbox" id="showall" defaultValue="false" visibleBindingId="pluginActions" visibleBindingValue="simhomekit" alwaysUseInDialogHeightCalc="true">
+				<Label> </Label>
+				<Description>Include device data dump</Description>
 			</Field>
 			
 			<Field type="button" id="pluginActionRun"  >

@@ -116,8 +116,13 @@
 				<Label> </Label>
 				<Description>Determines if the invert on/off should be shown - it should only be allowed on devices allowing on/off commands</Description>
 			</Field>
+			
+			<Field type="checkbox" id="invertenabled" defaultValue="true" hidden="true">
+				<Label> </Label>
+				<Description>Is the invert checkbox shown?  Many, if not most, devices don't support it so lock it if it's not able to be used.</Description>
+			</Field>
             
-            <Field type="checkbox" id="invertOnOff" defaultValue="false" visibleBindingId="enableOnOffInvert" visibleBindingValue="true">
+            <Field type="checkbox" id="invertOnOff" defaultValue="false" enabledBindingId="invertenabled" visibleBindingId="enableOnOffInvert" visibleBindingValue="true">
 				<Label> </Label>
 				<Description>Invert on/off state</Description>
 			</Field>
