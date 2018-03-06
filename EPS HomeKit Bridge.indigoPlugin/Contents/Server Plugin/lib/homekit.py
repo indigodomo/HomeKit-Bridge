@@ -2293,17 +2293,26 @@ class HomeKitAction ():
 			if type(dev) != indigo.ThermostatDevice:
 				self.logger.error ("Attempting to run {} as a thermostat with thermostat commands but it is not a thermostat".format(dev.name))
 				return
-			
-			if "tempunits" in server.pluginProps:
-				# If our source is celsius then that's what HomeKit wants, just return it
-				if server.pluginProps["tempunits"] == "c":
-					value = targetTemperature
-				else:				
-					# If our source is fahrenheit then we need to convert it
-					value = float(targetTemperature)
-					value = (value * 1.8000) + 32
-					value = round(value, 0) # We fahrenheit users never use fractions - if someone requests it in the future we can add an option
 				
+			serverProps = server.pluginProps
+			includedDevices = json.loads(serverProps["includedDevices"])
+			includedActions = json.loads(serverProps["includedActions"])
+			
+			r = self.factory.jstash.getRecordWithFieldEquals (includedDevices, "id", devId)
+			if r is None: r = self.factory.jstash.getRecordWithFieldEquals (includedActions, "id", devId)
+			if r is None:
+				self.logger.error ("Attempting to change {} thermostat settings but could not find the thermostat in stash".format(dev.name))
+				return
+							
+			if "tempIsF" in r and r["tempIsF"]:
+				# If our source is fahrenheit then we need to convert it
+				value = float(targetTemperature)
+				value = (value * 1.8000) + 32
+				value = round(value, 0) # We fahrenheit users never use fractions - if someone requests it in the future we can add an option
+
+			else:
+				value = targetTemperature
+							
 			if unicode(dev.hvacMode) == "Heat":			
 				#indigo.server.log ("Set heat set point of {} on server {} to {}".format(str(devId), str(serverId), str(value)))
 				indigo.thermostat.setHeatSetpoint (devId, value)

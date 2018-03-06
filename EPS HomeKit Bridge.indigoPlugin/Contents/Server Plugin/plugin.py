@@ -3451,7 +3451,7 @@ class Plugin(indigo.PluginBase):
 					#device['treatas'] = valuesDict["treatAs"] # Homebridge Buddy Legacy
 					device['hktype'] = valuesDict["hkType"]
 					if "enableOnOffInvert" in valuesDict and valuesDict["enableOnOffInvert"]: device["invert"] = valuesDict["invertOnOff"]
-					if "isFahrenheitEnabled" in valuesDict and valuesDict["isFahrenheitEnabled"]: device["tempIsF"] = valuesDict["isFahrenheitEnabled"]
+					if "isFahrenheit" in valuesDict and valuesDict["isFahrenheit"]: device["tempIsF"] = valuesDict["isFahrenheit"]
 					if "isAPIDevice" in valuesDict and valuesDict["isAPIDevice"]: 
 						device["api"] = True
 					else:
@@ -3639,6 +3639,10 @@ class Plugin(indigo.PluginBase):
 					valuesDict["showEditArea"] = False
 				else:
 					valuesDict["showEditArea"] = True
+					
+			# Failsafe in case they are not even looking at this window:
+			if valuesDict["configOption"] != "include":
+				valuesDict["showEditArea"] = False
 					
 			
 		except Exception as e:

@@ -1,8 +1,18 @@
 Release Notes
 ==========
 
-Version 0.16.1 (Beta 16.1)
+Version 0.16.2 (Beta 16.2)
 ==========
+* Fixed bug in UI that was showing the header and fields for a device addition/edit when not in the device management view ([Issue #50](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/50))
+* Fixed bug from 16.1 that broke the ability to set temperatures if you were using Fahrenheit
+* [Issue #50](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/50) resolved
+* [Issue #37](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/37) resolved (fixed typo that broke Celsius users)
+
+Previous Release Notes
+==========
+
+Version 0.16.1 (Beta 16.1)
+---------------
 * **NOTE: Due to a fundamental change in temp control you will need to edit all of your sensors and thermostats and determine if the new "Temperature value is Fahrenheit" needs to be checks so the plugin knows to convert it to Celsius.  It's possible that when you add a temperature sensor or thermostat to a server that you won't see the checkbox, I believe this is only because it's an existing server, if you add it and there is no checkbox it'll be there when you edit that same item.**
 * Added checkbox to UI to indicate if a thermostat or temperature sensor temperature is in Fahrenheit so that it can be properly converted on a device-by-device basis
 * Added new Advance Plugin Device Action to Simulate HomeKit on Server.  This is different than the Plugin version that lets you simulate any device in Indigo, this specifically uses the settings for an item on a server, so you can test how a device you have already set up is being reported back to HomeKit rather than just testing a device that has not yet been sent to HomeKit too see what it'll do
@@ -12,9 +22,6 @@ Version 0.16.1 (Beta 16.1)
 * [Issue #33](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/33) resolved
 * [Issue #48](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/48) resolved
 * [Issue #49](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/49) resolved
-
-Previous Release Notes
-==========
 
 Version 0.16.0 (Beta 16)
 ---------------
