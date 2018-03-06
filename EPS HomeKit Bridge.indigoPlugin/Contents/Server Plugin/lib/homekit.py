@@ -2149,7 +2149,7 @@ class HomeKitAction ():
 						retval = func()
 						
 					if waitForComplete:
-						self.logger.info ("Waiting for {} to complete".format(self.command))
+						self.logger.threaddebug ("Waiting for {} to complete".format(self.command))
 						# We never do this for action groups, the HTML return will immediately return success so we can do a call back, this is only for devices
 						if "actionGroup" not in self.command:
 							for devId, prop in self.monitors.iteritems():							
@@ -2298,8 +2298,18 @@ class HomeKitAction ():
 			includedDevices = json.loads(serverProps["includedDevices"])
 			includedActions = json.loads(serverProps["includedActions"])
 			
-			r = self.factory.jstash.getRecordWithFieldEquals (includedDevices, "id", devId)
-			if r is None: r = self.factory.jstash.getRecordWithFieldEquals (includedActions, "id", devId)
+			r = None
+			for rec in includedDevices:
+				if rec["id"] == devId:
+					r = rec
+					break
+					
+			if r is None:
+				for rec in includedActions:
+					if rec["id"] == devId:
+						r = rec
+						break
+			
 			if r is None:
 				self.logger.error ("Attempting to change {} thermostat settings but could not find the thermostat in stash".format(dev.name))
 				return

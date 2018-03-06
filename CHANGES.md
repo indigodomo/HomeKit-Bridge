@@ -1,15 +1,19 @@
 Release Notes
 ==========
 
+Version 0.16.3 (Beta 16.3)
+==========
+* [Issue #37](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/37) hopefully resolved now!
+
+Previous Release Notes
+==========
+
 Version 0.16.2 (Beta 16.2)
 ==========
 * Fixed bug in UI that was showing the header and fields for a device addition/edit when not in the device management view ([Issue #50](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/50))
 * Fixed bug from 16.1 that broke the ability to set temperatures if you were using Fahrenheit
 * [Issue #50](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/50) resolved
 * [Issue #37](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/37) resolved (fixed typo that broke Celsius users)
-
-Previous Release Notes
-==========
 
 Version 0.16.1 (Beta 16.1)
 ---------------
