@@ -212,7 +212,7 @@ Using this method is nit-picking performance since polling is almost equally as 
 			
 			<Field id="sep_devmessage" type="separator" />
 			
-			<Field type="checkbox" id="showDeviceActions" defaultValue="false" hidden="true">
+			<Field type="checkbox" id="showDeviceActions" defaultValue="true" hidden="true">
 				<Label> </Label>
 				<Description>Hidden field to determine if server actions are visible</Description>
 			</Field>
@@ -234,6 +234,8 @@ Using this method is nit-picking performance since polling is almost equally as 
 					<Option value="props">Indigo Device Plugin Properties</Option>
 					<Option value="states">Indigo Device States</Option>
 					<Option value="data">Indigo Device Data Dump</Option>
+					<Option value="hblog">Show Homebridge Log</Option>
+					<Option value="rebuild">Rebuild Homebridge Folder</Option>
 				</List>
 			</Field>
 			

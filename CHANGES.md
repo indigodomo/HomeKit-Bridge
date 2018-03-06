@@ -1,8 +1,31 @@
 Release Notes
 ==========
 
-Version 0.15.1 (Beta 15.1)
+Version 0.16.0 (Beta 16)
 ==========
+* Total UI overhaul - if something on it isn't working don't blame me, I was trying to implement YOUR design requests :).  As a result, a good portion of the Wiki will need to be scrapped and rewritten to document this new UI.
+* Added new Advanced Plugin Actions option to [view the Homebridge log](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Plugin-Menu-Utilities#show-homebridge-log)
+* Added support for DSC Alarm plugin on Motion Sensors, Garage Door Opener, Smoke Sensor, Occupancy Sensor, Lock Mechanism, and Switch
+* Added failsafe check to make sure the user didn't cancel a brand new server config dialog, which would result in a port error.  Pretty minor but an error is an error.
+* Added new [Advanced Plugin Device action to Rebuild Homebridge Folder](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Plugin-Menu-Utilities#rebuild-homebridge-folder), this in case a folder becomes corrupt and needs to be removed and rebuilt, this is the current solution for [Issue #46](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/46) but also serves additional utility for diagnostics as well so it ends up being a good solution
+* Changed behavior of clicking SAVE while editing a device ([Issue #34](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/34) and [Issue #22](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/22) and [Issue #14](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/14)) so that now it will pop a warning to let the user know that the edit will be lost but they can click save again to continue
+* Removed last few areas where the old FILL command was still being added to forms
+* Removed automatic HBB upgrade in case that is causing a problem with not popping up the config dialong on fresh installs since it was reported that when HBB is enabled the dialog would not show but when it was disabled it would ([Issue #12](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/12))
+* Changed default for api port in saving the configuration in case any other users report a problem with not having the prefs file
+* Upgrade will flush out any devices that still reference the FILL command
+* Fixed bug in thermostat sensors that weren't honoring conversion from Fahrenheit if the device was a sensor device in Indigo ([Issue #33](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/33))
+* [Issue #33](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/33) resolved
+* [Issue #12](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/12) possibly resolved
+* [Issue #46](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/46) resolved
+* [Issue #34](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/34) resolved
+* [Issue #22](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/22) resolved
+* [Issue #14](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/14) resolved
+
+Previous Release Notes
+==========
+
+Version 0.15.1 (Beta 15.1)
+---------------
 * Added a check system to the server configuration builder to see if there are key fields missing from the plugin prefs.  This is in direct response to two users reporting that their "apiport" was missing ([Issue #12](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/12))
 * Added ability for contact sensors, which already natively invert the on state of a device, to utilize the "invert" checkbox so that it can **not** invert it instead, this in direct response to [Issue #32](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/32)
 * Added new utility to the Advanced Plugin Options (under the plugin menu) to [Simulate a HomeKit device](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Plugin-Menu-Utilities#advanced-plugin-actions) to better diagnose what may be going on, this allows you to see what HomeKit will see when your device is sent to it
@@ -12,9 +35,6 @@ Version 0.15.1 (Beta 15.1)
 * Fixed bug where choosing a device that could not be auto detected (for instance a "custom" plugin device) then it would generate an error about being able to "iteritems".  Now non detectable devices will default to a switch and a warning will show in the log that it could not be figured out.
 * [Issue #32](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/32) resolved
 * [Issue #38](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/38) resolved
-
-Previous Release Notes
-==========
 
 Version 0.15.0 (Beta 15)
 ---------------

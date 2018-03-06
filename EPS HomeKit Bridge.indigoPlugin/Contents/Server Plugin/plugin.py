@@ -197,9 +197,9 @@ class Plugin(indigo.PluginBase):
 			
 			#self.serverListHomeKitDeviceTypes (None, None)
 				
-			if len(self.SERVERS) == 0:
-				self.logger.info ("No servers detected, attempting to migrate from Homebridge-Indigo and/or Homebridge Buddy if they are installed and enabled")
-				self.migrateFromHomebridgeBuddy()
+			#if len(self.SERVERS) == 0:
+			#	self.logger.info ("No servers detected, attempting to migrate from Homebridge-Indigo and/or Homebridge Buddy if they are installed and enabled")
+			#	self.migrateFromHomebridgeBuddy()
 				
 			if "hiddenIds" in self.pluginPrefs:
 				hidden = json.loads (self.pluginPrefs["hiddenIds"])
@@ -460,6 +460,27 @@ class Plugin(indigo.PluginBase):
 				
 			if "enableComplications" in self.pluginPrefs: del (self.pluginPrefs["enableComplications"])
 			if "enableComplicationsDialogs" in self.pluginPrefs: del (self.pluginPrefs["enableComplicationsDialogs"])
+			
+			for dev in indigo.devices.iter(self.pluginId + ".Server"):
+				props = dev.pluginProps
+				changed = False
+				
+				if props["device"] != "": 	
+					props["device"] = "" # Force "-FILL-" out of the system so it will populate a device
+					changed = True
+					
+				if "filterIncluded" in props:
+					del (props["filterIncluded"])
+					changed = True
+					
+				if "objectAction" in props:
+					props["objectAction"] = "add" # New default setting
+					changed = True
+					
+				if changed: 
+					self.logger.info ("Upgrading {} for changes in this plugin release".format(dev.name))
+					dev.replacePluginPropsOnServer(props)
+				
 			
 		except Exception as e:
 			self.logger.error (ext.getException(e))		
@@ -771,6 +792,45 @@ class Plugin(indigo.PluginBase):
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
+
+
+
+	#
+	# Advanced Device Actions
+	#
+	def onAfter_btnAdvDeviceAction (self, valuesDict, typeId):	
+		try:
+			if valuesDict["deviceActions"] == "hblog": 
+				server = indigo.devices[int(valuesDict["device"])]
+				
+				startpath = self.CONFIGDIR + "/" + str(server.id)
+			
+				# Failsafe to make sure we have a server folder
+				if not os.path.exists (startpath):
+					self.logger.error ("Unable to find a configuration folder for this server in {}".format(startpath))
+					return
+			
+				if os.path.exists (startpath):
+					file = open(startpath + "/homebridge.log", 'r')
+					logdetails = file.read()
+					
+					self.logger.info (logdetails)
+					
+			if valuesDict["deviceActions"] == "rebuild": 
+				server = indigo.devices[int(valuesDict["device"])]
+				
+				self.logger.warning ("Removing Homebridge folder for {} at {}".format(server.name, self.CONFIGDIR + "/" + str(server.id)))
+				
+				import shutil
+				shutil.rmtree(self.CONFIGDIR + "/" + str(server.id))
+				
+				self.checkserverFoldersAndStartIfConfigured (server)
+				
+				self.logger.warning ("Homebridge folder for {} at {} has been rebuilt".format(server.name, self.CONFIGDIR + "/" + str(server.id)))
+			
+				
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
 			
 	#
 	# Advanced Plugin Actions
@@ -1058,7 +1118,7 @@ class Plugin(indigo.PluginBase):
 	#
 	def apiDeviceIsLinked (self, devId):
 		try:
-			if str(devId) == "-fill-" or str(devId) == "-line-": return False
+			#if str(devId) == "-fill-" or str(devId) == "-line-": return False
 			if int(devId) not in indigo.devices: return False
 			dev = indigo.devices[int(devId)]
 			
@@ -1532,9 +1592,11 @@ class Plugin(indigo.PluginBase):
 			props["hiddenIds"] = "[]"
 			props["filterIncluded"] = True
 			props["deviceOrActionSelected"] = False
+			props["showEditArea"] = False
+			props["enableOnOffInvert"] = False
 			props["editActive"] = False
-			props["device"] = "-fill-"
-			props["action"] = "-fill-"
+			props["device"] = ""
+			props["action"] = ""
 			props["objectType"] = "device"
 			props["autoStartStop"] = True
 			props["accessoryNamePrefix"] = ""
@@ -1763,6 +1825,7 @@ class Plugin(indigo.PluginBase):
 	#
 	def checkRunningHBServer (self, dev, noStatus = False):
 		try:
+			if not "port" in dev.pluginProps: return False # Obviously the server was not fully configured, user probably canceled initial setup
 			if dev.pluginProps["port"] == "": return False
 			port = int(dev.pluginProps["port"])
 			
@@ -2783,7 +2846,7 @@ class Plugin(indigo.PluginBase):
 			# Build a block list of current devices
 			used = []
 				
-			if "filterIncluded" in valuesDict and valuesDict["filterIncluded"]:
+			if "objectType" in valuesDict and valuesDict["objectType"] == "devicefiltered":
 				for dev in indigo.devices.iter(self.pluginId + ".Server"):	
 					if "includedDevices" in dev.pluginProps:
 						objects = json.loads(dev.pluginProps["includedDevices"])	
@@ -2875,7 +2938,7 @@ class Plugin(indigo.PluginBase):
 			
 			used = []
 				
-			if "filterIncluded" in valuesDict and valuesDict["filterIncluded"]:
+			if "objectType" in valuesDict and valuesDict["objectType"] == "actionfiltered":
 				for dev in indigo.devices.iter(self.pluginId + ".Server"):	
 					if "includedActions" in dev.pluginProps:
 						objects = json.loads(dev.pluginProps["includedActions"])	
@@ -2942,7 +3005,7 @@ class Plugin(indigo.PluginBase):
 			for d in includedObjects:
 				name = d["alias"]
 				if name == "": name = d["name"]
-				name = "{0}: {1}".format(d["object"], name)
+				name = "{0}\t{1}".format(d["object"], name)
 				
 				retList.append ( (str(d["id"]), name) )
 				
@@ -3131,6 +3194,7 @@ class Plugin(indigo.PluginBase):
 						
 						valuesDict["deviceLimitReached"] = False # Since we only allow 99 we are now at 98 and valid again
 						valuesDict["editActive"] = True # Disable fields so the user knows they are in edit mode
+						valuesDict["showEditArea"] = True # Display the device add/edit fields
 
 			valuesDict['includedDevices'] = json.dumps(includedDevices)
 			valuesDict['includedActions'] = json.dumps(includedActions)								
@@ -3155,7 +3219,7 @@ class Plugin(indigo.PluginBase):
 				return (valuesDict, errorsDict)
 				
 			# Determine if we are processing devices or action groups
-			if valuesDict["objectType"] == "device":
+			if "device" in valuesDict["objectType"]:
 				thistype = "Device"
 			else:
 				thistype = "Action"
@@ -3181,10 +3245,15 @@ class Plugin(indigo.PluginBase):
 			valuesDict['includedActions'] = json.dumps(eps.jstash.sortStash (includedActions, "alias"))
 			valuesDict['alias'] = ""
 			valuesDict['editActive'] = False # We definitely are not editing any longer	
+			valuesDict["deviceOrActionSelected"] = False # We saved, so nothing is selected
+			valuesDict["enableOnOffInvert"] = False # Nothing is selected, we don't know this, set it false
+			
+			if valuesDict["objectAction"] != "add": 
+				valuesDict["showEditArea"] = False
 
 			# Defaults if there are none
-			if valuesDict["device"] == "": valuesDict["device"] = "-fill-"
-			if valuesDict["action"] == "": valuesDict["action"] = "-fill-"	
+			if valuesDict["device"] == "": valuesDict["device"] = ""
+			if valuesDict["action"] == "": valuesDict["action"] = ""	
 			valuesDict["invertOnOff"] = False # Failsafe
 				
 		except Exception as e:
@@ -3388,12 +3457,8 @@ class Plugin(indigo.PluginBase):
 				else:
 					valuesDict["enableOnOffInvert"] = False
 					
-				# Toggle readonly status of the invert checkbox if this device has no onOffState
-				if int(valuesDict["device"]) in indigo.devices:
-					if "onState" not in dir(indigo.devices[int(valuesDict["device"])]):
-						valuesDict["invertenabled"] = False
-					else:
-						valuesDict["invertenabled"] = True
+				# Populate the name of the device if it is not already populated (this way if they are editing and change devices the alias remains the same)
+				if valuesDict["alias"] == "": valuesDict["alias"] = indigo.devices[int(valuesDict["device"])].name
 							
 				# So long as we are not in edit mode then pull the HK defaults for this device and populate it
 				if not valuesDict["editActive"]:
@@ -3415,6 +3480,10 @@ class Plugin(indigo.PluginBase):
 							if hbb.ownerProps["treatAs"] == "drape": valuesDict["hkType"] = "service_WindowCovering"
 							if hbb.ownerProps["treatAs"] == "sensor": valuesDict["hkType"] = "service_MotionSensor"
 							if hbb.ownerProps["treatAs"] == "fan": valuesDict["hkType"] = "service_Fanv2"
+							
+			else:
+				pass
+				#indigo.server.log("nothing selected")
 				
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -3433,6 +3502,8 @@ class Plugin(indigo.PluginBase):
 			if valuesDict["action"] != "" and valuesDict["action"] != "-fill-" and valuesDict["action"] != "-line-":
 				valuesDict["deviceOrActionSelected"] = True # Enable fields
 				valuesDict["enableOnOffInvert"] = False # NEVER show this on Actions
+				
+				valuesDict["alias"] = indigo.actionGroups[int(valuesDict["action"])].name
 				
 				# So long as we are not in edit mode then pull the HK defaults for this device and populate it
 				if not valuesDict["editActive"]:
@@ -3461,8 +3532,8 @@ class Plugin(indigo.PluginBase):
 			
 			# Defaults if there are none
 			valuesDict["deviceOrActionSelected"] = False # We'll change it below if needed
-			if valuesDict["device"] == "": valuesDict["device"] = "-fill-"
-			if valuesDict["action"] == "": valuesDict["action"] = "-fill-"
+			if valuesDict["device"] == "": valuesDict["device"] = ""
+			if valuesDict["action"] == "": valuesDict["action"] = ""
 			
 			#if valuesDict["treatAs"] == "": valuesDict["treatAs"] = "service_Switch" # Default
 			
@@ -3480,7 +3551,7 @@ class Plugin(indigo.PluginBase):
 				
 			#indigo.server.log ("Port: {}\tListen:{}xxxx\tUser:{}".format(valuesDict["port"], valuesDict["listenPort"], valuesDict["username"]))
 			
-			if valuesDict["objectType"] == "device":
+			if "device" in valuesDict["objectType"]:
 				if valuesDict["device"] != "" and valuesDict["device"] != "-fill-" and valuesDict["device"] != "-line-":
 					valuesDict["deviceOrActionSelected"] = True
 					
@@ -3489,19 +3560,24 @@ class Plugin(indigo.PluginBase):
 					#valuesDict["typename"] = typename
 					
 					# So long as we aren't editing (in which case we already saved our treatAs) then set the device type to discovery
-					
-						
-						
 				else:
 					valuesDict["deviceOrActionSelected"] = False	
 
-			if valuesDict["objectType"] == "action":
+			if "action" in valuesDict["objectType"]:
 				if valuesDict["action"] != "" and valuesDict["action"] != "-fill-" and valuesDict["action"] != "-line-":
 					valuesDict["deviceOrActionSelected"] = True
 					#valuesDict["type"] = self.deviceIdToHomeKitType (valuesDict["action"])
 						
 				else:
 					valuesDict["deviceOrActionSelected"] = False	
+					
+			if valuesDict["objectAction"] == "add":
+				valuesDict["showEditArea"] = True
+			else:
+				if not valuesDict["editActive"]: 
+					valuesDict["showEditArea"] = False
+				else:
+					valuesDict["showEditArea"] = True
 					
 			
 		except Exception as e:
@@ -3520,12 +3596,14 @@ class Plugin(indigo.PluginBase):
 			# If the server is running and the ports didn't change then we know we should be OK, otherwise we need to check
 			server = indigo.devices[devId]
 			
-			if valuesDict["editActive"]:
-				errorsDict["showAlertText"] = "You are actively editing a list item, finish editing that item and save it.\n\nIf you don't want that item any longer then highlight it on the list and select the action to delete it instead.\n\nYou can also choose to cancel the configuration and lose any changes you have made."
-				errorsDict["device"] = "Finish editing before saving your device"
-				errorsDict["action"] = "Finish editing before saving your device"
-				errorsDict["alias"] = "Finish editing before saving your device"
-				errorsDict["add"] = "Finish editing before saving your device"
+			# If they hit save while in edit mode we need to pop a warning but let them move forward
+			if valuesDict["editActive"] and "editActiveWarning" not in valuesDict:
+				errorsDict["showAlertText"] = "You are actively editing a list item, if you save now you will lose your edit.\n\nTo save your edit please click the button labeled 'Add To HomeKit'.\n\nYou can also choose to cancel the configuration and lose any changes you have made.\n\nThis is only a warning, if you click save again you will save your other changes and effectively remove whatever item you were editing."
+				valuesDict["editActiveWarning"] = True
+				#errorsDict["device"] = "Finish editing before saving your device"
+				#errorsDict["action"] = "Finish editing before saving your device"
+				#errorsDict["alias"] = "Finish editing before saving your device"
+				#errorsDict["add"] = "Finish editing before saving your device"
 				success = False
 				
 			# Sanity check to make sure we have our required startup info				
@@ -3542,14 +3620,16 @@ class Plugin(indigo.PluginBase):
 				
 			if success:
 				# Reset the form back so when they open it again it has some defaults in place
-				valuesDict["objectAction"] = "edit"
-				valuesDict["device"] = "-fill-"
-				valuesDict["action"] = "-fill-"
+				valuesDict["objectAction"] = "add"
+				valuesDict["showEditArea"] = True
+				valuesDict["device"] = ""
+				valuesDict["action"] = ""
 				valuesDict["objectType"] = "device"
 				valuesDict["enableOnOffInvert"] = False
 				valuesDict["invertOnOff"] = False
 				valuesDict["deviceOrActionSelected"] = False
 				valuesDict["isAPIDevice"] = False
+				valuesDict["editActive"] = False
 				
 				
 				# See if any of our critical items changed from the current config (or if this is a new device)
@@ -3591,6 +3671,9 @@ class Plugin(indigo.PluginBase):
 			if "hiddenIds" in valuesDict:
 				del valuesDict["hiddenIds"]
 				
+			# In case we warned about being in edit mode above, remove that now
+			if "editActiveWarning" in valuesDict: del(valuesDict["editActiveWarning"])
+			
 			# For our API we need to go through all devices and see if they were added by an API so we can update them
 			includedDevices = json.loads(valuesDict["includedDevices"])
 			for i in includedDevices:
@@ -3955,7 +4038,7 @@ class Plugin(indigo.PluginBase):
 				msg += "then please post the following on the forum or in Git issues so it can be diagnosed:\n"
 				self.logger.error (msg)
 				self.logger.info (eps.plug.pluginMenuSupportInfo ())
-				return None
+				#return None
 			
 			server = indigo.devices[int(serverId)]
 			includedDevices = json.loads(server.pluginProps["includedDevices"])
@@ -4000,7 +4083,7 @@ class Plugin(indigo.PluginBase):
 			hb["host"] = "127.0.0.1" # Fixed localhost only for now
 			#hb["port"] = self.pluginPrefs["port"]
 			#hb["apiPort"] = self.pluginPrefs["apiport"] # Arbitrary when we develop the API
-			hb["port"] = self.pluginPrefs["apiport"]
+			hb["port"] = self.pluginPrefs.get('apiport', '8558')
 			#hb["path"] = self.pluginPrefs["path"]
 			#hb["username"] = self.pluginPrefs["username"]
 			#hb["password"] = self.pluginPrefs["password"]

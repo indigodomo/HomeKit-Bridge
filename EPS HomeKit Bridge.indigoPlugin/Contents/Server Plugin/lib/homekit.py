@@ -1781,6 +1781,36 @@ class Service (object):
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+
+
+	#
+	# Get temperature from sensorvalue
+	#
+	def special_sensorTemperature (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			obj = indigo.devices[self.objId]
+			if self.serverId == 0: return
+			
+			svr = indigo.devices[self.serverId]
+			if "tempunits" in svr.pluginProps:
+				if svr.pluginProps["tempunits"] == "f":
+					value = float(obj.sensorValue)
+					value = (value - 32) / 1.8000
+					
+					self.setAttributeValue (characteristic, round(value, 2))
+					self.characterDict[characteristic] = getattr (self, characteristic).value
+				else:
+					self.setAttributeValue (characteristic, float(obj.sensorValue))
+					self.characterDict[characteristic] = getattr (self, characteristic).value
+			else:
+				self.setAttributeValue (characteristic, float(obj.sensorValue))
+				self.characterDict[characteristic] = getattr (self, characteristic).value
+			
+			# Dummy action just so we get status updates for temperature	
+			self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "attr_sensorValue"}))	
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))			
 			
 
 	#
@@ -2611,8 +2641,8 @@ class service_GarageDoorOpener (Service):
 		super(service_GarageDoorOpener, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["CurrentDoorState"] = {"*": "attr_onState", "indigo.MultiIODevice": "state_binaryInput1"}
-		self.required["TargetDoorState"] = {"*": "attr_onState", "indigo.MultiIODevice": "state_binaryInput1"}
+		self.required["CurrentDoorState"] = {"*": "attr_onState", "indigo.MultiIODevice": "state_binaryInput1", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open"}
+		self.required["TargetDoorState"] = {"*": "attr_onState", "indigo.MultiIODevice": "state_binaryInput1", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open"}
 		self.required["ObstructionDetected"] = {}
 	
 		self.optional = {}
@@ -2810,7 +2840,7 @@ class service_MotionSensor (Service):
 		super(service_MotionSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["MotionDetected"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+		self.required["MotionDetected"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
@@ -2838,7 +2868,7 @@ class service_OccupancySensor (Service):
 		super(service_OccupancySensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["OccupancyDetected"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+		self.required["OccupancyDetected"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
@@ -2890,8 +2920,8 @@ class service_LockMechanism (Service):
 		super(service_LockMechanism, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["LockCurrentState"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
-		self.required["LockTargetState"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+		self.required["LockCurrentState"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open"}
+		self.required["LockTargetState"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open"}
 	
 		self.optional = {}
 		self.optional["Name"] = {}
@@ -2973,7 +3003,7 @@ class service_SmokeSensor (Service):
 		super(service_SmokeSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["SmokeDetected"] = {"*": "attr_onState"}
+		self.required["SmokeDetected"] = {"*": "attr_onState", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
@@ -3028,7 +3058,7 @@ class service_Switch (Service):
 		super(service_Switch, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+		self.required["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open"}
 	
 		self.optional = {}
 					
@@ -3051,7 +3081,7 @@ class service_TemperatureSensor (Service):
 		super(service_TemperatureSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["CurrentTemperature"] = {"indigo.SensorDevice": "attr_sensorValue", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "special_wuTemperature", "indigo.ThermostatDevice": "special_thermTemperature", "indigo.Device.com.perceptiveautomation.indigoplugin.weathersnoop.ws3station": "special_wsTemperature"}
+		self.required["CurrentTemperature"] = {"indigo.SensorDevice": "special_sensorTemperature", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "special_wuTemperature", "indigo.ThermostatDevice": "special_thermTemperature", "indigo.Device.com.perceptiveautomation.indigoplugin.weathersnoop.ws3station": "special_wsTemperature"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
