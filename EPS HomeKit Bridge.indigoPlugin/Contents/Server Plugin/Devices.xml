@@ -212,6 +212,16 @@
 				<Description>Invert on/off state</Description>
 			</Field>
 			
+			<Field type="checkbox" id="isFahrenheitEnabled" defaultValue="false" hidden="true">
+				<Label> </Label>
+				<Description>Determines if the temperature conversion should be shown - it should only be allowed on temp sensors and thermostats</Description>
+			</Field>
+			
+            <Field type="checkbox" id="isFahrenheit" defaultValue="false" visibleBindingId="isFahrenheitEnabled" visibleBindingValue="true">
+				<Label> </Label>
+				<Description>Temperature value is Fahrenheit</Description>
+			</Field>
+			
 			<Field type="checkbox" id="isAPIDevice" defaultValue="false" hidden="true">
 				<Label> </Label>
 				<Description>If a device was edited from the list that was added by an API, this box lets us know we need to communicate with the API</Description>

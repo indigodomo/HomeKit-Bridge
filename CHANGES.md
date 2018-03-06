@@ -1,8 +1,23 @@
 Release Notes
 ==========
 
-Version 0.16.0 (Beta 16)
+Version 0.16.1 (Beta 16.1)
 ==========
+* **NOTE: Due to a fundamental change in temp control you will need to edit all of your sensors and thermostats and determine if the new "Temperature value is Fahrenheit" needs to be checks so the plugin knows to convert it to Celsius.  It's possible that when you add a temperature sensor or thermostat to a server that you won't see the checkbox, I believe this is only because it's an existing server, if you add it and there is no checkbox it'll be there when you edit that same item.**
+* Added checkbox to UI to indicate if a thermostat or temperature sensor temperature is in Fahrenheit so that it can be properly converted on a device-by-device basis
+* Added new Advance Plugin Device Action to Simulate HomeKit on Server.  This is different than the Plugin version that lets you simulate any device in Indigo, this specifically uses the settings for an item on a server, so you can test how a device you have already set up is being reported back to HomeKit rather than just testing a device that has not yet been sent to HomeKit too see what it'll do
+* Changed how temperatures are converted, they will no longer rely on the server setting for temperature but rather on a device basis, meaning that the server setting only impacts the thermostats "view temperature as" UI setting ([Issue #37](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/37) and [Issue #33](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/33))
+* Fixed bug where "temperature units" UI in HomeKit always read Fahrenheit regardless of the server setting, it was not geting picked up in the plugin properly and now will report back to HomeKit the correct value ([Issue #37](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/37))
+* [Issue #37](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/37) resolved
+* [Issue #33](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/33) resolved
+* [Issue #48](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/48) resolved
+* [Issue #49](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/49) resolved
+
+Previous Release Notes
+==========
+
+Version 0.16.0 (Beta 16)
+---------------
 * Total UI overhaul - if something on it isn't working don't blame me, I was trying to implement YOUR design requests :).  As a result, a good portion of the Wiki will need to be scrapped and rewritten to document this new UI.
 * Added new Advanced Plugin Actions option to [view the Homebridge log](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Plugin-Menu-Utilities#show-homebridge-log)
 * Added support for DSC Alarm plugin on Motion Sensors, Garage Door Opener, Smoke Sensor, Occupancy Sensor, Lock Mechanism, and Switch
@@ -20,9 +35,6 @@ Version 0.16.0 (Beta 16)
 * [Issue #34](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/34) resolved
 * [Issue #22](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/22) resolved
 * [Issue #14](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/14) resolved
-
-Previous Release Notes
-==========
 
 Version 0.15.1 (Beta 15.1)
 ---------------

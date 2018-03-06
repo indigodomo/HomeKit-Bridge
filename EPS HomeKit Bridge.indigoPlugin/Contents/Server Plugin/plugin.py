@@ -827,10 +827,43 @@ class Plugin(indigo.PluginBase):
 				self.checkserverFoldersAndStartIfConfigured (server)
 				
 				self.logger.warning ("Homebridge folder for {} at {} has been rebuilt".format(server.name, self.CONFIGDIR + "/" + str(server.id)))
+				
+			if valuesDict["deviceActions"] == "simhomekit":
+				serverProps = self.serverCheckForJSONKeys (indigo.devices[int(valuesDict["device"])].pluginProps)	
+				includedDevices = json.loads(serverProps["includedDevices"])
+				includedActions = json.loads(serverProps["includedActions"])
+				
+				r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", int(valuesDict["simdevice"]))
+				if r is None: r = eps.jstash.getRecordWithFieldEquals (includedActions, "id", int(valuesDict["simdevice"]))
+				if r is None: 
+					self.logger.error ("Unable to simuluate server item because it could not be found in the stash")
+					return
+				
+				valuesDict["showall"] = True
+				valuesDict["device2"] = valuesDict["simdevice"]
+				valuesDict["hkType"] = r["hktype"]
+				self.onAfter_btnAdvPluginAction_Simulate (valuesDict, typeId, int(valuesDict["device"]))
 			
 				
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
+			
+	#
+	# Get list of devices attached to a server
+	#
+	def onAfter_btnAdvDeviceAction_GetAttachedJSONDevices (self, args, valuesDict):	
+		try:
+			if "device" not in valuesDict: return [("default", "No data")]	
+			if valuesDict["device"] == "": return [("default", "No data")]	
+			if "deviceActions" not in valuesDict: return [("default", "No data")]	
+			if valuesDict["deviceActions"] != "simhomekit": return [("default", "No data")]	
+			
+			server = indigo.devices[int(valuesDict["device"])]
+			return self.serverListJSONDevices (None, server.pluginProps)
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e))			
+			return [("default", "No data")]	
 			
 	#
 	# Advanced Plugin Actions
@@ -846,7 +879,7 @@ class Plugin(indigo.PluginBase):
 	#
 	# Run advanced plugin action to simulate a homekit device
 	#
-	def onAfter_btnAdvPluginAction_Simulate (self, valuesDict, typeId):
+	def onAfter_btnAdvPluginAction_Simulate (self, valuesDict, typeId, serverId = 0):
 		try:
 			dev = indigo.devices[int(valuesDict["device2"])]
 						
@@ -857,12 +890,17 @@ class Plugin(indigo.PluginBase):
 				self.logger.info (unicode(dev))
 			
 			self.logger.info ("##### DEVICE SIMULATION DATA #####")
-			x = eps.homekit.getServiceObject (dev.id, 0, valuesDict["hkType"])
+			x = eps.homekit.getServiceObject (dev.id, serverId, valuesDict["hkType"])
 			
 			if valuesDict["invert"]:
-				self.logger.info ("##### INVERT IS TRUE #####")
+				#self.logger.info ("##### INVERT IS TRUE #####")
 				x.invertOnState = True
 				x.setAttributes()
+			
+			if valuesDict["fahrenheit"]:
+				#self.logger.info ("##### FAHRENHEIT IS TRUE #####")
+				x.convertFahrenheit = True
+				x.setAttributes()	
 				
 			self.logger.info (unicode(x))
 			
@@ -910,10 +948,10 @@ class Plugin(indigo.PluginBase):
 					
 					obj = eps.homekit.getServiceObject (r["id"], serverId, r["hktype"], False,  True)
 					
-					# Invert if configured
-					if "invert" in r: 
-						obj.invertOnState = r["invert"]
-						if obj.invertOnState: obj.setAttributes() # Force it to refresh values so we get our inverted action
+					# Invert if configured - Now in library
+					#if "invert" in r: 
+					#	obj.invertOnState = r["invert"]
+					#	if obj.invertOnState: obj.setAttributes() # Force it to refresh values so we get our inverted action
 					
 					# Loop through actions to see if any of them are in the query
 					processedActions = False
@@ -1020,9 +1058,9 @@ class Plugin(indigo.PluginBase):
 			obj = eps.homekit.getServiceObject (r["id"], serverId, r["hktype"], False, True)
 			
 			# Invert if configured
-			if "invert" in r: 
-				obj.invertOnState = r["invert"]
-				if obj.invertOnState: obj.setAttributes() # Force it to refresh values so we get our inverted onState
+			#if "invert" in r: 
+			#	obj.invertOnState = r["invert"]
+			#	if obj.invertOnState: obj.setAttributes() # Force it to refresh values so we get our inverted onState
 			
 			# Add model and firmware
 			if r["object"] != "Action":
@@ -1594,6 +1632,7 @@ class Plugin(indigo.PluginBase):
 			props["deviceOrActionSelected"] = False
 			props["showEditArea"] = False
 			props["enableOnOffInvert"] = False
+			props["isFahrenheitEnabled"] = False
 			props["editActive"] = False
 			props["device"] = ""
 			props["action"] = ""
@@ -1990,6 +2029,7 @@ class Plugin(indigo.PluginBase):
 			rec["invert"]		= False # If this device will invert it's on/off state (requires that devices has boolean onState attribute
 			rec["api"]			= False # If the device was created by an API call rather than directly
 			rec["apilock"]		= False	# If the device was created by an API call and cannot be altered by us, must be altered by the plugin
+			rec["tempIsF"]		= False # If the value of a temperature devices is in Fahrenheit
 			
 			eps.jstash.createRecordDefinition ("item", rec)
 			
@@ -3166,12 +3206,18 @@ class Plugin(indigo.PluginBase):
 								valuesDict["enableOnOffInvert"] = True
 							else:
 								valuesDict["enableOnOffInvert"] = False
+								
+							if r["hktype"] == "service_Thermostat" or r["hktype"] == "service_TemperatureSensor":
+								valuesDict["isFahrenheitEnabled"] = True
+							else:
+								valuesDict["isFahrenheitEnabled"] = False
 
 							
 						if isAction: 
 							valuesDict["objectType"] = "action"
 							valuesDict["action"] = str(r["id"])
 							valuesDict["enableOnOffInvert"] = False
+							valuesDict["isFahrenheitEnabled"] = False
 						
 						valuesDict["name"] = r["name"]
 						valuesDict["alias"] = r["alias"]
@@ -3185,6 +3231,11 @@ class Plugin(indigo.PluginBase):
 							valuesDict["invertOnOff"] = r["invert"]
 						else:
 							valuesDict["invertOnOff"] = False
+							
+						if "tempIsF" in r:
+							valuesDict["isFahrenheit"] = r["tempIsF"]
+						else:
+							valuesDict["isFahrenheit"] = False
 							
 						if "api" in r: 
 							valuesDict["isAPIDevice"] = r["api"]
@@ -3247,6 +3298,7 @@ class Plugin(indigo.PluginBase):
 			valuesDict['editActive'] = False # We definitely are not editing any longer	
 			valuesDict["deviceOrActionSelected"] = False # We saved, so nothing is selected
 			valuesDict["enableOnOffInvert"] = False # Nothing is selected, we don't know this, set it false
+			valuesDict["isFahrenheitEnabled"] = False
 			
 			if valuesDict["objectAction"] != "add": 
 				valuesDict["showEditArea"] = False
@@ -3255,6 +3307,7 @@ class Plugin(indigo.PluginBase):
 			if valuesDict["device"] == "": valuesDict["device"] = ""
 			if valuesDict["action"] == "": valuesDict["action"] = ""	
 			valuesDict["invertOnOff"] = False # Failsafe
+			valuesDict["isFahrenheit"] = False # Failsafe
 				
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -3398,6 +3451,7 @@ class Plugin(indigo.PluginBase):
 					#device['treatas'] = valuesDict["treatAs"] # Homebridge Buddy Legacy
 					device['hktype'] = valuesDict["hkType"]
 					if "enableOnOffInvert" in valuesDict and valuesDict["enableOnOffInvert"]: device["invert"] = valuesDict["invertOnOff"]
+					if "isFahrenheitEnabled" in valuesDict and valuesDict["isFahrenheitEnabled"]: device["tempIsF"] = valuesDict["isFahrenheitEnabled"]
 					if "isAPIDevice" in valuesDict and valuesDict["isAPIDevice"]: 
 						device["api"] = True
 					else:
@@ -3481,6 +3535,12 @@ class Plugin(indigo.PluginBase):
 							if hbb.ownerProps["treatAs"] == "sensor": valuesDict["hkType"] = "service_MotionSensor"
 							if hbb.ownerProps["treatAs"] == "fan": valuesDict["hkType"] = "service_Fanv2"
 							
+				# If the type is correct then turn on temperature
+				if valuesDict["hkType"] != "" and (valuesDict["hkType"] == "service_Thermostat" or valuesDict["hkType"] == "service_TemperatureSensor"):			
+					valuesDict["isFahrenheitEnabled"] = True
+				else:
+					valuesDict["isFahrenheitEnabled"] = False	
+							
 			else:
 				pass
 				#indigo.server.log("nothing selected")
@@ -3502,6 +3562,7 @@ class Plugin(indigo.PluginBase):
 			if valuesDict["action"] != "" and valuesDict["action"] != "-fill-" and valuesDict["action"] != "-line-":
 				valuesDict["deviceOrActionSelected"] = True # Enable fields
 				valuesDict["enableOnOffInvert"] = False # NEVER show this on Actions
+				valuesDict["isFahrenheitEnabled"] = False
 				
 				valuesDict["alias"] = indigo.actionGroups[int(valuesDict["action"])].name
 				
@@ -3626,7 +3687,9 @@ class Plugin(indigo.PluginBase):
 				valuesDict["action"] = ""
 				valuesDict["objectType"] = "device"
 				valuesDict["enableOnOffInvert"] = False
+				valuesDict["isFahrenheitEnabled"] = False
 				valuesDict["invertOnOff"] = False
+				valuesDict["isFahrenheit"] = False
 				valuesDict["deviceOrActionSelected"] = False
 				valuesDict["isAPIDevice"] = False
 				valuesDict["editActive"] = False

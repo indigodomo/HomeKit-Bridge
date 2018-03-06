@@ -698,6 +698,7 @@ class Service (object):
 			self.indigoType = "Unable to detect"
 			self.pluginType = "Built-In"
 			self.invertOnState = False # This is set by the HTTP utility during processing if the user passed it in the stash
+			self.convertFahrenheit = False # This is set by the HTTP utility during processing if the user passes it in the stash
 			
 			# For timer baseed operations
 			self.recurringUpdate = False # When true, the API will schedule a thread to refresh every X seconds
@@ -765,6 +766,10 @@ class Service (object):
 		ret += "\ttype : {0}\n".format(self.type)
 		ret += "\tdesc : {0}\n".format(self.desc)
 		ret += "\tobjId : {0}\n".format(unicode(self.objId))
+		ret += "\tserverId : {0}\n".format(unicode(self.serverId))
+		
+		ret += "\tinvertOnState : {0}\n".format(unicode(self.invertOnState))
+		ret += "\tconvertFahrenheit : {0}\n".format(unicode(self.convertFahrenheit))
 
 		ret += "\trequired : (List)\n"
 		for i in self.required:
@@ -833,9 +838,34 @@ class Service (object):
 			self.alias = characteristic_Name()
 			self.alias.value = obj.name
 			
+			# While we are here if we have a server and an object then we can pull the stash
+			r = self.getStashRecordForObject()
+			if not r is None:
+				if "invert" in r and r["invert"]: self.invertOnState = True
+				if "tempIsF" in r and r["tempIsF"]: self.convertFahrenheit = True
+
+			
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
 			
+	#
+	# Find a device in a server stash and return the record
+	#
+	def getStashRecordForObject (self):
+		try:
+			if self.serverId != 0 and self.objId != 0 and self.serverId in indigo.devices:
+				serverProps = indigo.devices[self.serverId].pluginProps
+				includedDevices = json.loads(serverProps["includedDevices"])
+				includedActions = json.loads(serverProps["includedActions"])
+				
+				r = self.factory.jstash.getRecordWithFieldEquals (includedDevices, "id", self.objId)
+				if r is None: r = self.factory.jstash.getRecordWithFieldEquals (includedActions, "id", self.objId)
+				return r		
+				
+		except Exception as e:
+			self.logger.error (ext.getException(e))
+			
+		return None	
 	
 	#
 	# Set device attributes from the required and optional parameters
@@ -1689,16 +1719,18 @@ class Service (object):
 			obj = indigo.devices[self.objId]
 			if self.serverId == 0: return
 			
-			svr = indigo.devices[self.serverId]
-			if "tempunits" in svr.pluginProps:
+			if self.convertFahrenheit:
 				value = float(obj.coolSetpoint)
 				if unicode(obj.hvacMode) == "Heat" or unicode(obj.hvacMode) == "ProgramHeat": value = float(obj.heatSetpoint)
-				if svr.pluginProps["tempunits"] == "f":	value = (value - 32) / 1.8000
+				value = (value - 32) / 1.8000
 				
 				self.setAttributeValue (characteristic, round(value, 2))
 				self.characterDict[characteristic] = getattr (self, characteristic).value
 			else:
-				self.setAttributeValue (characteristic, round(float(obj.coolSetpoint), 2))
+				value = float(obj.coolSetpoint)
+				if unicode(obj.hvacMode) == "Heat" or unicode(obj.hvacMode) == "ProgramHeat": value = float(obj.heatSetpoint)
+				
+				self.setAttributeValue (characteristic, round(float(value), 2))
 				self.characterDict[characteristic] = getattr (self, characteristic).value
 										
 			if unicode(obj.hvacMode) == "Heat" or unicode(obj.hvacMode) == "ProgramHeat":
@@ -1722,32 +1754,22 @@ class Service (object):
 	def special_wsTemperature (self, classes, sourceDict, getter, characteristic, isOptional = False):
 		try:
 			obj = indigo.devices[self.objId]
-			if self.serverId == 0: return
-			
-			svr = indigo.devices[self.serverId]
-			if "tempunits" in svr.pluginProps:
-				if svr.pluginProps["tempunits"] == "f":
-					value = float(obj.states["temperature_F"])
-					value = (value - 32) / 1.8000
-					
-					self.setAttributeValue (characteristic, round(value, 2))
-					self.characterDict[characteristic] = getattr (self, characteristic).value
-					
-					# Dummy action just so we get status updates for temperature	
-					self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "state_temperature_F"}))
-				else:
-					self.setAttributeValue (characteristic, float(obj.states["temperature_C"]))
-					self.characterDict[characteristic] = getattr (self, characteristic).value
-					
-					# Dummy action just so we get status updates for temperature	
-					self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "state_temperature_C"}))
+
+			if self.convertFahrenheit:
+				value = float(obj.states["temperature_F"])
+				value = (value - 32) / 1.8000
+				
+				self.setAttributeValue (characteristic, round(value, 2))
+				self.characterDict[characteristic] = getattr (self, characteristic).value
+				
+				# Dummy action just so we get status updates for temperature	
+				self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "state_temperature_F"}))
 			else:
 				self.setAttributeValue (characteristic, float(obj.states["temperature_C"]))
 				self.characterDict[characteristic] = getattr (self, characteristic).value
 				
 				# Dummy action just so we get status updates for temperature	
 				self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "state_temperature_C"}))
-				
 				
 		
 		except Exception as e:
@@ -1759,19 +1781,13 @@ class Service (object):
 	def special_wuTemperature (self, classes, sourceDict, getter, characteristic, isOptional = False):
 		try:
 			obj = indigo.devices[self.objId]
-			if self.serverId == 0: return
-			
-			svr = indigo.devices[self.serverId]
-			if "tempunits" in svr.pluginProps:
-				if svr.pluginProps["tempunits"] == "f":
-					value = float(obj.states["temp"])
-					value = (value - 32) / 1.8000
-					
-					self.setAttributeValue (characteristic, round(value, 2))
-					self.characterDict[characteristic] = getattr (self, characteristic).value
-				else:
-					self.setAttributeValue (characteristic, float(obj.states["temp"]))
-					self.characterDict[characteristic] = getattr (self, characteristic).value
+
+			if self.convertFahrenheit:
+				value = float(obj.states["temp"])
+				value = (value - 32) / 1.8000
+				
+				self.setAttributeValue (characteristic, round(value, 2))
+				self.characterDict[characteristic] = getattr (self, characteristic).value
 			else:
 				self.setAttributeValue (characteristic, float(obj.states["temp"]))
 				self.characterDict[characteristic] = getattr (self, characteristic).value
@@ -1789,19 +1805,13 @@ class Service (object):
 	def special_sensorTemperature (self, classes, sourceDict, getter, characteristic, isOptional = False):
 		try:
 			obj = indigo.devices[self.objId]
-			if self.serverId == 0: return
 			
-			svr = indigo.devices[self.serverId]
-			if "tempunits" in svr.pluginProps:
-				if svr.pluginProps["tempunits"] == "f":
-					value = float(obj.sensorValue)
-					value = (value - 32) / 1.8000
-					
-					self.setAttributeValue (characteristic, round(value, 2))
-					self.characterDict[characteristic] = getattr (self, characteristic).value
-				else:
-					self.setAttributeValue (characteristic, float(obj.sensorValue))
-					self.characterDict[characteristic] = getattr (self, characteristic).value
+			if self.convertFahrenheit:
+				value = float(obj.sensorValue)
+				value = (value - 32) / 1.8000
+				
+				self.setAttributeValue (characteristic, round(value, 2))
+				self.characterDict[characteristic] = getattr (self, characteristic).value
 			else:
 				self.setAttributeValue (characteristic, float(obj.sensorValue))
 				self.characterDict[characteristic] = getattr (self, characteristic).value
@@ -1819,23 +1829,17 @@ class Service (object):
 	def special_thermTemperature (self, classes, sourceDict, getter, characteristic, isOptional = False):
 		try:
 			obj = indigo.devices[self.objId]
-			if self.serverId == 0: return
 			
-			svr = indigo.devices[self.serverId]
-			if "tempunits" in svr.pluginProps:
-				if svr.pluginProps["tempunits"] == "f":
-					value = float(obj.states["temperatureInput1"])
-					value = (value - 32) / 1.8000
-					
-					self.setAttributeValue (characteristic, round(value, 2))
-					self.characterDict[characteristic] = getattr (self, characteristic).value
-				else:
-					self.setAttributeValue (characteristic, float(obj.states["temperatureInput1"]))
-					self.characterDict[characteristic] = getattr (self, characteristic).value
+			if self.convertFahrenheit:
+				value = float(obj.states["temperatureInput1"])
+				value = (value - 32) / 1.8000
+				
+				self.setAttributeValue (characteristic, round(value, 2))
+				self.characterDict[characteristic] = getattr (self, characteristic).value
 			else:
 				self.setAttributeValue (characteristic, float(obj.states["temperatureInput1"]))
 				self.characterDict[characteristic] = getattr (self, characteristic).value
-			
+		
 			# Dummy action just so we get status updates for temperature	
 			self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "state_temperatureInput1"}))	
 			
@@ -1856,7 +1860,7 @@ class Service (object):
 					self.setAttributeValue (characteristic, 1)
 					self.characterDict[characteristic] = getattr (self, characteristic).value
 				else:
-					self.setAttributeValue (characteristic, 1)
+					self.setAttributeValue (characteristic, 0)
 					self.characterDict[characteristic] = getattr (self, characteristic).value
 			else:
 				self.setAttributeValue (characteristic, 1)

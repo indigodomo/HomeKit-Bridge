@@ -236,15 +236,22 @@ Using this method is nit-picking performance since polling is almost equally as 
 					<Option value="data">Indigo Device Data Dump</Option>
 					<Option value="hblog">Show Homebridge Log</Option>
 					<Option value="rebuild">Rebuild Homebridge Folder</Option>
+					<Option value="simhomekit">Simulate HomeKit For Server Item</Option>
 				</List>
+				<CallbackMethod>advPluginDeviceSelected</CallbackMethod>
 			</Field>
+			
+			<Field type="menu" id="simdevice" defaultValue="" visibleBindingId="deviceActions" visibleBindingValue="simhomekit" alwaysUseInDialogHeightCalc="true">
+                <Label>Server device:</Label>
+                <List class="self" filter="#plugin#[index=hkType, callback=onAfter_btnAdvDeviceAction_GetAttachedJSONDevices, ref=hideWrappedItems, nocache=true]" method="getCustomList" dynamicReload="true"/>
+            </Field>
 			
 			<Field type="button" id="deviceActionRun" visibleBindingId="showDeviceActions" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true" >
 				<Label> </Label>
 				<Title>Execute Action </Title>
 				<CallbackMethod>btnAdvDeviceAction</CallbackMethod>
 			</Field>
-        	
+			
 			<Field id="sep_devices" type="separator" />
 			
 			<Field type="label" id="lbl_global" >
@@ -276,6 +283,11 @@ Using this method is nit-picking performance since polling is almost equally as 
             <Field type="checkbox" id="invert" defaultValue="false" visibleBindingId="pluginActions" visibleBindingValue="simhomekit" alwaysUseInDialogHeightCalc="true">
 				<Label> </Label>
 				<Description>Invert On/Off</Description>
+			</Field>
+			
+			<Field type="checkbox" id="fahrenheit" defaultValue="false" visibleBindingId="pluginActions" visibleBindingValue="simhomekit" alwaysUseInDialogHeightCalc="true">
+				<Label> </Label>
+				<Description>Convert temperature from Fahrenheit</Description>
 			</Field>
 			
 			<Field type="checkbox" id="showall" defaultValue="false" visibleBindingId="pluginActions" visibleBindingValue="simhomekit" alwaysUseInDialogHeightCalc="true">
