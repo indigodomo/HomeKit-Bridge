@@ -47,7 +47,7 @@
 			</Field>
 			
 			<Field type="menu" id="tempunits" defaultValue="c" visibleBindingId="configOption" visibleBindingValue="config">
-                <Label>Source temps are:</Label>
+                <Label>HomeKit thermostats are:</Label>
                 <List>
                 	<Option value="f">Fahrenheit</Option>
                     <Option value="c">Celsius</Option>

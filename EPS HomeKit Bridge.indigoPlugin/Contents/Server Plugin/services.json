@@ -6,7 +6,7 @@
 				"required": true,
 				"objects": {
 					"*": {
-						"attr_onState": [
+						"special_invertedOnState": [
 							{
 								"indigoValue": true,
 								"characteristic": 0

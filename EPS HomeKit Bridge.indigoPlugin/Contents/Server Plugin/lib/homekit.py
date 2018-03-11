@@ -687,8 +687,8 @@ class Service (object):
 			self.type = hktype
 			self.desc = desc
 			self.objId = objId
-			self.required = []
-			self.optional = []
+			self.required = {}
+			self.optional = {}
 			self.native = True # Functions can map directly to Indigo or a plugin (see requiresPlugin) natively without any customization
 			self.requiresPlugin = [] # For this device to work Indigo must have one or more plugins installed
 			self.actions = []	
@@ -743,11 +743,27 @@ class Service (object):
 		try:
 			self.logger.info ("HomeKit service '{}' loaded".format(self.type))
 			
+			#self.required["ContactSensorState"] = {"*": "special_invertedOnState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedBoolean", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open"}
+			
 			# Try to load the service definitions from HomeKitServiceList
 			service = HomeKitServiceList[self.type]
+			for characteristic, charprops in service["characteristics"].iteritems():
+				characterDict = {}
+				
+				for objdev, objprops in charprops["objects"].iteritems():
+					for objpropname, objgetters in objprops.iteritems():
+						if objpropname != "setters": characterDict[objdev] = objpropname
+										
+				if charprops["required"]:
+					self.required[characteristic] = characterDict
+				else:
+					self.optional[characteristic] = characterDict
 			
 			# Lastly set this if all went well and we are done
 			self.jsoninit = True
+			
+			indigo.server.log(unicode(self.required))
+			indigo.server.log(unicode(self.optional))
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -1471,6 +1487,12 @@ class Service (object):
 				#if self.objId == 624004987: self.logger.info ("Converting value type of {} to charateristic type of {} for {}".format(vtype, atype, attribute))
 			
 				converted = False
+				if vtype is None:
+					if atype == "float": obj.value = 0.0
+					if atype == "int": obj.value = 0
+					if atype == "bool": obj.value = False
+					converted = True					
+					
 				if vtype == "bool": converted = self.convertFromBoolean (attribute, value, atype, vtype, obj)
 				if vtype == "str" and atype == "unicode":
 					obj.value = value
@@ -1707,6 +1729,11 @@ class Service (object):
 			else:
 				self.setAttributeValue (characteristic, 0)
 				self.characterDict[characteristic] = 0 
+				
+			self.actions.append (HomeKitAction("TargetHeatingCoolingState", "equal", 0, "thermostat.setHvacMode", [self.objId, indigo.kHvacMode.Off], 0, {self.objId: "attr_hvacMode"}))
+			self.actions.append (HomeKitAction("TargetHeatingCoolingState", "equal", 1, "thermostat.setHvacMode", [self.objId, indigo.kHvacMode.Heat], 0, {self.objId: "attr_hvacMode"}))
+			self.actions.append (HomeKitAction("TargetHeatingCoolingState", "equal", 2, "thermostat.setHvacMode", [self.objId, indigo.kHvacMode.Cool], 0, {self.objId: "attr_hvacMode"}))
+			self.actions.append (HomeKitAction("TargetHeatingCoolingState", "equal", 3, "thermostat.setHvacMode", [self.objId, indigo.kHvacMode.HeatCool], 0, {self.objId: "attr_hvacMode"}))
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
@@ -1738,14 +1765,65 @@ class Service (object):
 			else:	
 				self.actions.append (HomeKitAction(characteristic, "between", 0.0, "homekit.commandSetTargetThermostatTemperature", [self.objId, self.serverId, "=value="], 100.0, {self.objId: "attr_coolSetpoint"}))		
 				
-			self.actions.append (HomeKitAction("TargetHeatingCoolingState", "equal", 0, "thermostat.setHvacMode", [self.objId, indigo.kHvacMode.Off], 0, {self.objId: "attr_hvacMode"}))
-			self.actions.append (HomeKitAction("TargetHeatingCoolingState", "equal", 1, "thermostat.setHvacMode", [self.objId, indigo.kHvacMode.Heat], 0, {self.objId: "attr_hvacMode"}))
-			self.actions.append (HomeKitAction("TargetHeatingCoolingState", "equal", 2, "thermostat.setHvacMode", [self.objId, indigo.kHvacMode.Cool], 0, {self.objId: "attr_hvacMode"}))
-			self.actions.append (HomeKitAction("TargetHeatingCoolingState", "equal", 3, "thermostat.setHvacMode", [self.objId, indigo.kHvacMode.HeatCool], 0, {self.objId: "attr_hvacMode"}))
-	
+			
 					
 		except Exception as e:
-			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))			
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+			
+	
+	#
+	# Change a thermostats cooling set point
+	#
+	def special_thermCoolSet (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			obj = indigo.devices[self.objId]
+			if self.serverId == 0: return
+			
+			if self.convertFahrenheit:
+				value = float(obj.coolSetpoint)
+				value = (value - 32) / 1.8000
+				
+				self.setAttributeValue (characteristic, round(value, 2))
+				self.characterDict[characteristic] = getattr (self, characteristic).value
+			else:
+				value = float(obj.coolSetpoint)
+				
+				self.setAttributeValue (characteristic, round(float(value), 2))
+				self.characterDict[characteristic] = getattr (self, characteristic).value
+										
+			self.actions.append (HomeKitAction(characteristic, "between", 0.0, "homekit.commandSetTargetThermostatCooling", [self.objId, self.serverId, "=value="], 100.0, {self.objId: "attr_coolSetpoint"}))		
+				
+			
+					
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))		
+			
+	#
+	# Change a thermostats heating set point
+	#
+	def special_thermHeatSet (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			obj = indigo.devices[self.objId]
+			if self.serverId == 0: return
+			
+			if self.convertFahrenheit:
+				value = float(obj.heatSetpoint)
+				value = (value - 32) / 1.8000
+				
+				self.setAttributeValue (characteristic, round(value, 2))
+				self.characterDict[characteristic] = getattr (self, characteristic).value
+			else:
+				value = float(obj.heatSetpoint)
+				
+				self.setAttributeValue (characteristic, round(float(value), 2))
+				self.characterDict[characteristic] = getattr (self, characteristic).value
+										
+			self.actions.append (HomeKitAction(characteristic, "between", 0.0, "homekit.commandSetTargetThermostatHeating", [self.objId, self.serverId, "=value="], 100.0, {self.objId: "attr_heatSetpoint"}))		
+				
+			
+					
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))								
 			
 
 	#
@@ -2023,6 +2101,37 @@ class Service (object):
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))		
+			
+			
+			
+			
+			
+	#
+	# TESTING CAMERA SETUP
+	#
+	def special_video (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			self.setAttributeValue (characteristic, "rtsp://admin:xxx@10.1.200.197/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp")
+			self.characterDict[characteristic] = getattr (self, characteristic).value
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))		
+			
+	def special_rtp (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			self.setAttributeValue (characteristic, "rtsp://admin:xxx@10.1.200.197/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp")
+			self.characterDict[characteristic] = getattr (self, characteristic).value
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))		
+			
+	def special_rtpstream (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			self.setAttributeValue (characteristic, "rtsp://admin:xxx@10.1.200.197/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp")
+			self.characterDict[characteristic] = getattr (self, characteristic).value
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))								
 				
 			
 ################################################################################
@@ -2281,7 +2390,97 @@ class HomeKitAction ():
 			self.logger.error (ext.getException(e))
 			return False
 			
+	#
+	# Change thermostat temperature
+	#
+	def commandSetTargetThermostatHeating (self, devId, serverId, targetTemperature):
+		try:
+			server = indigo.devices[serverId]
+			dev = indigo.devices[devId]
+			if type(dev) != indigo.ThermostatDevice:
+				self.logger.error ("Attempting to run {} as a thermostat with thermostat commands but it is not a thermostat".format(dev.name))
+				return
+				
+			serverProps = server.pluginProps
+			includedDevices = json.loads(serverProps["includedDevices"])
+			includedActions = json.loads(serverProps["includedActions"])
 			
+			r = None
+			for rec in includedDevices:
+				if rec["id"] == devId:
+					r = rec
+					break
+					
+			if r is None:
+				for rec in includedActions:
+					if rec["id"] == devId:
+						r = rec
+						break
+			
+			if r is None:
+				self.logger.error ("Attempting to change {} thermostat settings but could not find the thermostat in stash".format(dev.name))
+				return
+							
+			if "tempIsF" in r and r["tempIsF"]:
+				# If our source is fahrenheit then we need to convert it
+				value = float(targetTemperature)
+				value = (value * 1.8000) + 32
+				value = round(value, 0) # We fahrenheit users never use fractions - if someone requests it in the future we can add an option
+
+			else:
+				value = targetTemperature
+							
+			indigo.thermostat.setheatSetpoint (devId, value)
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+			
+	#
+	# Change thermostat temperature
+	#
+	def commandSetTargetThermostatCooling (self, devId, serverId, targetTemperature):
+		try:
+			server = indigo.devices[serverId]
+			dev = indigo.devices[devId]
+			if type(dev) != indigo.ThermostatDevice:
+				self.logger.error ("Attempting to run {} as a thermostat with thermostat commands but it is not a thermostat".format(dev.name))
+				return
+				
+			serverProps = server.pluginProps
+			includedDevices = json.loads(serverProps["includedDevices"])
+			includedActions = json.loads(serverProps["includedActions"])
+			
+			r = None
+			for rec in includedDevices:
+				if rec["id"] == devId:
+					r = rec
+					break
+					
+			if r is None:
+				for rec in includedActions:
+					if rec["id"] == devId:
+						r = rec
+						break
+			
+			if r is None:
+				self.logger.error ("Attempting to change {} thermostat settings but could not find the thermostat in stash".format(dev.name))
+				return
+							
+			if "tempIsF" in r and r["tempIsF"]:
+				# If our source is fahrenheit then we need to convert it
+				value = float(targetTemperature)
+				value = (value * 1.8000) + 32
+				value = round(value, 0) # We fahrenheit users never use fractions - if someone requests it in the future we can add an option
+
+			else:
+				value = targetTemperature
+							
+			indigo.thermostat.setcoolSetpoint (devId, value)
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))				
+						
 	
 	#
 	# Change thermostat temperature
@@ -2363,6 +2562,42 @@ class Dummy (Service):
 		#self.logger.warning ('{} has no automatic conversion to HomeKit and will not be usable unless custom mapped'.format(self.alias.value))	
 
 # ==============================================================================
+# AIR QUALITY SENSOR
+# ==============================================================================
+class service_AirQualitySensor (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "AirQualitySensor"
+		desc = "Air Quality Sensor"
+		
+		super(service_AirQualitySensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = {}
+		self.required["AirQuality"] = {"indigo.SensorDevice": "attr_sensorValue"}
+		
+		self.optional = {}
+		self.optional["StatusActive"] = {}
+		self.optional["StatusFault"] = {}
+		self.optional["StatusTampered"] = {}
+		self.optional["StatusLowBattery"] = {"*": "special_lowbattery"}
+		self.optional["Name"] = {}
+		self.optional["OzoneDensity"] = {}
+		self.optional["NitrogenDioxideDensity"] = {}
+		self.optional["SulphurDioxideDensity"] = {}
+		self.optional["PM2_5Density"] = {}
+		self.optional["PM10Density"] = {}
+		self.optional["VOCDensity"] = {}
+		self.optional["CarbonMonoxideLevel"] = {}
+		self.optional["CarbonDioxideLevel"] = {}
+					
+		super(service_AirQualitySensor, self).setAttributes ()					
+				
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+
+# ==============================================================================
 # AIR PURIFIER
 # ==============================================================================
 class service_AirPurifier (Service):
@@ -2418,6 +2653,37 @@ class service_BatteryService (Service):
 		super(service_BatteryService, self).setAttributes ()					
 				
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		
+# ==============================================================================
+# CAMERA RTP STREAM MANAGEMENT
+# ==============================================================================
+class service_CameraRTPStreamManagement (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "CameraRTPStreamManagement"
+		desc = "Camera RTP Stream Management (Experimental)"
+		
+		self.wiki = "This service is completely experimental as it relies on video encoding that has not yet been figured out, consider this unusable until further notice and only appears in the plugin for development testing"
+			
+		super(service_CameraRTPStreamManagement, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = {}
+		self.required["SupportedVideoStreamConfiguration"] = {"*": "special_video"}
+		self.required["SupportedAudioStreamConfiguration"] = {"*": "special_audio"}
+		self.required["SupportedRTPConfiguration"] = {"*": "special_rtp"}
+		self.required["SelectedRTPStreamConfiguration"] = {"*": "special_rtpstream"}
+		self.required["StreamingStatus"] = {"*": "special_streamstatus"}
+		self.required["SetupEndpoints"] = {"*": "special_endpoints"}
+	
+		self.optional = {}
+		self.optional["Name"] = {}
+					
+		super(service_CameraRTPStreamManagement, self).setAttributes ()					
+				
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
 # ==============================================================================
 # CARBON DIOXIDE SENSOR
@@ -2565,6 +2831,34 @@ class service_Doorbell (Service):
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))							
 
 # ==============================================================================
+# FAN
+# ==============================================================================
+class service_Fan (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "Fan"
+		desc = "Fan (Original)"
+		
+		self.wiki = "This fan acts pretty much just like the Fanv2, except it has fewer capabilities.  There may be reasons to hold on to it and that may become apparent in the future but consider this a device that may be depreciated and may not be included in future versions."
+	
+		super(service_Fan, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+	
+		self.required = {}
+		self.required["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+	
+		self.optional = {}
+		self.optional["Name"] = {}
+		self.optional["RotationDirection"] = {}
+		self.optional["RotationSpeed"] = {"indigo.DimmerDevice": "attr_brightness", "indigo.SpeedControlDevice": "attr_speedLevel"}
+				
+		super(service_Fan, self).setAttributes ()
+			
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+
+# ==============================================================================
 # FAN V2
 # ==============================================================================
 class service_Fanv2 (Service):
@@ -2676,6 +2970,73 @@ class service_GarageDoorOpener (Service):
 		super(service_GarageDoorOpener, self).setAttributes ()			
 						
 		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
+
+# ==============================================================================
+# HEATER / COOLER
+# ==============================================================================
+class service_HeaterCooler (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "HeaterCooler"
+		desc = "Heater / Cooler"
+	
+		super(service_HeaterCooler, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = {}
+		self.required["Active"] = {"*": "attr_onState"}
+		self.required["CurrentHeaterCoolerState"] = {"indigo.ThermostatDevice": "special_thermHVACMode"}
+		self.required["TargetHeaterCoolerState"] = {"indigo.ThermostatDevice": "special_thermHVACMode"}
+		self.required["CurrentTemperature"] = {"indigo.ThermostatDevice": "special_thermTemperature"}
+	
+		self.optional = {}
+		self.optional["LockPhysicalControls"] = {}
+		self.optional["Name"] = {}
+		self.optional["SwingMode"] = {}
+		self.optional["CoolingThresholdTemperature"] = {}
+		self.optional["HeatingThresholdTemperature"] = {}
+		self.optional["TemperatureDisplayUnits"] = {"indigo.ThermostatDevice": "special_serverCorFSetting"}
+		self.optional["RotationSpeed"] = {"indigo.DimmerDevice": "attr_brightness", "indigo.SpeedControlDevice": "attr_speedLevel"}
+		self.optional["Name"] = {}
+					
+		super(service_HeaterCooler, self).setAttributes ()				
+				
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+
+# ==============================================================================
+# HUMIDIFIER / DEHUMIDIFIER
+# ==============================================================================
+class service_HumidifierDehumidifier (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "HumidifierDehumidifier"
+		desc = "Humidifier / Dehumidifier"
+	
+		super(service_HumidifierDehumidifier, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = {}
+		self.required["CurrentRelativeHumidity"] = {"*": "attr_sensorValue", "indigo.ThermostatDevice": "state_humidityInput1", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "state_relativeHumidity"}
+		self.required["CurrentHumidifierDehumidifierState"] = {}
+		self.required["TargetHumidifierDehumidifierState"] = {}
+		self.required["Active"] = {"*": "attr_onState"}
+	
+		self.optional = {}
+		self.optional["LockPhysicalControls"] = {}
+		self.optional["Name"] = {}
+		self.optional["SwingMode"] = {}
+		self.optional["WaterLevel"] = {}
+		self.optional["RelativeHumidityDehumidifierThreshold"] = {}
+		self.optional["RelativeHumidityHumidifierThreshold"] = {}
+		self.optional["RotationSpeed"] = {"indigo.DimmerDevice": "attr_brightness", "indigo.SpeedControlDevice": "attr_speedLevel"}
+					
+		super(service_HumidifierDehumidifier, self).setAttributes ()				
+				
+		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 
 # ==============================================================================
 # HUMIDITY SENSOR
@@ -3141,8 +3502,8 @@ class service_Thermostat (Service):
 		self.optional = {}
 		self.optional["CurrentRelativeHumidity"] = {"indigo.ThermostatDevice": "state_humidityInput1"}
 		self.optional["TargetRelativeHumidity"] = {}
-		#self.optional["CoolingThresholdTemperature"] = {"indigo.ThermostatDevice": "special_thermCoolSet"}
-		#self.optional["HeatingThresholdTemperature"] = {"indigo.ThermostatDevice": "special_thermHeatSet"}
+		self.optional["CoolingThresholdTemperature"] = {"indigo.ThermostatDevice": "special_thermCoolSet"}
+		self.optional["HeatingThresholdTemperature"] = {"indigo.ThermostatDevice": "special_thermHeatSet"}
 		self.optional["Name"] = {}
 					
 		super(service_Thermostat, self).setAttributes ()	
@@ -3499,6 +3860,21 @@ class characteristic_CurrentHeatingCoolingState:
 		self.notify = True		
 		
 # ==============================================================================
+# CURRENT HEATER/COOLER STATE
+# ==============================================================================
+class characteristic_CurrentHeaterCoolerState:	
+	def __init__(self):
+		self.value = 1
+		self.maxValue = 3
+		self.minValue = 0
+		
+		self.validValues = [0, 1, 2, 3]
+		self.validValuesStr = "[inactive, idle, heating, cooling]"
+		
+		self.readonly = True
+		self.notify = True			
+		
+# ==============================================================================
 # CURRENT HORIZONTAL TILT ANGLE
 # ==============================================================================		
 class characteristic_CurrentHorizontalTiltAngle:
@@ -3509,7 +3885,22 @@ class characteristic_CurrentHorizontalTiltAngle:
 		self.minStep = 1
 
 		self.readonly = True
-		self.notify = True		
+		self.notify = True	
+		
+# ==============================================================================
+# CURRENT HUMIDIFIER / DEHUMIDIFIER STATE
+# ==============================================================================
+class characteristic_CurrentHumidifierDehumidifierState:	
+	def __init__(self):
+		self.value = 0 
+		self.maxValue = 3
+		self.minValue = 0
+		
+		self.validValues = [0, 1, 2, 3]
+		self.validValuesStr = "[inactive, idle, humidifying, dehumidifying]"
+		
+		self.readonly = True
+		self.notify = True				
 		
 # ==============================================================================
 # CURRENT POSITION
@@ -3784,6 +4175,19 @@ class characteristic_Name:
 		self.notify = False
 		
 # ==============================================================================
+# NITROGEN DIOXIDE DENSITY
+# ==============================================================================
+class characteristic_NitrogenDioxideDensity:	
+	def __init__(self):
+		self.value = 0.0 
+		self.maxValue = 1000.0
+		self.minValue = 0.0
+		self.minStep = 1
+		
+		self.readonly = True
+		self.notify = True			
+		
+# ==============================================================================
 # OCCUPANCY DETECTED
 # ==============================================================================
 class characteristic_OccupancyDetected:
@@ -3832,6 +4236,45 @@ class characteristic_OutletInUse:
 		self.notify = True		
 		
 # ==============================================================================
+# OZONE DENSITY
+# ==============================================================================
+class characteristic_OzoneDensity:	
+	def __init__(self):
+		self.value = 0.0 
+		self.maxValue = 1000.0
+		self.minValue = 0.0
+		self.minStep = 1
+		
+		self.readonly = True
+		self.notify = True			
+		
+# ==============================================================================
+# PM2_5 DENSITY
+# ==============================================================================
+class characteristic_PM2_5Density:	
+	def __init__(self):
+		self.value = 0.0 
+		self.maxValue = 1000.0
+		self.minValue = 0.0
+		self.minStep = 1
+		
+		self.readonly = True
+		self.notify = True		
+		
+# ==============================================================================
+# PM10 DENSITY
+# ==============================================================================
+class characteristic_PM10Density:	
+	def __init__(self):
+		self.value = 0.0 
+		self.maxValue = 1000.0
+		self.minValue = 0.0
+		self.minStep = 1
+		
+		self.readonly = True
+		self.notify = True			
+		
+# ==============================================================================
 # POSITION STATE
 # ==============================================================================
 class characteristic_PositionState:	
@@ -3875,6 +4318,32 @@ class characteristic_ProgrammableSwitchEvent:
 		
 		self.readonly = True
 		self.notify = True			
+		
+# ==============================================================================
+# RELATIVE HUMIDITY DEHUMIDIFIER THRESHOLD
+# ==============================================================================		
+class characteristic_RelativeHumidityDehumidifierThreshold:
+	def __init__(self):
+		self.value = 0.0
+		self.maxValue = 100.0
+		self.minValue = 0.0
+		self.minStep = 1
+
+		self.readonly = False
+		self.notify = True		
+		
+# ==============================================================================
+# RELATIVE HUMIDITY HUMIDIFIER THRESHOLD
+# ==============================================================================		
+class characteristic_RelativeHumidityHumidifierThreshold:
+	def __init__(self):
+		self.value = 0.0
+		self.maxValue = 100.0
+		self.minValue = 0.0
+		self.minStep = 1
+
+		self.readonly = False
+		self.notify = True				
 		
 # ==============================================================================
 # REMAINING DURATION (Need to update homebridge/hap-nodejs/lib/gen/HomeKitTypes.js to extend this range)
@@ -4116,7 +4585,80 @@ class characteristic_SecuritySystemTargetState:
 		self.validValuesStr = "[stay arm, away arm, night arm, disarm]"
 		
 		self.readonly = False
-		self.notify = True			
+		self.notify = True		
+		
+# ==============================================================================
+# SELECTED RTP STREAM CONFIGURATION
+# ==============================================================================
+class characteristic_SelectedRTPStreamConfiguration:	
+	def __init__(self):
+		self.value = u"" 
+		
+		self.readonly = True
+		self.notify = False			
+		
+# ==============================================================================
+# SET UP ENDPOINTS
+# ==============================================================================
+class characteristic_SetupEndpoints:	
+	def __init__(self):
+		self.value = u"" 
+		
+		self.readonly = True
+		self.notify = True	
+		
+# ==============================================================================
+# STREAMING STATUS
+# ==============================================================================
+class characteristic_StreamingStatus:	
+	def __init__(self):
+		self.value = u"" 
+		
+		self.readonly = True
+		self.notify = True				
+		
+# ==============================================================================
+# SULPHUR DIOXIDE DENSITY
+# ==============================================================================
+class characteristic_SulphurDioxideDensity:	
+	def __init__(self):
+		self.value = 0.0 
+		self.maxValue = 1000.0
+		self.minValue = 0.0
+		self.minStep = 1
+		
+		self.readonly = True
+		self.notify = True	
+
+# ==============================================================================
+# SUPPORTED AUDIO STREAM CONFIGURATION
+# ==============================================================================
+class characteristic_SupportedAudioStreamConfiguration:	
+	def __init__(self):
+		self.value = u"" 
+		
+		self.readonly = True
+		self.notify = False	
+		
+# ==============================================================================
+# SUPPORTED RTP CONFIGURATION
+# ==============================================================================
+class characteristic_SupportedRTPConfiguration:	
+	def __init__(self):
+		self.value = u"" 
+		
+		self.readonly = True
+		self.notify = False			
+		
+# ==============================================================================
+# SUPPORTED VIDEO STREAM CONFIGURATION
+# ==============================================================================
+class characteristic_SupportedVideoStreamConfiguration:	
+	def __init__(self):
+		self.value = u"" 
+		
+		self.readonly = True
+		self.notify = False				
 		
 # ==============================================================================
 # TARGET AIR PURIFIER STATE
@@ -4179,6 +4721,21 @@ class characteristic_TargetHeatingCoolingState:
 		self.notify = True		
 		
 # ==============================================================================
+# TARGET HEATER/COOLER STATE
+# ==============================================================================
+class characteristic_TargetHeaterCoolerState:	
+	def __init__(self):
+		self.value = 1
+		self.maxValue = 2
+		self.minValue = 0
+		
+		self.validValues = [0, 1, 2]
+		self.validValuesStr = "[auto, heat, cool]"
+		
+		self.readonly = True
+		self.notify = True			
+		
+# ==============================================================================
 # TARGET HORIZONTAL TILT ANGLE
 # ==============================================================================		
 class characteristic_TargetHorizontalTiltAngle:
@@ -4190,6 +4747,21 @@ class characteristic_TargetHorizontalTiltAngle:
 
 		self.readonly = False
 		self.notify = True		
+		
+# ==============================================================================
+# TARGET HUMIDIFIER / DEHUMIDIFIER STATE
+# ==============================================================================
+class characteristic_TargetHumidifierDehumidifierState:	
+	def __init__(self):
+		self.value = 0 
+		self.maxValue = 2
+		self.minValue = 0
+		
+		self.validValues = [0, 1, 2]
+		self.validValuesStr = "[humidifier or dehumidifier, humidifier, dehumidifier]"
+		
+		self.readonly = False
+		self.notify = True				
 		
 # ==============================================================================
 # TARGET POSITION
@@ -4210,10 +4782,8 @@ class characteristic_TargetPosition:
 class characteristic_TargetTemperature:
 	def __init__(self):
 		self.value = 0.0
-		#self.maxValue = 35
-		self.maxValue = 100
-		#self.minValue = 10
-		self.minValue = -100
+		self.maxValue = 35
+		self.minValue = 10
 		self.minStep = 0.1
 
 		self.readonly = False
@@ -4272,6 +4842,19 @@ class characteristic_TemperatureDisplayUnits:
 		
 		self.readonly = False
 		self.notify = True		
+		
+# ==============================================================================
+# VOC DENSITY
+# ==============================================================================
+class characteristic_VOCDensity:	
+	def __init__(self):
+		self.value = 0.0 
+		self.maxValue = 1000.0
+		self.minValue = 0.0
+		self.minStep = 1
+		
+		self.readonly = True
+		self.notify = True			
 				
 # ==============================================================================
 # VOLUME
@@ -4300,3 +4883,15 @@ class characteristic_ValveType:
 		
 		self.readonly = True
 		self.notify = True						
+		
+# ==============================================================================
+# WATER LEVEL
+# ==============================================================================		
+class characteristic_WaterLevel:
+	def __init__(self):
+		self.value = 0.0
+		self.maxValue = 100.0
+		self.minValue = 0.0
+
+		self.readonly = True
+		self.notify = True			

@@ -93,11 +93,8 @@ class Plugin(indigo.PluginBase):
 			#eps.api.stopServer ()
 			#eps.api.run (self.pluginPrefs.get('apiport', '8558'))
 			
-			#indigo.server.log ("Test #1: Device onState is {}".format(unicode(indigo.devices[41059771].onState)))
-			#x = eps.homekit.getServiceObject (41059771, 0, "service_ContactSensor")
-			#x.invertOnState = True
-			#if x.invertOnState: x.setAttributes()
-			#indigo.server.log (unicode(x))
+			x = eps.homekit.getServiceObject (1642494335, 1794022133, "service_ContactSensor")
+			indigo.server.log (unicode(x))
 						
 			#x = eps.homekit.getServiceObject (361446525, 1794022133, "service_Fanv2")
 			#indigo.server.log (unicode(x))
@@ -1365,6 +1362,7 @@ class Plugin(indigo.PluginBase):
 			
 					if len(self.SERVER_ID[devId]) > 1:
 						# Multiple servers, they cannot edit from the API
+						#success = False
 						payload["serverId"] = serverId
 						payload["voiceDataType"] = hktype
 						payload["eligible"] = False
@@ -3891,7 +3889,7 @@ class Plugin(indigo.PluginBase):
 			if not server.states["onOffState"]:
 				self.logger.debug ("Homebridge update requested, but '{}' isn't running, ignoring update request".format(server.name))
 				return
-									
+			
 			url = "http://127.0.0.1:{1}/devices/{0}".format(str(objId), server.pluginProps["listenPort"])
 			
 			#data = {'isOn':1, 'brightness': 100}
@@ -3899,11 +3897,14 @@ class Plugin(indigo.PluginBase):
 			
 			data_json = json.dumps(data)
 			payload = {'json_payload': data_json}
+			
+			self.logger.debug ("Homebridge update requested, querying {0} on {1}".format(url, server.name))
+			
 			r = requests.get(url, data=payload)
 			
 			#indigo.server.log(unicode(r))
 			
-			self.logger.debug ("Homebridge update requested, querying {0}".format(url))
+			
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
