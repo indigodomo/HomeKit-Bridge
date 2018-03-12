@@ -2430,7 +2430,7 @@ class HomeKitAction ():
 			else:
 				value = targetTemperature
 							
-			indigo.thermostat.setheatSetpoint (devId, value)
+			indigo.thermostat.setHeatSetpoint (devId, value)
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -2476,7 +2476,7 @@ class HomeKitAction ():
 			else:
 				value = targetTemperature
 							
-			indigo.thermostat.setcoolSetpoint (devId, value)
+			indigo.thermostat.setCoolSetpoint (devId, value)
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))				

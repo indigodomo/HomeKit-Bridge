@@ -1,8 +1,15 @@
 Release Notes
 ==========
 
-Version 0.17.0 (Beta 17.0)
+Version 0.17.1 (Beta 17.1)
 ==========
+* Fixed typo for setting heating and cooling setpoints that were causing errors
+
+Previous Release Notes
+==========
+
+Version 0.17.0 (Beta 17.0)
+---------------
 * **NOTE: This release represents that last of the HomeKit device types currently available through Homebridge.  The next few release hopefully I can add generic enough mappings that they are usable by any Indigo device type to varying degrees so that, at the very least, you get a choice of some icons to use.**
 * New device type added: [Camera RTP Stream Management](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#camerartpstreammanagement) - Don't get your hopes up, this is just experimental to give me a place to play around with video streaming
 * New device type added: [Fan](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#fan) - There really isn't a lot of difference, but this is the original HomeKit fan (fewer capabilities) and is being added for completeness and in case something different is discovered about it
@@ -15,9 +22,6 @@ Version 0.17.0 (Beta 17.0)
 * Changed target temperature range from 10 Celsius to 35 Celsius, down from -100 to 100 on thermostats, it's how it was under HB-Indigo and HBB and that's where it's staying now.  From now on I'm not changing any values like this unless there are at least 10 people requesting it, it's a waste of time and energy that's better spent on other aspects of this plugin.
 * [Issue #37](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/37) fully resolved!
 * [Issue #55](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/55) resolved
-
-Previous Release Notes
-==========
 
 Version 0.16.3 (Beta 16.3)
 ---------------
