@@ -1,12 +1,16 @@
 Release Notes
 ==========
 
-Version 0.17.1 (Beta 17.1)
+Version 0.17.2 (Beta 17.2)
 ==========
-* Fixed typo for setting heating and cooling setpoints that were causing errors
+* Fixed a few issues on the UI that caused it to get out of alignment
 
 Previous Release Notes
 ==========
+
+Version 0.17.1 (Beta 17.1)
+---------------
+* Fixed typo for setting heating and cooling setpoints that were causing errors
 
 Version 0.17.0 (Beta 17.0)
 ---------------

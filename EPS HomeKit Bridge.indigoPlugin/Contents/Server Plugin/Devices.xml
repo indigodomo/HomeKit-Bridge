@@ -47,16 +47,16 @@
 			</Field>
 			
 			<Field type="menu" id="tempunits" defaultValue="c" visibleBindingId="configOption" visibleBindingValue="config">
-                <Label>HomeKit thermostats are:</Label>
+                <Label>In HomeKit:</Label>
                 <List>
-                	<Option value="f">Fahrenheit</Option>
-                    <Option value="c">Celsius</Option>
+                	<Option value="f">Thermostats are Fahrenheit</Option>
+                    <Option value="c">Thermostats are Celsius</Option>
                 </List>
                 <CallbackMethod>formFieldChanged</CallbackMethod>
             </Field>
 			
 			<Field type="textfield" id="accessoryNamePrefix" defaultValue="" visibleBindingId="configOption" visibleBindingValue="config" >
-				<Label>Prefix:</Label>
+				<Label>Accessory prefix:</Label>
 			</Field>
 			
 			<Field type="checkbox" id="autoStartStop" defaultValue="true" visibleBindingId="configOption" visibleBindingValue="config">
@@ -86,7 +86,7 @@
 			
 			<Field type="label" id="lbl_devicelistheaders" visibleBindingId="configOption" visibleBindingValue="include" alwaysUseInDialogHeightCalc="true">
 				<Label>
-				   Type	    HomeKit Alias</Label>
+				 Type       HomeKit Alias</Label>
 			</Field>
 			
 			<Field type="list" id="deviceList" enabledBindingId="editActive" enabledBindingNegate="true" visibleBindingId="configOption" visibleBindingValue="include" defaultValue="" rows="12" alwaysUseInDialogHeightCalc="true">
