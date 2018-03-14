@@ -1,3 +1,5 @@
+![](https://github.com/Colorado4Wheeler/HomeKit-Bridge/blob/master/images/logo.png)
+
 # HomeKit Bridge
 
 This plugin for the [Indigo Domotics](http://www.indigodomo.com/) home automation platform that publishes Indigo devices and action groups to Homebridge so that you can use your Indigo devices and actions in HomeKit and with Siri.

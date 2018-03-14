@@ -3,7 +3,14 @@ Release Notes
 
 Version 0.17.2 (Beta 17.2)
 ==========
-* Fixed a few issues on the UI that caused it to get out of alignment
+* Added Indigo Plugin Store update checker, this will check at 10:00am each day and on plugin startup
+* Added Indigo Plugin Store update check to the menu
+* Moved log notice about building configuration to the debug log rather than the info log
+* Improved performance of Hue bulbs both in general operation but specifically for color changes ([Issue #31](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/31)), it involved a little white lie back to HomeKit to make this work but I don't think it'll be an issue.
+* Fixed a few issues on the UI that caused the form to get out of alignment
+* Fixed a bug when an Indigo value was "None" that it would cause a message in the log about being unable to convert (re-fixed from 0.17.0) - [Issue #55](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/55)
+* [Issue #31](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/31) resolved
+* [Issue #55](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/55) resolved
 
 Previous Release Notes
 ==========

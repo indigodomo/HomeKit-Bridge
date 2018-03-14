@@ -27,6 +27,7 @@ import math # for server wizard
 import collections # dict sorting for server wizard
 import thread # homebridge callbacks on actions
 import operator # sorting
+from distutils.version import LooseVersion
 
 #from lib.httpsvr import httpServer
 #hserver = httpServer(None)
@@ -93,8 +94,10 @@ class Plugin(indigo.PluginBase):
 			#eps.api.stopServer ()
 			#eps.api.run (self.pluginPrefs.get('apiport', '8558'))
 			
-			x = eps.homekit.getServiceObject (1642494335, 1794022133, "service_ContactSensor")
-			indigo.server.log (unicode(x))
+			self.version_check()
+			
+			#x = eps.homekit.getServiceObject (1642494335, 1794022133, "service_ContactSensor")
+			#indigo.server.log (unicode(x))
 						
 			#x = eps.homekit.getServiceObject (361446525, 1794022133, "service_Fanv2")
 			#indigo.server.log (unicode(x))
@@ -209,9 +212,73 @@ class Plugin(indigo.PluginBase):
 				msg += eps.ui.debugHeaderEx ()
 				
 				self.logger.warning (msg)
+				
+			self.version_check()
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
+			
+			
+	#
+	# Check plugin store version
+	#		
+	def version_check(self):
+		# Create some URLs we'll use later on
+		pluginId = self.pluginId
+		current_version_url = "https://api.indigodomo.com/api/v2/pluginstore/plugin-version-info.json?pluginId={}".format(pluginId)
+		store_detail_url = "https://www.indigodomo.com/pluginstore/{}/"
+		try:
+			# GET the url from the servers with a short timeout (avoids hanging the plugin)
+			reply = requests.get(current_version_url, timeout=5)
+			# This will raise an exception if the server returned an error
+			reply.raise_for_status()
+			# We now have a good reply so we get the json
+			reply_dict = reply.json()
+			plugin_dict = reply_dict["plugins"][0]
+			# Make sure that the 'latestRelease' element is a dict (could be a string for built-in plugins).
+			latest_release = plugin_dict["latestRelease"]
+			if isinstance(latest_release, dict):
+				# Compare the current version with the one returned in the reply dict
+				if LooseVersion(latest_release["number"]) > LooseVersion(self.pluginVersion):
+					# The release in the store is newer than the current version.
+					# We'll do a couple of things: first, we'll just log it
+					self.logger.error(
+						"A new version of HomeKit Bridge (v{}) is available at: {}".format(
+							latest_release["number"],
+							store_detail_url.format(plugin_dict["id"])
+						)
+					)
+					# We'll change the value of a variable named "Plugin_Name_Current_Version" to the new version number
+					# which the user can then build a trigger on (or whatever). You could also insert the download URL,
+					# the store URL, whatever.
+					try:
+						variable_name = "{}_Current_Version".format(self.pluginDisplayName.replace(" ", "_"))
+						indigo.variable.updateValue(variable_name, latest_release["number"])
+					except:
+						pass
+					# We'll execute an action group named "New Version for Plugin Name". The action group could
+					# then get the value of the variable above to do some kind of notification.
+					try:
+						action_group_name = "New Version for {}".format(self.pluginDisplayName)
+						indigo.actionGroup.execute(action_group_name)
+					except:
+						pass
+					# There are lots of other things you could do here. The final thing we're going to do is send
+					# an email to self.version_check_email which I'll assume that you've set from the plugin
+					# config.
+					if hasattr(self, 'version_check_email') and self.version_check_email:
+						indigo.server.sendEmailTo(
+							self.version_check_email, 
+							subject="New version of Indigo Plugin '{}' is available".format(self.pluginDisplayName),
+							body="It can be downloaded here: {}".format(store_detail_url)
+						)
+						
+				else:
+					self.logger.info("HomeKit Bridge is running the latest version, no update needed")
+
+				
+		except Exception as exc:
+			self.logger.error (ext.getException(e))			
 			
 			
 	#
@@ -552,7 +619,12 @@ class Plugin(indigo.PluginBase):
 				self.CTICKS = 0
 				
 			except Exception as e:
-				self.logger.error (ext.getException(e))		
+				self.logger.error (ext.getException(e))	
+				
+		# Check updates every day at 10:00am
+		dateSTR = datetime.datetime.now().strftime("%H:%M:%S" )
+		if dateSTR == ("10:00:00"):	
+			self.version_check()
 			
 	#
 	# A form field changed, update defaults
@@ -3977,7 +4049,7 @@ class Plugin(indigo.PluginBase):
 				dev.replacePluginPropsOnServer(props)
 				self.catalogServerDevices() # Reindex everything
 							
-			self.logger.info ("Rebuilding configuration for '{0}'".format(dev.name))
+			self.logger.debug ("Rebuilding configuration for '{0}'".format(dev.name))
 			self.saveConfigurationToDisk (dev)
 			
 			# Start the HB server

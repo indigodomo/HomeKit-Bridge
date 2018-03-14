@@ -1487,7 +1487,7 @@ class Service (object):
 				#if self.objId == 624004987: self.logger.info ("Converting value type of {} to charateristic type of {} for {}".format(vtype, atype, attribute))
 			
 				converted = False
-				if vtype is None:
+				if vtype == "NoneType":
 					if atype == "float": obj.value = 0.0
 					if atype == "int": obj.value = 0
 					if atype == "bool": obj.value = False
@@ -2203,6 +2203,11 @@ class HomeKitAction ():
 						obj = indigo.devices[devId]
 						if prop.replace("state_", "") in obj.states:
 							monitors[devId] = {prop: obj.states[prop.replace("state_", "")]}
+							
+			# Special exception for Hue bulbs to not wait for state changes since we'll get three in succession
+			if not obj is None and type(obj) == indigo.DimmerDevice and obj.pluginId == "com.nathansheldon.indigoplugin.HueLights":
+				self.logger.threaddebug ("Special exception mode for {} to allow for rapid changes in the Hue plugin".format(obj.name))
+				waitForComplete = False
 		
 			# Get the value type of the value so we can convert from string to that type
 			if type(self.whenvalue) == bool:
@@ -2579,7 +2584,7 @@ class service_AirQualitySensor (Service):
 		self.required["AirQuality"] = {"indigo.SensorDevice": "attr_sensorValue"}
 		
 		self.optional = {}
-		self.optional["StatusActive"] = {}
+		self.optional["StatusActive"] = {"*": "attr_onState"}
 		self.optional["StatusFault"] = {}
 		self.optional["StatusTampered"] = {}
 		self.optional["StatusLowBattery"] = {"*": "special_lowbattery"}

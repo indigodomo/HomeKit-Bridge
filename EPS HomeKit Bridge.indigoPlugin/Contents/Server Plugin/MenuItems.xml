@@ -194,6 +194,11 @@ Using this method is nit-picking performance since polling is almost equally as 
     	<CallbackMethod>pluginMenuSupportInfo</CallbackMethod>
     </MenuItem>
     
+    <MenuItem id="pluginVersion">
+    	<Name>Check For Update</Name>
+    	<CallbackMethod>version_check</CallbackMethod>
+    </MenuItem>
+    
     <MenuItem id="devtest">
     	<Name>Development Testing</Name>
     	<CallbackMethod>devTest</CallbackMethod>
