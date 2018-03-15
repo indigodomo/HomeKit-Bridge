@@ -2203,6 +2203,7 @@ class HomeKitAction ():
 			
 			# Catalog all monitor items
 			monitors = {}
+			obj = None
 			for devId, prop in self.monitors.iteritems():
 				if "attr_" in prop:
 					obj = getattr (indigo.devices[devId], prop.replace("attr_", ""))

@@ -223,6 +223,7 @@ class Plugin(indigo.PluginBase):
 	# Check plugin store version
 	#		
 	def version_check(self):
+		return
 		# Create some URLs we'll use later on
 		pluginId = self.pluginId
 		current_version_url = "https://api.indigodomo.com/api/v2/pluginstore/plugin-version-info.json?pluginId={}".format(pluginId)
@@ -277,7 +278,7 @@ class Plugin(indigo.PluginBase):
 					self.logger.info("HomeKit Bridge is running the latest version, no update needed")
 
 				
-		except Exception as exc:
+		except Exception as e:
 			self.logger.error (ext.getException(e))			
 			
 			

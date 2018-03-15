@@ -1,12 +1,17 @@
 Release Notes
 ==========
 
-Version 0.17.4 (Beta 17.4)
+Version 0.17.5 (Beta 17.5)
 ==========
-* Fixed one metric crap-ton of places where non-ascii characters might cause errors (fixes [non-standard ASCII error reported on the forum](http://forums.indigodomo.com/viewtopic.php?p=156853#p156853))
+* Fixed error running action groups that was inadvertently broken when adding exceptions for Hue bulbs ([reported on the forums](http://forums.indigodomo.com/viewtopic.php?p=156870#p156870))
+* Removed update checking function from plugin until it's advertised on the store (the options are still there, but the actual function itself will do nothing)
 
 Previous Release Notes
 ==========
+
+Version 0.17.4 (Beta 17.4)
+---------------
+* Fixed one metric crap-ton of places where non-ascii characters might cause errors (fixes [non-standard ASCII error reported on the forum](http://forums.indigodomo.com/viewtopic.php?p=156853#p156853))
 
 Version 0.17.3 (Beta 17.3)
 ---------------
