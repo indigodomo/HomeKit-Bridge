@@ -1,3 +1,6 @@
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-
+
 # lib.homekit - HomeKit integration via Homebridge-Indigo2
 #
 # Copyright (c) 2018 ColoradoFourWheeler / EPS
@@ -268,7 +271,7 @@ class HomeKit:
 				if "onState" in dir(dev):
 					return "service_Switch"
 				else:
-					self.logger.warning ("{} is defaulting to a HomeKit switch because the device type cannot be determined but does not support On/Off and likely won't do anything in HomeKit".format(dev.name))
+					self.logger.warning (u"{} is defaulting to a HomeKit switch because the device type cannot be determined but does not support On/Off and likely won't do anything in HomeKit".format(dev.name))
 					return "service_Switch"
 					#return "Dummy"
 		
@@ -729,7 +732,7 @@ class Service (object):
 			if self.type in HomeKitServiceList:
 				self.loadJSONDictData()
 			else:
-				#self.logger.error ("HomeKit service '{}' should have been in the dictionary but wasn't, control of this kind of device is impossible and errors will occur!".format(self.type))
+				#self.logger.error (u"HomeKit service '{}' should have been in the dictionary but wasn't, control of this kind of device is impossible and errors will occur!".format(self.type))
 				pass
 			
 		except Exception as e:
@@ -741,7 +744,7 @@ class Service (object):
 		return # Until ready to release
 		
 		try:
-			self.logger.info ("HomeKit service '{}' loaded".format(self.type))
+			self.logger.info (u"HomeKit service '{}' loaded".format(self.type))
 			
 			#self.required["ContactSensorState"] = {"*": "special_invertedOnState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedBoolean", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open"}
 			
@@ -844,15 +847,15 @@ class Service (object):
 			
 			if self.objId in indigo.devices: 
 				obj = indigo.devices[self.objId]
-				self.model.value = obj.model
-				self.model.value = obj.subModel
+				self.model.value = unicode(obj.model)
+				self.model.value = unicode(obj.subModel)
 				
 			if self.objId in indigo.actionGroups: 
 				obj = indigo.actionGroups[self.objId]
 				self.model.value = "Action Group"
 			
 			self.alias = characteristic_Name()
-			self.alias.value = obj.name
+			self.alias.value = unicode(obj.name)
 			
 			# While we are here if we have a server and an object then we can pull the stash
 			r = self.getStashRecordForObject()
@@ -898,7 +901,7 @@ class Service (object):
 			for a in self.required:
 				classname = "characteristic_{}".format(a)
 				if classname in classes:
-					self.logger.threaddebug ("Adding {} attribute to {}".format(a, self.alias.value))
+					self.logger.threaddebug (u"Adding {} attribute to {}".format(a, self.alias.value))
 					cclass = classes[classname]
 					setattr (self, a, cclass())
 					
@@ -907,7 +910,7 @@ class Service (object):
 				if a in self.characterDict or self.loadOptional:
 					classname = "characteristic_{}".format(a)
 					if classname in classes:
-						self.logger.threaddebug ("Adding {} attribute to {}".format(a, self.alias.value))
+						self.logger.threaddebug (u"Adding {} attribute to {}".format(a, self.alias.value))
 						cclass = classes[classname]
 						setattr (self, a, cclass())
 						
@@ -1004,7 +1007,7 @@ class Service (object):
 				# Create the characteristic as an attribute
 				classname = "characteristic_{}".format(characteristic)
 				if classname in classes:
-					self.logger.threaddebug ("Adding {} attribute to {}".format(characteristic, self.alias.value))
+					self.logger.threaddebug (u"Adding {} attribute to {}".format(characteristic, self.alias.value))
 					cclass = classes[classname]
 					setattr (self, characteristic, cclass())
 					
@@ -1023,7 +1026,7 @@ class Service (object):
 						
 						#indigo.server.log ("Alias: {} | Invert: {} | Getter: {}".format(self.alias.value, unicode(self.invertOnState), getter))
 						if self.invertOnState and getter == "attr_onState": # In case we are reversing AND this is the onState attribute
-							self.logger.threaddebug ("Inverting {}".format(self.alias.value))
+							self.logger.threaddebug (u"Inverting {}".format(self.alias.value))
 							if getattr (self, characteristic).value:
 								self.setAttributeValue (characteristic, False) # Make true false
 							else:
@@ -1071,7 +1074,7 @@ class Service (object):
 			invalidType = False
 			
 			#if a.readonly: 
-			#	self.logger.threaddebug ("Not setting a default action for {} because that characteristic is read only".format(characteristic))
+			#	self.logger.threaddebug (u"Not setting a default action for {} because that characteristic is read only".format(characteristic))
 			#	return # There are no actions for readonly characteristics, why add unnecessary data?
 			
 			# Define some defaults
@@ -1103,7 +1106,7 @@ class Service (object):
 			# MOST DEVICES
 			if attrib == "onState":	
 				if self.invertOnState:
-					self.logger.debug ("Inverting the action for characteristic {} on '{}'".format(characteristic, self.alias.value))
+					self.logger.debug (u"Inverting the action for characteristic {} on '{}'".format(characteristic, self.alias.value))
 					# This attribute is the only thing impacted by this setting but it means we have to reverse the commands because the characteristic
 					# value was reversed in HomeKit.  We need to remove all default actions because they will be replaced here and if we don't we'll end up
 					# appending the regular and inverted commands together
@@ -1196,7 +1199,7 @@ class Service (object):
 				
 		
 			if invalidType:
-				self.logger.warning ("Unable to create default action for {} attribute '{}', the characteristic '{}' data type is {} and we can't translate to that from '{}'".format(self.alias.value, attrib, characteristic, str(type(a.value)).replace("<type '", "").replace("'>", ""), attrib))
+				self.logger.warning (u"Unable to create default action for {} attribute '{}', the characteristic '{}' data type is {} and we can't translate to that from '{}'".format(self.alias.value, attrib, characteristic, str(type(a.value)).replace("<type '", "").replace("'>", ""), attrib))
 				return
 		
 		except Exception as e:
@@ -1214,7 +1217,7 @@ class Service (object):
 			invalidType = False
 			
 			if a.readonly: 
-				self.logger.threaddebug ("Not setting a default action for {} because that characteristic is read only".format(characteristic))
+				self.logger.threaddebug (u"Not setting a default action for {} because that characteristic is read only".format(characteristic))
 				return # There are no actions for readonly characteristics, why add unnecessary data?
 			
 			# Define some defaults
@@ -1459,7 +1462,7 @@ class Service (object):
 				
 		
 			if invalidType:
-				self.logger.warning ("Unable to create default action for {} attribute '{}', the characteristic '{}' data type is {} and we can't translate to that from '{}'".format(self.alias.value, attrib, characteristic, str(type(a.value)).replace("<type '", "").replace("'>", ""), attrib))
+				self.logger.warning (u"Unable to create default action for {} attribute '{}', the characteristic '{}' data type is {} and we can't translate to that from '{}'".format(self.alias.value, attrib, characteristic, str(type(a.value)).replace("<type '", "").replace("'>", ""), attrib))
 				return
 				
 			#state_binaryOutput1
@@ -1476,7 +1479,7 @@ class Service (object):
 			ret = True
 		
 			if not attribute in dir(self):
-				self.logger.error ("Cannot set {} value of {} because it is not an attribute".format(attribute, dev.Alias.value))
+				self.logger.error (u"Cannot set {} value of {} because it is not an attribute".format(attribute, dev.Alias.value))
 				return False
 			
 			obj = getattr (self, attribute)	
@@ -1489,8 +1492,8 @@ class Service (object):
 				vtype = str(type(value)).replace("<type '", "").replace("'>", "")
 				atype = str(type(obj.value)).replace("<type '", "").replace("'>", "")
 				
-				self.logger.threaddebug ("Converting value type of {} to charateristic type of {} for {}".format(vtype, atype, attribute))
-				#if self.objId == 624004987: self.logger.info ("Converting value type of {} to charateristic type of {} for {}".format(vtype, atype, attribute))
+				self.logger.threaddebug (u"Converting value type of {} to charateristic type of {} for {}".format(vtype, atype, attribute))
+				#if self.objId == 624004987: self.logger.info (u"Converting value type of {} to charateristic type of {} for {}".format(vtype, atype, attribute))
 			
 				converted = False
 				if vtype == "NoneType":
@@ -1511,7 +1514,7 @@ class Service (object):
 					converted = True
 			
 				if not converted:
-					self.logger.warning ("Unable to set the value of {} on {} to {} because that attribute requires {} and it was given {}".format(attribute, self.alias.value, unicode(value), atype, vtype))
+					self.logger.warning (u"Unable to set the value of {} on {} to {} because that attribute requires {} and it was given {}".format(attribute, self.alias.value, unicode(value), atype, vtype))
 					return False
 					
 					
@@ -1544,7 +1547,7 @@ class Service (object):
 				if not value: newvalue = "false"	
 				
 			else:
-				self.logger.warning ("Unable to convert from {} to {}".format(vtype, atype))
+				self.logger.warning (u"Unable to convert from {} to {}".format(vtype, atype))
 		
 			if "validValues" in dir(obj) and newvalue in obj.validValues: 
 				obj.value = newvalue
@@ -2212,7 +2215,7 @@ class HomeKitAction ():
 							
 			# Special exception for Hue bulbs to not wait for state changes since we'll get three in succession
 			if not obj is None and type(obj) == indigo.DimmerDevice and obj.pluginId == "com.nathansheldon.indigoplugin.HueLights":
-				self.logger.threaddebug ("Special exception mode for {} to allow for rapid changes in the Hue plugin".format(obj.name))
+				self.logger.threaddebug (u"Special exception mode for {} to allow for rapid changes in the Hue plugin".format(obj.name))
 				waitForComplete = False
 		
 			# Get the value type of the value so we can convert from string to that type
@@ -2229,7 +2232,7 @@ class HomeKitAction ():
 				value = float(value)
 				
 			else:
-				self.logger.error ("Unknown value for processAction: {}".format(str(type(self.whenvalue)).replace("<type '", "").replace("'>", "")))
+				self.logger.error (u"Unknown value for processAction: {}".format(str(type(self.whenvalue)).replace("<type '", "").replace("'>", "")))
 				return False
 				
 			isValid = False
@@ -2244,7 +2247,7 @@ class HomeKitAction ():
 				# Try to run the command
 				try:
 					try:
-						self.logger.debug ("{} is running because the rule passes for {}".format(self.characteristic, self.command))
+						self.logger.debug (u"{} is running because the rule passes for {}".format(self.characteristic, self.command))
 					except:
 						pass
 					
@@ -2274,7 +2277,7 @@ class HomeKitAction ():
 						retval = func()
 						
 					if waitForComplete:
-						self.logger.threaddebug ("Waiting for {} to complete".format(self.command))
+						self.logger.threaddebug (u"Waiting for {} to complete".format(self.command))
 						# We never do this for action groups, the HTML return will immediately return success so we can do a call back, this is only for devices
 						if "actionGroup" not in self.command:
 							for devId, prop in self.monitors.iteritems():							
@@ -2286,13 +2289,13 @@ class HomeKitAction ():
 									while not runcomplete:
 										failsafe = failsafe + 1
 										if failsafe > 50000:
-											self.logger.error ("While setting the '{}' HomeKit characteristic for '{}' (HomeKit device '{}') the race condition failsafe was engaged, meaning the condition to break out of the action loop was not met.  This is fairly critical, please report to developer!".format(self.characteristic, indigo.devices[int(devId)].name, indigo.devices[int(objId)].name))
+											self.logger.error (u"While setting the '{}' HomeKit characteristic for '{}' (HomeKit device '{}') the race condition failsafe was engaged, meaning the condition to break out of the action loop was not met.  This is fairly critical, please report to developer!".format(self.characteristic, indigo.devices[int(devId)].name, indigo.devices[int(objId)].name))
 											runcomplete = True
 											break
 								
 										d = dtutil.dateDiff ("seconds", indigo.server.getTime(), loopstart)
 										if d > 25:
-											self.logger.error ("Maximum time exceeded while setting the '{}' HomeKit characteristic for '{}' (HomeKit device '{}'), aborting attempt.  This can happen if you try to set a device to a state is is already in (i.e., turning off a device that is already off).".format(self.characteristic, indigo.devices[int(devId)].name, indigo.devices[int(objId)].name))
+											self.logger.error (u"Maximum time exceeded while setting the '{}' HomeKit characteristic for '{}' (HomeKit device '{}'), aborting attempt.  This can happen if you try to set a device to a state is is already in (i.e., turning off a device that is already off).".format(self.characteristic, indigo.devices[int(devId)].name, indigo.devices[int(objId)].name))
 											runcomplete = True
 											break
 								
@@ -2303,21 +2306,21 @@ class HomeKitAction ():
 											# Something changed, see if it is one of our attributes, ANY attribute change (if there are multiple) will result in success
 											for devId, prop in self.monitors.iteritems():
 												if "attr_" in prop:
-													#self.logger.threaddebug ("Target device '{}' changed, checking attribute '{}' to see if it was updated".format(indigo.devices[devId].name, prop.replace("attr_", "")))
+													#self.logger.threaddebug (u"Target device '{}' changed, checking attribute '{}' to see if it was updated".format(indigo.devices[devId].name, prop.replace("attr_", "")))
 													obj = getattr (indigo.devices[devId], prop.replace("attr_", ""))
-													self.logger.threaddebug ("No change: " + unicode(monitors[devId]) + " = " + unicode({prop: obj}))
+													self.logger.threaddebug (u"No change: " + unicode(monitors[devId]) + " = " + unicode({prop: obj}))
 													# Not only check if the state changed, but check if it's already what HK asked to be, if it said to turn off and it's off then it's done
 													# this comes up with brightness/onOff because brightness turns it on and if we get an onOff afterwards it'll hang because it'll never update the state
 													if monitors[devId] != {prop: obj} or obj == value:
-														self.logger.debug ("Target device '{}' attribute '{}' was updated, the command succeeded".format(indigo.devices[devId].name, prop.replace("attr_", "")))
+														self.logger.debug (u"Target device '{}' attribute '{}' was updated, the command succeeded".format(indigo.devices[devId].name, prop.replace("attr_", "")))
 														runcomplete = True
 														break
 														
-													self.logger.threaddebug ("Target device '{}' attribute '{}' was not updated, still waiting".format(indigo.devices[devId].name, prop.replace("attr_", "")))
+													self.logger.threaddebug (u"Target device '{}' attribute '{}' was not updated, still waiting".format(indigo.devices[devId].name, prop.replace("attr_", "")))
 														
 												if "state_" in prop:
 													if "states" in dir(indigo.devices[devId]):
-														#self.logger.threaddebug ("Target device '{}' changed, checking state '{}' to see if it was updated".format(indigo.devices[devId].name, prop.replace("state_", "")))
+														#self.logger.threaddebug (u"Target device '{}' changed, checking state '{}' to see if it was updated".format(indigo.devices[devId].name, prop.replace("state_", "")))
 														obj = indigo.devices[devId]
 														if prop.replace("state_", "") in obj.states:
 															state = obj.states[prop.replace("state_", "")]
@@ -2325,14 +2328,14 @@ class HomeKitAction ():
 															#indigo.server.log("Compare: " + unicode({prop: state}))
 															#indigo.server.log("State: " + unicode(obj.states[prop.replace("state_", "")]))
 															if monitors[devId] != {prop: state} or obj.states[prop.replace("state_", "")] == value:
-																self.logger.debug ("Target device '{}' state '{}' was updated, the command succeeded".format(indigo.devices[devId].name, prop.replace("state_", "")))
+																self.logger.debug (u"Target device '{}' state '{}' was updated, the command succeeded".format(indigo.devices[devId].name, prop.replace("state_", "")))
 																runcomplete = True
 																break
 															#else:
-															#	self.logger.info ("Target device '{}' state '{}' value '{}' is equal to '{}'".format(indigo.devices[devId].name, prop.replace("state_", ""), unicode({prop: obj.states[prop.replace("state_", "")]}), unicode(monitors[devId])))
+															#	self.logger.info (u"Target device '{}' state '{}' value '{}' is equal to '{}'".format(indigo.devices[devId].name, prop.replace("state_", ""), unicode({prop: obj.states[prop.replace("state_", "")]}), unicode(monitors[devId])))
 																
 																
-														#self.logger.threaddebug ("Target device '{}' state '{}' was not updated, still waiting".format(indigo.devices[devId].name, prop.replace("state_", "")))
+														#self.logger.threaddebug (u"Target device '{}' state '{}' was not updated, still waiting".format(indigo.devices[devId].name, prop.replace("state_", "")))
 
 				
 				except Exception as ex:
@@ -2342,7 +2345,7 @@ class HomeKitAction ():
 				return True
 			
 			else:
-				self.logger.debug ("{} was not set because the rule didn't pass for {}".format(self.characteristic, self.command))
+				self.logger.debug (u"{} was not set because the rule didn't pass for {}".format(self.characteristic, self.command))
 				return False
 				
 		
@@ -2393,11 +2396,11 @@ class HomeKitAction ():
 						else:
 							args.append(a)
 							
-				self.logger.threaddebug ("Running plugin action on {} with {}".format(pluginId, unicode(args)))
+				self.logger.threaddebug (u"Running plugin action on {} with {}".format(pluginId, unicode(args)))
 				result = plugin.executeAction(*args, waitUntilDone=True)
-				self.logger.threaddebug ("Plugin action return value: " + unicode(result))
+				self.logger.threaddebug (u"Plugin action return value: " + unicode(result))
 			else:
-				self.logger.error ("Unable to run plugin command because {} is not installed or disabled".format(pluginid))
+				self.logger.error (u"Unable to run plugin command because {} is not installed or disabled".format(pluginid))
 				return False
 			
 			#[indigo.devices[self.objId].pluginId, ["disconnect", self.objId]]
@@ -2414,7 +2417,7 @@ class HomeKitAction ():
 			server = indigo.devices[serverId]
 			dev = indigo.devices[devId]
 			if type(dev) != indigo.ThermostatDevice:
-				self.logger.error ("Attempting to run {} as a thermostat with thermostat commands but it is not a thermostat".format(dev.name))
+				self.logger.error (u"Attempting to run {} as a thermostat with thermostat commands but it is not a thermostat".format(dev.name))
 				return
 				
 			serverProps = server.pluginProps
@@ -2434,7 +2437,7 @@ class HomeKitAction ():
 						break
 			
 			if r is None:
-				self.logger.error ("Attempting to change {} thermostat settings but could not find the thermostat in stash".format(dev.name))
+				self.logger.error (u"Attempting to change {} thermostat settings but could not find the thermostat in stash".format(dev.name))
 				return
 							
 			if "tempIsF" in r and r["tempIsF"]:
@@ -2460,7 +2463,7 @@ class HomeKitAction ():
 			server = indigo.devices[serverId]
 			dev = indigo.devices[devId]
 			if type(dev) != indigo.ThermostatDevice:
-				self.logger.error ("Attempting to run {} as a thermostat with thermostat commands but it is not a thermostat".format(dev.name))
+				self.logger.error (u"Attempting to run {} as a thermostat with thermostat commands but it is not a thermostat".format(dev.name))
 				return
 				
 			serverProps = server.pluginProps
@@ -2480,7 +2483,7 @@ class HomeKitAction ():
 						break
 			
 			if r is None:
-				self.logger.error ("Attempting to change {} thermostat settings but could not find the thermostat in stash".format(dev.name))
+				self.logger.error (u"Attempting to change {} thermostat settings but could not find the thermostat in stash".format(dev.name))
 				return
 							
 			if "tempIsF" in r and r["tempIsF"]:
@@ -2506,7 +2509,7 @@ class HomeKitAction ():
 			server = indigo.devices[serverId]
 			dev = indigo.devices[devId]
 			if type(dev) != indigo.ThermostatDevice:
-				self.logger.error ("Attempting to run {} as a thermostat with thermostat commands but it is not a thermostat".format(dev.name))
+				self.logger.error (u"Attempting to run {} as a thermostat with thermostat commands but it is not a thermostat".format(dev.name))
 				return
 				
 			serverProps = server.pluginProps
@@ -2526,7 +2529,7 @@ class HomeKitAction ():
 						break
 			
 			if r is None:
-				self.logger.error ("Attempting to change {} thermostat settings but could not find the thermostat in stash".format(dev.name))
+				self.logger.error (u"Attempting to change {} thermostat settings but could not find the thermostat in stash".format(dev.name))
 				return
 							
 			if "tempIsF" in r and r["tempIsF"]:
@@ -2574,7 +2577,7 @@ class Dummy (Service):
 					
 		super(Dummy, self).setAttributes ()
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		#self.logger.warning ('{} has no automatic conversion to HomeKit and will not be usable unless custom mapped'.format(self.alias.value))	
 
 # ==============================================================================
@@ -2611,7 +2614,7 @@ class service_AirQualitySensor (Service):
 					
 		super(service_AirQualitySensor, self).setAttributes ()					
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
 
 # ==============================================================================
 # AIR PURIFIER
@@ -2640,7 +2643,7 @@ class service_AirPurifier (Service):
 					
 		super(service_AirPurifier, self).setAttributes ()					
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
 
 # ==============================================================================
 # BATTERY SERVICE
@@ -2668,7 +2671,7 @@ class service_BatteryService (Service):
 					
 		super(service_BatteryService, self).setAttributes ()					
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
 # ==============================================================================
 # CAMERA RTP STREAM MANAGEMENT
@@ -2699,7 +2702,7 @@ class service_CameraRTPStreamManagement (Service):
 					
 		super(service_CameraRTPStreamManagement, self).setAttributes ()					
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
 # ==============================================================================
 # CARBON DIOXIDE SENSOR
@@ -2729,7 +2732,7 @@ class service_CarbonDioxideSensor (Service):
 					
 		super(service_CarbonDioxideSensor, self).setAttributes ()				
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
 # ==============================================================================
 # CARBON MONOXIDE SENSOR
@@ -2759,7 +2762,7 @@ class service_CarbonMonoxideSensor (Service):
 					
 		super(service_CarbonMonoxideSensor, self).setAttributes ()				
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
 
 # ==============================================================================
 # CONTACT SENSOR
@@ -2788,7 +2791,7 @@ class service_ContactSensor (Service):
 					
 		super(service_ContactSensor, self).setAttributes ()				
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
 # ==============================================================================
 # DOOR
@@ -2816,7 +2819,7 @@ class service_Door (Service):
 					
 		super(service_Door, self).setAttributes ()			
 		
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
 # ==============================================================================
 # DOOR BELL
@@ -2844,7 +2847,7 @@ class service_Doorbell (Service):
 					
 		super(service_Doorbell, self).setAttributes ()			
 						
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))							
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))							
 
 # ==============================================================================
 # FAN
@@ -2872,7 +2875,7 @@ class service_Fan (Service):
 				
 		super(service_Fan, self).setAttributes ()
 			
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
 
 # ==============================================================================
 # FAN V2
@@ -2902,7 +2905,7 @@ class service_Fanv2 (Service):
 				
 		super(service_Fanv2, self).setAttributes ()
 			
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
 		
 # ==============================================================================
 # FAUCET
@@ -2929,7 +2932,7 @@ class service_Faucet (Service):
 					
 		super(service_Faucet, self).setAttributes ()			
 						
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
 		
 # ==============================================================================
 # FILTER MAINTENANCE
@@ -2956,7 +2959,7 @@ class service_FilterMaintenance (Service):
 				
 		super(service_FilterMaintenance, self).setAttributes ()
 			
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 
 		
 # ==============================================================================
@@ -2985,7 +2988,7 @@ class service_GarageDoorOpener (Service):
 					
 		super(service_GarageDoorOpener, self).setAttributes ()			
 						
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 
 # ==============================================================================
 # HEATER / COOLER
@@ -3019,7 +3022,7 @@ class service_HeaterCooler (Service):
 					
 		super(service_HeaterCooler, self).setAttributes ()				
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
 
 # ==============================================================================
 # HUMIDIFIER / DEHUMIDIFIER
@@ -3052,7 +3055,7 @@ class service_HumidifierDehumidifier (Service):
 					
 		super(service_HumidifierDehumidifier, self).setAttributes ()				
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 
 # ==============================================================================
 # HUMIDITY SENSOR
@@ -3080,7 +3083,7 @@ class service_HumiditySensor (Service):
 					
 		super(service_HumiditySensor, self).setAttributes ()				
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
 		
 # ==============================================================================
@@ -3111,7 +3114,7 @@ class service_IrrigationSystem (Service):
 					
 		super(service_IrrigationSystem, self).setAttributes ()				
 		
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
 				
 
 # ==============================================================================
@@ -3140,7 +3143,7 @@ class service_LeakSensor (Service):
 					
 		super(service_LeakSensor, self).setAttributes ()				
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
 # ==============================================================================
 # LIGHT BULB
@@ -3168,7 +3171,7 @@ class service_Lightbulb (Service):
 					
 		super(service_Lightbulb, self).setAttributes ()					
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
 # ==============================================================================
 # LIGHT SENSOR
@@ -3196,7 +3199,7 @@ class service_LightSensor (Service):
 					
 		super(service_LightSensor, self).setAttributes ()				
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
 		
 # ==============================================================================
 # MICROPHONE
@@ -3223,7 +3226,7 @@ class service_Microphone (Service):
 					
 		super(service_Microphone, self).setAttributes ()	
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
 # ==============================================================================
 # MOTION SENSOR
@@ -3251,7 +3254,7 @@ class service_MotionSensor (Service):
 					
 		super(service_MotionSensor, self).setAttributes ()				
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
 # ==============================================================================
 # OCCUPANCY SENSOR
@@ -3279,7 +3282,7 @@ class service_OccupancySensor (Service):
 					
 		super(service_OccupancySensor, self).setAttributes ()				
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
 		
 # ==============================================================================
 # OUTLET
@@ -3303,7 +3306,7 @@ class service_Outlet (Service):
 					
 		super(service_Outlet, self).setAttributes ()							
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
 # ==============================================================================
 # LOCK MECHANISM
@@ -3328,7 +3331,7 @@ class service_LockMechanism (Service):
 					
 		super(service_LockMechanism, self).setAttributes ()					
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
 # ==============================================================================
 # SECURITY SYSTEM
@@ -3356,7 +3359,7 @@ class service_SecuritySystem (Service):
 					
 		super(service_SecuritySystem, self).setAttributes ()			
 						
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
 # ==============================================================================
 # SLAT
@@ -3386,7 +3389,7 @@ class service_Slat (Service):
 					
 		super(service_Slat, self).setAttributes ()			
 						
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))				
 		
 # ==============================================================================
 # SMOKE SENSOR
@@ -3414,7 +3417,7 @@ class service_SmokeSensor (Service):
 					
 		super(service_SmokeSensor, self).setAttributes ()				
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))										
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))										
 
 # ==============================================================================
 # SPEAKER
@@ -3441,7 +3444,7 @@ class service_Speaker (Service):
 					
 		super(service_Speaker, self).setAttributes ()	
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
 		
 # ==============================================================================
 # SWITCH
@@ -3464,7 +3467,7 @@ class service_Switch (Service):
 					
 		super(service_Switch, self).setAttributes ()	
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
 # ==============================================================================
 # TEMPERATURE SENSOR
@@ -3492,7 +3495,7 @@ class service_TemperatureSensor (Service):
 					
 		super(service_TemperatureSensor, self).setAttributes ()				
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))					
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))					
 		
 # ==============================================================================
 # THERMOSTAT
@@ -3524,7 +3527,7 @@ class service_Thermostat (Service):
 					
 		super(service_Thermostat, self).setAttributes ()	
 				
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
 		
 # ==============================================================================
@@ -3558,7 +3561,7 @@ class service_Valve (Service):
 					
 		super(service_Valve, self).setAttributes ()			
 						
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 				
 
 # ==============================================================================
@@ -3587,7 +3590,7 @@ class service_Window (Service):
 					
 		super(service_Window, self).setAttributes ()			
 						
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))		
 		
 # ==============================================================================
 # WINDOW COVERING
@@ -3619,7 +3622,7 @@ class service_WindowCovering (Service):
 					
 		super(service_WindowCovering, self).setAttributes ()			
 						
-		if objId != 0: self.logger.debug ('{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
 		
 ################################################################################
 # HOMEKIT CHARACTERISTICS
