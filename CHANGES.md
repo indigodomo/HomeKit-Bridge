@@ -1,8 +1,17 @@
 Release Notes
 ==========
 
-Version 0.17.2 (Beta 17.2)
+Version 0.17.3 (Beta 17.3)
 ==========
+* Added unicode conversion to device names for non-plugin device updates to try to trap any odd names that are used for Indigo devices (strange characters) - as [reported on the forums](http://forums.indigodomo.com/viewtopic.php?p=156812#p156812)
+* Expanded the ability of invert to cover **any** device with more than one active characteristic using the onState of a device.  Until now it was built exclusively to handle on/off for simple devices like switches, outlets and various sensors, now it can be used for complex devices such as garage door openers that may use onState for multiple characteristics ([Issue #59](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/59))
+* [Issue #59](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/59) resolved
+
+Previous Release Notes
+==========
+
+Version 0.17.2 (Beta 17.2)
+---------------
 * Added Indigo Plugin Store update checker, this will check at 10:00am each day and on plugin startup
 * Added Indigo Plugin Store update check to the menu
 * Moved log notice about building configuration to the debug log rather than the info log
@@ -11,9 +20,6 @@ Version 0.17.2 (Beta 17.2)
 * Fixed a bug when an Indigo value was "None" that it would cause a message in the log about being unable to convert (re-fixed from 0.17.0) - [Issue #55](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/55)
 * [Issue #31](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/31) resolved
 * [Issue #55](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/55) resolved
-
-Previous Release Notes
-==========
 
 Version 0.17.1 (Beta 17.1)
 ---------------

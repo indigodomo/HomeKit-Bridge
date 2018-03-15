@@ -1109,7 +1109,13 @@ class Service (object):
 					# appending the regular and inverted commands together
 					newactions = []
 					for a in self.actions:
-						if not a.default: newactions.append(a)
+						if a.characteristic != characteristic: newactions.append(a)
+						
+						# The following line was what it started as so that if there was a user overrride (i.e., plugin or complications) then
+						# those would not be purged but that means that each iteration of this function would only put in THIS characteristic,
+						# which was fine for onState but if there are multiple states that can be changed then they now all get purged if the
+						# device is inverted (i.e., issue #
+						#if not a.default: newactions.append(a)
 						
 					self.actions = newactions
 					
@@ -2237,6 +2243,11 @@ class HomeKitAction ():
 			if isValid:
 				# Try to run the command
 				try:
+					try:
+						self.logger.debug ("{} is running because the rule passes for {}".format(self.characteristic, self.command))
+					except:
+						pass
+					
 					# Fix up the arguments for placeholders
 					args = []
 					for a in self.arguments:

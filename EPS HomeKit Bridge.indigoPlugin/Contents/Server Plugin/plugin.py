@@ -746,7 +746,11 @@ class Plugin(indigo.PluginBase):
 				
 			#indigo.server.log (newDev.name)
 			if newDev.id in self.SERVER_ID:
-				self.logger.debug ("Indigo device {} changed and is linked to HomeKit, checking if that change impacts HomeKit".format(newDev.name))
+				try:
+					self.logger.debug ("Indigo device {} changed and is linked to HomeKit, checking if that change impacts HomeKit".format(unicode(newDev.name)))
+				except:
+					pass
+					
 				devId = newDev.id
 				
 				
@@ -1028,9 +1032,9 @@ class Plugin(indigo.PluginBase):
 					thisCharacteristic = None
 					thisValue = None
 					#indigo.server.log(unicode(obj))
-					
 					for a in obj.actions:
 						#indigo.server.log(unicode(a))
+						#indigo.server.log("Checking if {} is in {}".format(a.characteristic, unicode(query)))
 						if a.characteristic in query and not processedActions: 
 							self.logger.debug ("Received {} in query, setting to {} using {} if rules apply".format(a.characteristic, query[a.characteristic][0], a.command))
 							#processedActions.append(a.characteristic)
@@ -3979,7 +3983,7 @@ class Plugin(indigo.PluginBase):
 			
 		
 		except Exception as e:
-			self.logger.error (ext.getException(e))	
+			self.logger.error (ext.getException(e) + "\nServer: {}".format(server.name))	
 		
 		
 	################################################################################
