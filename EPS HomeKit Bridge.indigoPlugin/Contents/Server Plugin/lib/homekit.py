@@ -882,8 +882,10 @@ class Service (object):
 				return r		
 				
 		except Exception as e:
+			e.args += (u"Server Id: {}".format(self.serverId),)
+			if self.serverId != 0: e.args += (u"Server data: {}".format(unicode(indigo.devices[self.serverId].pluginProps)),)
 			self.logger.error (ext.getException(e))
-			
+						
 		return None	
 	
 	#

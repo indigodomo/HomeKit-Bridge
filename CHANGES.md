@@ -1,13 +1,23 @@
 Release Notes
 ==========
 
-Version 0.17.5 (Beta 17.5)
+Version 0.17.6 (Beta 17.6)
 ==========
-* Fixed error running action groups that was inadvertently broken when adding exceptions for Hue bulbs ([reported on the forums](http://forums.indigodomo.com/viewtopic.php?p=156870#p156870))
-* Removed update checking function from plugin until it's advertised on the store (the options are still there, but the actual function itself will do nothing)
+* Added Firmware and Model to the Server Options UI to allow the user to change the model and firmware that appear in HomeKit for each device (not yet implemented in the Homebridge script, coming soon) 
+* Added auto server restart if Firmware of Model fields are changed
+* Added new selection in the 'Add to HomeKit' field to add a streaming source for cameras as development on that feature continues.  This is for future use and is experimental but it's easier to start getting these things worked into the UI before the feature is live so that it'll work out of the box.  Yes, this is an indication that getting cameras working is likely not too far off.
+* Changed UI so that when the form is saved after the initial config it will always open back up to the devices view
+* Changed help URL in plist so that if a user clicks the question mark icon on the device it will take them to the wiki page for server configuration
+* Additional unicode changes to try to resolve non-ascii characters ([Issue #63](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/63)
+* Added additional debug logging to try to capture a startup issue reported by one user ([Issue #61](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/61)
 
 Previous Release Notes
 ==========
+
+Version 0.17.5 (Beta 17.5)
+---------------
+* Fixed error running action groups that was inadvertently broken when adding exceptions for Hue bulbs ([reported on the forums](http://forums.indigodomo.com/viewtopic.php?p=156870#p156870))
+* Removed update checking function from plugin until it's advertised on the store (the options are still there, but the actual function itself will do nothing)
 
 Version 0.17.4 (Beta 17.4)
 ---------------

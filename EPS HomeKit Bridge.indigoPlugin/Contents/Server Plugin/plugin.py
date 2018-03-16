@@ -541,6 +541,21 @@ class Plugin(indigo.PluginBase):
 				if "objectAction" in props:
 					props["objectAction"] = "add" # New default setting
 					changed = True
+				
+				# 0.17.6	
+				if "configOption" in props and props["configOption"] != "include":
+					props["configOption"] = "include" 
+					changed = True
+					
+				# 0.17.6	
+				if not "modelValue" in props:
+					props["modelValue"] = "indigoSubmodel"
+					changed = True
+					
+				# 0.17.6
+				if not "firmwareValue" in props:
+					props["firmwareValue"] = "indigoVersion"
+					changed = True
 					
 				if changed: 
 					self.logger.info (u"Upgrading {} for changes in this plugin release".format(dev.name))
@@ -1107,6 +1122,77 @@ class Plugin(indigo.PluginBase):
 			msg["result"] = "fail"
 			msg["message"] = "A fatal exception was encountered while processing your request, check the Indigo log for details"
 			return "text/css",	json.dumps(msg, indent=4)
+
+	#
+	# Compose the type and versByte from server details
+	#
+	def getHKAPIModel (self, server, r):
+		try:
+			if r["object"] != "Action":
+				if "model" in r and r["model"] != "":
+					r["type"] = r["model"]
+					del(r["model"])
+				elif "modelValue" in server.pluginProps:
+					r["type"] = self._getHKAPIModelData (r, server.pluginProps["modelValue"])
+				else:
+					r["type"] = indigo.devices[r["id"]].model
+				
+				if "firmware" in r and r["firmware"] != "":
+					r["versByte"] = r["firmware"]
+					del(r["firmware"])	
+				elif "firmwareValue" in server.pluginProps:
+					r["versByte"] = self._getHKAPIModelData (r, server.pluginProps["firmwareValue"])
+				else:	
+					r["versByte"] = indigo.devices[r["id"]].pluginId
+					
+			else:
+				r["type"] = "Action Group"
+				r["versByte"] = ""
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+		return r
+		
+	#
+	# Compose the type and versByte from server details
+	#
+	def _getHKAPIModelData (self, r, value):
+		try:			
+			if value == "indigoModel":
+				return u"{}".format(indigo.devices[r["id"]].model)
+			elif value == "indigoSubmodel":
+				return u"{}".format(indigo.devices[r["id"]].subModel)
+			elif value == "indigoName":
+				return u"{}".format(indigo.devices[r["id"]].name)
+			elif value == "indigoType":
+				return u"{}".format(str(type(indigo.devices[r["id"]])).replace("<class '", "").replace("'>", "").replace("indigo.",""))
+			elif value == "pluginName":
+				if indigo.devices[r["id"]].pluginId != "":
+					plugin = indigo.server.getPlugin(indigo.devices[r["id"]].pluginId)
+					indigo.server.log(unicode(plugin))
+					return u"{}".format(plugin.pluginDisplayName)
+				else:
+					return "Indigo"
+			elif value == "pluginType":
+				if indigo.devices[r["id"]].deviceTypeId != "":
+					return u"{}".format(indigo.devices[r["id"]].deviceTypeId)	
+				else:
+					return u"{}".format(str(type(indigo.devices[r["id"]])).replace("<class '", "").replace("'>", "").replace("indigo.",""))
+			elif value == "pluginVersion":
+				if indigo.devices[r["id"]].pluginId != "":
+					plugin = indigo.server.getPlugin(indigo.devices[r["id"]].pluginId)
+					indigo.server.log(unicode(plugin))
+					return u"{}".format(plugin.pluginVersion)	
+				else:
+					return u"{}".format(indigo.server.version)
+			elif value == "indigoVersion":
+				return u"{}".format(indigo.devices[r["id"]].version)			
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+		return ""
 			
 	#
 	# Build HK API details for object ID
@@ -1130,6 +1216,7 @@ class Plugin(indigo.PluginBase):
 				return []
 			
 			obj = eps.homekit.getServiceObject (r["id"], serverId, r["hktype"], False, True)
+			server = indigo.devices[int(serverId)]
 			
 			# Invert if configured
 			#if "invert" in r: 
@@ -1137,12 +1224,7 @@ class Plugin(indigo.PluginBase):
 			#	if obj.invertOnState: obj.setAttributes() # Force it to refresh values so we get our inverted onState
 			
 			# Add model and firmware
-			if r["object"] != "Action":
-				r["type"] = indigo.devices[r["id"]].model
-				r["versByte"] = indigo.devices[r["id"]].pluginId
-			else:
-				r["type"] = "Action Group"
-				r["versByte"] = ""
+			r = self.getHKAPIModel (server, r)
 				
 			# Add the callback
 			r["url"] = "/HomeKit?objId={}&serverId={}&jkey={}".format(str(objId), str(serverId), jkey)	
@@ -3093,7 +3175,7 @@ class Plugin(indigo.PluginBase):
 				if name == "": name = d["name"]
 				d["sortbyname"] = name.lower()
 				
-				name = "{0}: {1}".format(d["object"], name)
+				name = u"{0}: {1}".format(d["object"], name)
 				d["sortbytype"] = name.lower()
 				
 				
@@ -3104,7 +3186,7 @@ class Plugin(indigo.PluginBase):
 				if name == "": name = d["name"]
 				d["sortbyname"] = name.lower()
 				
-				name = "{0}: {1}".format(d["object"], name)
+				name = u"{0}: {1}".format(d["object"], name)
 				d["sortbytype"] = name.lower()
 				
 				includedObjects.append (d)	
@@ -3120,7 +3202,7 @@ class Plugin(indigo.PluginBase):
 			for d in includedObjects:
 				name = d["alias"]
 				if name == "": name = d["name"]
-				name = "{0}\t{1}".format(d["object"], name)
+				name = u"{0}\t{1}".format(d["object"], name)
 				
 				retList.append ( (str(d["id"]), name) )
 				
@@ -3347,11 +3429,13 @@ class Plugin(indigo.PluginBase):
 			# Determine if we are processing devices or action groups
 			if "device" in valuesDict["objectType"]:
 				thistype = "Device"
-			else:
+			elif "action" in valuesDict["objectType"]:
 				thistype = "Action"
+			elif "stream" in valuesDict["objectType"]:
+				thistype = "Stream"
 				
-			if valuesDict[thistype.lower()] == "-fill-":
-				(valuesDict, errorsDict) = self.serverButtonAddDeviceOrAction_Fill (valuesDict, errorsDict, thistype, devId)
+			if thistype == "stream":
+				(valuesDict, errorsDict) = self.serverButtonAddDeviceOrAction_Stream (valuesDict, errorsDict, thistype, devId)
 			else:
 				(valuesDict, errorsDict) = self.serverButtonAddDeviceOrAction_Object (valuesDict, errorsDict, thistype, devId)
 			
@@ -3392,73 +3476,26 @@ class Plugin(indigo.PluginBase):
 
 		
 	#
-	# Add FILL type
+	# Add camera stream
 	#
-	def serverButtonAddDeviceOrAction_Fill (self, valuesDict, errorsDict, thistype, serverId):	
+	def serverButtonAddDeviceOrAction_Stream (self, valuesDict, errorsDict, thistype, serverId):	
 		try:
+			#valuesDict = self.serverCheckForJSONKeys (valuesDict)
 			total = 0
+			
+			if valuesDict["device"] == "" or valuesDict["device"] == "-line-" or valuesDict["device"] == "-fill-":
+				errorsDict = eps.ui.setErrorStatus (errorsDict, "{} is not a valid device ID, please verify your selection.".format(valuesDict["device"]))
+				errorsDict["device"] = "Invalid device"
+				return (valuesDict, errorsDict)
 			
 			(includeList, max) = self.getIncludeStashList (thistype, valuesDict)
 			
-			totalRemoved = 0 # if we remove below because we need it to count
 			
-			# If we already have a none then ignore and return
-			r = eps.jstash.getRecordWithFieldEquals (includeList, "type", "ALL")
-			if r is not None: 
-				includeList = eps.jstash.removeRecordFromStash (includeList, "type", "ALL")
-				errorsDict = eps.ui.setErrorStatus (errorsDict, "You had specified to include all {0}s, that has been cleared so you can add them individually.".format(thistype.lower()))
-				totalRemoved = totalRemoved - 1 # since we are adding the two together below but just removed one
-			
-			# If its already set to all then change it out with none and pop a message
-			r = eps.jstash.getRecordWithFieldEquals (includeList, "type", "NONE")
-			if r is not None: 
-				includeList = eps.jstash.removeRecordFromStash (includeList, "type", "NONE")
-				errorsDict = eps.ui.setErrorStatus (errorsDict, "You had specified to include no {0}s, that has been cleared so you can add them.".format(thistype.lower()))
-				totalRemoved = totalRemoved - 1 # since we are adding the two together below but just removed one
-				
-			total = total + totalRemoved
-			
-			indigoObjects = indigo.devices
-			if thistype == "Action": indigoObjects = indigo.actionGroups
-			unknownType = False
-			
-			for dev in indigoObjects:
-				if total < max:
-					# Check our local stash
-					r = eps.jstash.getRecordWithFieldEquals (includeList, "id", dev.id)
-					if r is None:
-						# Add the device to the device list
-						device = self.createJSONItemRecord (dev)
-						if device is not None: 
-							if device["type"] == "error":
-								unknownType = True
-							else:				
-								#device["url"] = "/HomeKit?cmd=setCharacteristic&objId={}&serverId={}".format(str(dev.id), str(serverId))	
-								#device["url"] = "/HomeKit?objId={}&serverId={}".format(str(dev.id), str(serverId))	
-								#obj = hkapi.automaticHomeKitDevice (indigo.devices[int(dev.id)], True)
-								obj = eps.homekit.getServiceObject (dev.id, serverId, None, True, True)
-								device['hktype'] = "service_" + obj.type # Set to the default type
-								includeList.append (device)
-								total = total + 1
-								
-								
-				else:
-					#indigo.server.log(str(total))
-					break
-					
-			#indigo.server.log(str(len(includeList)))
-			#indigo.server.log(str(max))
-							
-			valuesDict = self.getIncludeStashList (thistype, valuesDict, includeList)
-			
-			if unknownType:
-				errorsDict = eps.ui.setErrorStatus (errorsDict, "HomeKit doesn't know how to control one or more of the devices, to use them you may need to wrap the device via a plugin like Device Extensions or ask the developer to implement the Voice Command Bridge API.  Only the devices that HomeKit can control have been added.")
-		
+	
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
 			
-		return (valuesDict, errorsDict)		
-		
+		return (valuesDict, errorsDict)	
 		
 	#
 	# Add individual object type
@@ -3687,6 +3724,9 @@ class Plugin(indigo.PluginBase):
 				
 			#indigo.server.log ("Port: {}\tListen:{}xxxx\tUser:{}".format(valuesDict["port"], valuesDict["listenPort"], valuesDict["username"]))
 			
+			# Sanity checks to make sure we don't put the form in an unusable state
+			valuesDict["homeKitTypeEnabled"] = True  # Until determined otherwise
+						
 			if "device" in valuesDict["objectType"]:
 				if valuesDict["device"] != "" and valuesDict["device"] != "-fill-" and valuesDict["device"] != "-line-":
 					valuesDict["deviceOrActionSelected"] = True
@@ -3706,6 +3746,12 @@ class Plugin(indigo.PluginBase):
 						
 				else:
 					valuesDict["deviceOrActionSelected"] = False	
+					
+			if "stream" in valuesDict["objectType"]:
+				errorsDict["showAlertText"] = u"You have selected the custom camera stream, a type which is not yet supported by this plugin and is experimental.  You should not expect this to work properly and may cause errors in how this server device operates.\n\nWhen this service is supported it will no longer be labeled as 'Experimental' and this message will not appear.\n\nThe configuration fields and how they are evaluated may change on each release until finalized.\n\nUse at your own risk!"
+				valuesDict["deviceOrActionSelected"] = True
+				valuesDict["homeKitTypeEnabled"] = False
+				valuesDict["hkType"] = "service_CameraRTPStreamManagement"
 					
 			if valuesDict["objectAction"] == "add":
 				valuesDict["showEditArea"] = True
@@ -3772,7 +3818,7 @@ class Plugin(indigo.PluginBase):
 				valuesDict["deviceOrActionSelected"] = False
 				valuesDict["isAPIDevice"] = False
 				valuesDict["editActive"] = False
-				
+				valuesDict["configOption"] = "include"
 				
 				# See if any of our critical items changed from the current config (or if this is a new device)
 				if "port" not in server.pluginProps or server.pluginProps["port"] != valuesDict["port"] or server.pluginProps["listenPort"] != valuesDict["listenPort"] or server.pluginProps["username"] != valuesDict["username"]:
@@ -3853,7 +3899,7 @@ class Plugin(indigo.PluginBase):
 			self.logger.threaddebug (u"Server property change: " + unicode(changedProps))
 			
 			# States that will prompt us to save and restart the server
-			watchStates = ["port", "listenPort", "includedDevices", "includedActions", "accessoryNamePrefix", "pin", "username"]
+			watchStates = ["port", "listenPort", "includedDevices", "includedActions", "accessoryNamePrefix", "pin", "username", "modelValue", "firmwareValue"]
 			needsRestart = False
 			
 			for w in watchStates:
