@@ -1,16 +1,21 @@
 Release Notes
 ==========
 
-Version 0.19.0 (Beta 19.0)
+Version 0.19.1 (Beta 19.1)
 ==========
+* **NOTE** There are going to be a few miscellaneous builds flying through pretty fast to get SenseMe fans working for Webdeck, since he had such a big role in this plugin he gets special treatment - deal with it :).  Anyway, you don't need to update to these if you aren't using SenseMe.
+* Added experimental support for SenseMe fans.  They should autodetect as a Fan and control on/off/speed. 
+
+Previous Release Notes
+==========
+
+Version 0.19.0 (Beta 19.0)
+---------------
 * [CAMERA SUPPORT!!!](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Camera-Support)  Very much experimental, but if you add a SecuritySpy camera to your devices from the SecuritySpy plugin then you can add each camera as an accessory.  Please don't tell me that your aspect ratio is wrong, I know that SD cameras are coming out widescreen, I have to write a routine to talk to SecuritySpy directly because Cynic's plugin doesn't pull down the height and width so HomeKit is defaulting to widescreen.
 * Added ability for a SecuritySpy camera to work as a motion sensor
 * Added ability for SecuritySpy cameras to be natively used in HomeKit so long as you have the Indigo plugin for it and it's working
 * Fixed bug in outputting the Homebridge log file
 * Additional unicode changes to try to resolve non-ascii characters ([Issue #63](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/63)
-
-Previous Release Notes
-==========
 
 Version 0.18.0 (Beta 18.0)
 ---------------

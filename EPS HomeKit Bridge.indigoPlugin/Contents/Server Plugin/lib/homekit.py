@@ -223,7 +223,10 @@ class HomeKit:
 				return "service_LockMechanism"
 				
 			if dev.pluginId == "com.perceptiveautomation.indigoplugin.airfoilpro" and dev.deviceTypeId == "speaker":
-				return "service_Speaker"	
+				return "service_Speaker"
+				
+			if dev.pluginId == "com.pennypacker.indigoplugin.senseme":
+				return "service_Fanv2"		
 			
 			elif "brightnessLevel" in dev.states and "brightness" in dir(dev):
 				return "service_Lightbulb"
@@ -265,6 +268,7 @@ class HomeKit:
 				
 			elif "zoneCount" in dir(dev):
 				return "service_IrrigationSystem"
+				
 				
 			else:
 				# Fallback but only if there is an onstate, otherwise we return an unknown
@@ -2056,6 +2060,42 @@ class Service (object):
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))				
+		
+	#
+	# SenseMe Fan Control
+	#
+	def special_SenseMeFanToggle (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			if self.serverId == 0: return
+		
+			obj = indigo.devices[self.objId]
+			self.setAttributeValue (characteristic, obj.states["fan"])
+			self.characterDict[characteristic] = getattr (self, characteristic).value
+			
+			self.actions.append (HomeKitAction(characteristic, "equal", True, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["fanOn", self.objId]], 100, {self.objId: "state_fan"}))			
+			self.actions.append (HomeKitAction(characteristic, "equal", False, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["fanOff", self.objId]], 100, {self.objId: "state_fan"}))			
+			self.actions.append (HomeKitAction(characteristic, "equal", 1, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["fanOn", self.objId]], 100, {self.objId: "state_fan"}))			
+			self.actions.append (HomeKitAction(characteristic, "equal", 0, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["fanOff", self.objId]], 100, {self.objId: "state_fan"}))			
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+			
+	#
+	# SenseMe Fan Speed
+	#
+	def special_SenseMeFanSpeed (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			if self.serverId == 0: return
+		
+			obj = indigo.devices[self.objId]
+			self.setAttributeValue (characteristic, int(obj.states["speed"]) * 12.5)
+			self.characterDict[characteristic] = getattr (self, characteristic).value
+			
+			valuesDict = {'speed': "=calc="}
+			self.actions.append (HomeKitAction(characteristic, "between", 0, "homekit.runPluginAction_ModifyValue", [indigo.devices[self.objId].pluginId, "=value=", "divide", 12.5, ["setFanSpeed", self.objId, valuesDict]], 100, {self.objId: "state_speed"}))			
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))					
 			
 		
 	#
@@ -2382,6 +2422,26 @@ class HomeKitAction ():
 	################################################################################
 	# COMMAND STUBS
 	################################################################################
+	
+	#
+	# Convert a value and then run a plugin action for it
+	#
+	def runPluginAction_ModifyValue (self, pluginId, value, calculationMethod, calculationValue, arguments):
+		try:
+			if calculationMethod == "divide" and value != 0 and calculationValue != 0:
+				value = float(value) / calculationValue
+				
+			elif calculationMethod == "multiply" and value != 0 and calculationValue != 0:
+				value = float(value) * calculationValue	
+				
+			for key, val in arguments:
+				if val == "=calc=": arguments[key] = value
+				
+			return self.runPluginAction (pluginId, value, arguments)
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))
+			return False		
 	
 	#
 	# Connect to specified plugin and run the actions
@@ -2889,12 +2949,12 @@ class service_Fan (Service):
 		super(service_Fan, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 	
 		self.required = {}
-		self.required["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+		self.required["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.pennypacker.indigoplugin.senseme.SenseME_fan": "special_SenseMeFanToggle"}
 	
 		self.optional = {}
 		self.optional["Name"] = {}
 		self.optional["RotationDirection"] = {}
-		self.optional["RotationSpeed"] = {"indigo.DimmerDevice": "attr_brightness", "indigo.SpeedControlDevice": "attr_speedLevel"}
+		self.optional["RotationSpeed"] = {"indigo.DimmerDevice": "attr_brightness", "indigo.SpeedControlDevice": "attr_speedLevel", "indigo.Device.com.pennypacker.indigoplugin.senseme.SenseME_fan": "special_SenseMeFanSpeed"}
 				
 		super(service_Fan, self).setAttributes ()
 			
@@ -2915,7 +2975,7 @@ class service_Fanv2 (Service):
 		super(service_Fanv2, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 	
 		self.required = {}
-		self.required["Active"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+		self.required["Active"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.pennypacker.indigoplugin.senseme.SenseME_fan": "special_SenseMeFanToggle"}
 	
 		self.optional = {}
 		self.optional["CurrentFanState"] = {}
@@ -2923,7 +2983,7 @@ class service_Fanv2 (Service):
 		self.optional["LockPhysicalControls"] = {}
 		self.optional["Name"] = {}
 		self.optional["RotationDirection"] = {}
-		self.optional["RotationSpeed"] = {"indigo.DimmerDevice": "attr_brightness", "indigo.SpeedControlDevice": "attr_speedLevel"}
+		self.optional["RotationSpeed"] = {"indigo.DimmerDevice": "attr_brightness", "indigo.SpeedControlDevice": "attr_speedLevel", "indigo.Device.com.pennypacker.indigoplugin.senseme.SenseME_fan": "special_SenseMeFanSpeed"}
 		self.optional["SwingMode"] = {}
 				
 		super(service_Fanv2, self).setAttributes ()
