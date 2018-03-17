@@ -1454,7 +1454,22 @@ class Service (object):
 					self.actions.append (HomeKitAction(characteristic, "between", minValue + minStep, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setColorWhite", self.objId, valuesDictColor]], maxValue, {self.objId: "state_hsbkKelvin"}))	
 
 				else:
-					invalidType = True							
+					invalidType = True	
+			
+			# SecuritySpy
+			elif state == "recording":
+				cmd = "homekit.runPluginAction"
+				
+				if method == "TF" or method == "01":	
+					self.actions.append (HomeKitAction(characteristic, "equal", trueValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setactive", self.objId]], 0, {self.objId: "state_recording"}))
+					self.actions.append (HomeKitAction(characteristic, "equal", falseValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setpassive", self.objId]], 0, {self.objId: "state_recording"}))
+				
+				elif method == "RANGE":	
+					self.actions.append (HomeKitAction(characteristic, "equal", minValue, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setactive", self.objId]], 0, {self.objId: "state_recording"}))
+					self.actions.append (HomeKitAction(characteristic, "between", minValue + minStep, cmd, [indigo.devices[self.objId].pluginId, "=value=", ["setpassive", self.objId]], maxValue, {self.objId: "state_recording"}))	
+				
+				else:
+					invalidType = True									
 					
 			else:
 				# Whatever else, if we didn't specify it, will get a dummy action associated with it and it could cause errors if the characteristic is
@@ -3251,7 +3266,7 @@ class service_MotionSensor (Service):
 		super(service_MotionSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["MotionDetected"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open"}
+		self.required["MotionDetected"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open", "indigo.Device.org.cynic.indigo.securityspy.camera": "state_motion"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
@@ -3469,7 +3484,7 @@ class service_Switch (Service):
 		super(service_Switch, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open"}
+		self.required["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open", "indigo.Device.org.cynic.indigo.securityspy.camera": "state_recording"}
 	
 		self.optional = {}
 					

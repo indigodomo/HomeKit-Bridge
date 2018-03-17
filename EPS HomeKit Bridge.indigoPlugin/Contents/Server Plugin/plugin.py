@@ -15,6 +15,7 @@ from lib import ext
 from lib import dtutil
 from lib import iutil
 
+
 #from lib import hkapi
 
 # Plugin libraries
@@ -27,7 +28,8 @@ import math # for server wizard
 import collections # dict sorting for server wizard
 import thread # homebridge callbacks on actions
 import operator # sorting
-from distutils.version import LooseVersion
+from distutils.version import LooseVersion # version checking
+
 
 #from lib.httpsvr import httpServer
 #hserver = httpServer(None)
@@ -94,7 +96,8 @@ class Plugin(indigo.PluginBase):
 			#eps.api.stopServer ()
 			#eps.api.run (self.pluginPrefs.get('apiport', '8558'))
 			
-			self.version_check()
+			#self.version_check()
+			
 			
 			#x = eps.homekit.getServiceObject (1642494335, 1794022133, "service_ContactSensor")
 			#indigo.server.log (unicode(x))
@@ -900,12 +903,12 @@ class Plugin(indigo.PluginBase):
 					return
 			
 				if os.path.exists (startpath):
-					fullpath = startpath + "/homebridge.log"
-					if fullpath.is_file():
-						file = open(fullpath, 'r')
+					filepath = startpath + "/homebridge.log"
+					if os.path.isfile(filepath):
+						file = open(filepath, 'r')
 						logdetails = file.read()
 					else:
-						self.logger.error (u"Unable to open the Homebridge log at {}.  This is likely because Homebridge has tried to start, as any attempt to start Homebridge should result in a log file".format(fullpath))
+						self.logger.error (u"Unable to open the Homebridge log at {}.  This is likely because Homebridge has tried to start, as any attempt to start Homebridge should result in a log file".format(filepath))
 						return
 											
 					self.logger.info (logdetails)
@@ -1219,6 +1222,7 @@ class Plugin(indigo.PluginBase):
 			if r["hktype"] not in services:
 				self.logger.error (u"Server '{}' device '{}' is trying to reference a HomeKit class of {} that isn't defined.".format(indigo.devices[serverId].name, r["alias"], r["hktype"]))
 				return []
+			if r["hktype"] == "service_CameraRTPStreamManagement": return []  # Cameras are handled in the config build because it has its own platform
 			
 			obj = eps.homekit.getServiceObject (r["id"], serverId, r["hktype"], False, True)
 			server = indigo.devices[int(serverId)]
@@ -1288,7 +1292,13 @@ class Plugin(indigo.PluginBase):
 			del r["jkey"]
 			
 			# Fix up the alias name for any problematic characters
-			alias = r"{}".format(u"{}".format(r["alias"])) # Convert to raw string (will escape backslashes)
+			alias = unicode(r["alias"])
+			try:
+				alias = r"{}".format(alias)
+			except:
+				alias = unicode(r["alias"])
+				
+			r["alias"] = alias
 			
 			return r
 		
@@ -4288,8 +4298,40 @@ class Plugin(indigo.PluginBase):
 			
 			platforms.append (hb)
 			
+			# See if there are any securityspy camera devices
+			cam = {}
+			cam["platform"] = "Camera-ffmpeg"
+			cameras = []
+			
+			for r in includedDevices:
+				if r["hktype"] == "service_CameraRTPStreamManagement" and indigo.devices[int(r["id"])].pluginId == "org.cynic.indigo.securityspy":
+					# Get the device and it's SS server
+					ssDev = indigo.devices[int(r["id"])]
+					ssServerId, ssCameraNum = ssDev.ownerProps["xaddress"].split("@")
+					ssServer = indigo.devices[int(ssServerId)]
+					
+					if ssServer.ownerProps["password"] != "":
+						ssURL = u"http://{}:{}@{}:{}".format(ssServer.ownerProps["username"],ssServer.ownerProps["password"],ssServer.ownerProps["xaddress"],ssServer.ownerProps["port"])
+					else:
+						ssURL = u"http://{}:{}".format(ssServer.ownerProps["xaddress"],ssServer.ownerProps["port"])
+					
+					camera = {}	
+					videoConfig = {}
+					
+					videoConfig["source"] = u"-re -i {}/++video?cameraNum={}".format(ssURL, ssCameraNum)
+					videoConfig["stillImageSource"] = u"-i {}/++image?cameraNum={}".format(ssURL, ssCameraNum)
+					
+					camera["name"] = r["alias"]
+					camera["videoConfig"] = videoConfig
+					
+					cameras.append(camera)
+					
+			if cameras:
+				cam["cameras"] = cameras			
+				platforms.append (cam)	
+			
 			# Experimental camera setup
-			if int(serverId) == 1794022133:
+			if int(serverId) == 1794022133000:
 				cam = {}
 				
 				cam["platform"] = "Camera-ffmpeg"
@@ -4298,14 +4340,14 @@ class Plugin(indigo.PluginBase):
 				camera = {}			
 				
 				videoConfig = {}
-				videoConfig["maxWidth"] = 640
-				videoConfig["maxStreams"] = 2
-				videoConfig["maxHeight"] = 360
+				#videoConfig["maxWidth"] = 640
+				#videoConfig["maxStreams"] = 2
+				#videoConfig["maxHeight"] = 360
 				#videoConfig["source"] = "-re -i rtsp://admin:29m50rc@10.1.200.197/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp"
 				#videoConfig["stillImageSource"] = "-i rtsp://admin:29m50rc@10.1.200.197/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp"
-				videoConfig["source"] = "-re -i rtsp://http://10.1.200.3:8000/++stream?cameraNum=0&codec=h264"
-				videoConfig["stillImageSource"] = "-i rtsp://10.1.200.3:8000/++image?cameraNum=0&width=2560&height=1356&quality=50"
-				videoConfig["maxFPS"] = 30
+				videoConfig["source"] = "-re -i http://admin:ranger@10.1.200.3:8000/++video?cameraNum=11"
+				videoConfig["stillImageSource"] = "-i http://admin:ranger@10.1.200.3:8000/++image?cameraNum=11"
+				#videoConfig["maxFPS"] = 30
 									
 				camera["name"] = "Testing"
 				camera["videoConfig"] = videoConfig

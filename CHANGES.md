@@ -1,8 +1,19 @@
 Release Notes
 ==========
 
-Version 0.18.0 (Beta 18.0)
+Version 0.19.0 (Beta 19.0)
 ==========
+* [CAMERA SUPPORT!!!](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Camera-Support)  Very much experimental, but if you add a SecuritySpy camera to your devices from the SecuritySpy plugin then you can add each camera as an accessory.  Please don't tell me that your aspect ratio is wrong, I know that SD cameras are coming out widescreen, I have to write a routine to talk to SecuritySpy directly because Cynic's plugin doesn't pull down the height and width so HomeKit is defaulting to widescreen.
+* Added ability for a SecuritySpy camera to work as a motion sensor
+* Added ability for SecuritySpy cameras to be natively used in HomeKit so long as you have the Indigo plugin for it and it's working
+* Fixed bug in outputting the Homebridge log file
+* Additional unicode changes to try to resolve non-ascii characters ([Issue #63](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/63)
+
+Previous Release Notes
+==========
+
+Version 0.18.0 (Beta 18.0)
+---------------
 * [Model and Firmware updates are now fully supported](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Server-Device#model-source-and-firmware-source)
 * Added additional language to clarify when trying to view the Homebridge file and it's not there that HB has never tried to start ([Issue #64](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/64))
 * Additional unicode changes to try to resolve non-ascii characters ([Issue #63](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/63)
@@ -12,9 +23,6 @@ Version 0.18.0 (Beta 18.0)
 * Homebridge, Node and all supporting libraries updated
 * Camera support added to build, still experimental and not available outside of closed dev environment
 * [Issue #64](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/64) resolved
-
-Previous Release Notes
-==========
 
 Version 0.17.6 (Beta 17.6)
 ---------------
