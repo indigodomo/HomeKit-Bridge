@@ -7,3 +7,4 @@ export NODE_PATH="$( "$DIR/npm" -g root )"
 
 "$DIR/npm" upgrade -g homebridge
 "$DIR/npm" upgrade -g "https://github.com/webdeck/homebridge-indigo2.git"
+"$DIR/npm" upgrade -g homebridge-camera-ffmpeg

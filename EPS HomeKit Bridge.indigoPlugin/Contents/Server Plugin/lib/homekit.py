@@ -2220,6 +2220,11 @@ class HomeKitAction ():
 			if not obj is None and type(obj) == indigo.DimmerDevice and obj.pluginId == "com.nathansheldon.indigoplugin.HueLights":
 				self.logger.threaddebug (u"Special exception mode for {} to allow for rapid changes in the Hue plugin".format(obj.name))
 				waitForComplete = False
+				
+			# Special exception for Indigo virtual action groups that don't actually change value
+			if not obj is None and type(obj) == indigo.DimmerDevice and obj.pluginId == "com.nathansheldon.indigoplugin.HueLights":
+				self.logger.threaddebug (u"Special exception mode for {} to allow for rapid changes in the Hue plugin".format(obj.name))
+				waitForComplete = False	
 		
 			# Get the value type of the value so we can convert from string to that type
 			if type(self.whenvalue) == bool:
@@ -4804,7 +4809,7 @@ class characteristic_TargetPosition:
 class characteristic_TargetTemperature:
 	def __init__(self):
 		self.value = 0.0
-		self.maxValue = 35
+		self.maxValue = 38
 		self.minValue = 10
 		self.minStep = 0.1
 

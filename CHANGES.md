@@ -1,8 +1,23 @@
 Release Notes
 ==========
 
-Version 0.17.6 (Beta 17.6)
+Version 0.18.0 (Beta 18.0)
 ==========
+* [Model and Firmware updates are now fully supported](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Server-Device#model-source-and-firmware-source)
+* Added additional language to clarify when trying to view the Homebridge file and it's not there that HB has never tried to start ([Issue #64](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/64))
+* Additional unicode changes to try to resolve non-ascii characters ([Issue #63](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/63)
+* Removed some debugging code inadvertently left in during the last build
+* Moved all Wiki images out of the repo so that the distro download was cut by 30MB
+* Homebridge script updated
+* Homebridge, Node and all supporting libraries updated
+* Camera support added to build, still experimental and not available outside of closed dev environment
+* [Issue #64](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/64) resolved
+
+Previous Release Notes
+==========
+
+Version 0.17.6 (Beta 17.6)
+---------------
 * Added Firmware and Model to the Server Options UI to allow the user to change the model and firmware that appear in HomeKit for each device (not yet implemented in the Homebridge script, coming soon) 
 * Added auto server restart if Firmware of Model fields are changed
 * Added new selection in the 'Add to HomeKit' field to add a streaming source for cameras as development on that feature continues.  This is for future use and is experimental but it's easier to start getting these things worked into the UI before the feature is live so that it'll work out of the box.  Yes, this is an indication that getting cameras working is likely not too far off.
@@ -10,9 +25,6 @@ Version 0.17.6 (Beta 17.6)
 * Changed help URL in plist so that if a user clicks the question mark icon on the device it will take them to the wiki page for server configuration
 * Additional unicode changes to try to resolve non-ascii characters ([Issue #63](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/63)
 * Added additional debug logging to try to capture a startup issue reported by one user ([Issue #61](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/61)
-
-Previous Release Notes
-==========
 
 Version 0.17.5 (Beta 17.5)
 ---------------

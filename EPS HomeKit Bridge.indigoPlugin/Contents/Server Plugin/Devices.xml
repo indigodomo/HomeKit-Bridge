@@ -69,7 +69,7 @@
                 <Label>Model source:</Label>
                 <List>
                 	<Option value="indigoModel">Indigo device model</Option>
-                    <Option value="indigoSubmodel">Indigo device model &amp; submodel</Option>
+                    <Option value="indigoModelSubmodel">Indigo device model &amp; submodel</Option>
                     <Option value="indigoName">Indigo item name</Option>
                     <Option value="indigoType">Indigo device type</Option>
                     <Option value="pluginName">Plugin name</Option>
@@ -82,7 +82,7 @@
                 <Label>Firmware source:</Label>
                 <List>
                 	<Option value="indigoModel">Indigo device model</Option>
-                    <Option value="indigoSubmodel">Indigo device model &amp; submodel</Option>
+                    <Option value="indigoModelSubmodel">Indigo device model &amp; submodel</Option>
                     <Option value="indigoName">Indigo item name</Option>
                     <Option value="indigoType">Indigo device type</Option>
                     <Option value="indigoVersion">Indigo device version</Option>

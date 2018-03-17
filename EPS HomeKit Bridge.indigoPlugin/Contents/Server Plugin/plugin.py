@@ -900,9 +900,14 @@ class Plugin(indigo.PluginBase):
 					return
 			
 				if os.path.exists (startpath):
-					file = open(startpath + "/homebridge.log", 'r')
-					logdetails = file.read()
-					
+					fullpath = startpath + "/homebridge.log"
+					if fullpath.is_file():
+						file = open(fullpath, 'r')
+						logdetails = file.read()
+					else:
+						self.logger.error (u"Unable to open the Homebridge log at {}.  This is likely because Homebridge has tried to start, as any attempt to start Homebridge should result in a log file".format(fullpath))
+						return
+											
 					self.logger.info (logdetails)
 					
 			if valuesDict["deviceActions"] == "rebuild": 
@@ -1161,8 +1166,8 @@ class Plugin(indigo.PluginBase):
 		try:			
 			if value == "indigoModel":
 				return u"{}".format(indigo.devices[r["id"]].model)
-			elif value == "indigoSubmodel":
-				return u"{}".format(indigo.devices[r["id"]].subModel)
+			elif value == "indigoModelSubmodel":
+				return u"{}: {}".format(indigo.devices[r["id"]].model, indigo.devices[r["id"]].subModel)
 			elif value == "indigoName":
 				return u"{}".format(indigo.devices[r["id"]].name)
 			elif value == "indigoType":
@@ -1170,7 +1175,7 @@ class Plugin(indigo.PluginBase):
 			elif value == "pluginName":
 				if indigo.devices[r["id"]].pluginId != "":
 					plugin = indigo.server.getPlugin(indigo.devices[r["id"]].pluginId)
-					indigo.server.log(unicode(plugin))
+					#indigo.server.log(unicode(plugin))
 					return u"{}".format(plugin.pluginDisplayName)
 				else:
 					return "Indigo"
@@ -1182,7 +1187,7 @@ class Plugin(indigo.PluginBase):
 			elif value == "pluginVersion":
 				if indigo.devices[r["id"]].pluginId != "":
 					plugin = indigo.server.getPlugin(indigo.devices[r["id"]].pluginId)
-					indigo.server.log(unicode(plugin))
+					#indigo.server.log(unicode(plugin))
 					return u"{}".format(plugin.pluginVersion)	
 				else:
 					return u"{}".format(indigo.server.version)
@@ -1283,7 +1288,7 @@ class Plugin(indigo.PluginBase):
 			del r["jkey"]
 			
 			# Fix up the alias name for any problematic characters
-			alias = r"{}".format(r["alias"]) # Convert to raw string (will escape backslashes)
+			alias = r"{}".format(u"{}".format(r["alias"])) # Convert to raw string (will escape backslashes)
 			
 			return r
 		
@@ -4281,41 +4286,34 @@ class Plugin(indigo.PluginBase):
 			hb["listenPort"] = server.pluginProps["listenPort"]
 			hb["serverId"] = serverId
 			
-			#hb["includeActions"] = True
-			#if len(includedActions) == 0: hb["includeActions"] = False
-			
-			#treatAs = {}
-			#if debugMode: treatAs = indigo.Dict() # Legacy Homebridge Buddy
-			
-			#includeIds = []
-			#if debugMode: includeIds = indigo.List()
-			#for d in includedDevices:
-			#	includeIds.append (d["id"])
-			#	
-			#	# Legacy Homebridge Buddy
-			#	if "treatas" in d and d["treatas"] != "none":
-			#		if not d["treatas"] in treatAs:
-			#			treat = []
-			#			if debugMode: treat = indigo.List()
-			#		else:
-			#			treat = treatAs[d["treatas"]]
-			#			
-			#		treat.append(d["id"])
-			#		treatAs[d["treatas"]] = treat
-				
-			#for d in includedActions:
-			#	includeIds.append (d["id"])	
-			
-			#hb["includeIds"] = includeIds
-			
-			# The following is a Homebridge Buddy legacy config for the treatAs, it's only here while the plugin is being tested and must be removed
-			# prior to public release.  It simply allows me to run HomeKit bridge instead of HBB until the API is written and the Homebridge plugin
-			# is rewritten to support it
-			#if len(treatAs) > 0:
-			#	for key, value in treatAs.iteritems():
-			#		hb[key] = value
-				
 			platforms.append (hb)
+			
+			# Experimental camera setup
+			if int(serverId) == 1794022133:
+				cam = {}
+				
+				cam["platform"] = "Camera-ffmpeg"
+				
+				cameras = []
+				camera = {}			
+				
+				videoConfig = {}
+				videoConfig["maxWidth"] = 640
+				videoConfig["maxStreams"] = 2
+				videoConfig["maxHeight"] = 360
+				#videoConfig["source"] = "-re -i rtsp://admin:29m50rc@10.1.200.197/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp"
+				#videoConfig["stillImageSource"] = "-i rtsp://admin:29m50rc@10.1.200.197/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp"
+				videoConfig["source"] = "-re -i rtsp://http://10.1.200.3:8000/++stream?cameraNum=0&codec=h264"
+				videoConfig["stillImageSource"] = "-i rtsp://10.1.200.3:8000/++image?cameraNum=0&width=2560&height=1356&quality=50"
+				videoConfig["maxFPS"] = 30
+									
+				camera["name"] = "Testing"
+				camera["videoConfig"] = videoConfig
+				
+				cameras.append(camera)
+				cam["cameras"] = cameras				
+				
+				platforms.append (cam)
 			
 			# Add any additional plaforms here...
 			
