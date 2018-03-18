@@ -2485,7 +2485,10 @@ class HomeKitAction ():
 					newarguments.append(newdict)
 					
 				else:
-					if arg == "=calc=": newarguments.append(arg)
+					if arg == "=calc=": 
+						newarguments.append(value)
+					else:
+						newarguments.append(arg)
 			
 			
 				
