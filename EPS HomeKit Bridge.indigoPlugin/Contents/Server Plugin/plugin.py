@@ -29,7 +29,8 @@ import collections # dict sorting for server wizard
 import thread # homebridge callbacks on actions
 import operator # sorting
 from distutils.version import LooseVersion # version checking
-
+import requests # get outside website data
+import xml.dom.minidom # read xml for 3rd party plugin support
 
 #from lib.httpsvr import httpServer
 #hserver = httpServer(None)
@@ -85,6 +86,8 @@ class Plugin(indigo.PluginBase):
 	# we want to intercept and do something with
 	################################################################################	
 	
+	
+	
 	#
 	# Development Testing
 	#
@@ -98,8 +101,26 @@ class Plugin(indigo.PluginBase):
 			
 			#self.version_check()
 			
-			valuesDict = {'speed': "=calc="}
-			indigo.server.log(unicode(type(valuesDict)))
+			
+			url = 'http://10.1.200.3:8000/++systemInfo'
+			username = 'admin'
+			password = 'ranger'
+			data = requests.get(url, auth=(username, password)).content
+			
+			dom = xml.dom.minidom.parseString(data)
+			
+			system = self._getChildElementsByTagName(dom, u"system")
+			cameralist = self._getChildElementsByTagName(system[0], u"cameralist")
+			cameras = self._getChildElementsByTagName(cameralist[0], u"camera")
+			
+			for camera in cameras:
+				number = self._getElementValueByTagName(camera, u"number", required=False, default=u"")
+				width = self._getElementValueByTagName(camera, u"width", required=False, default=u"")
+				height = self._getElementValueByTagName(camera, u"height", required=False, default=u"")
+				indigo.server.log(u"{}: {} x {}".format(number, width, height))
+			
+			indigo.server.log(unicode(cameras))
+			
 			
 			#x = eps.homekit.getServiceObject (1642494335, 1794022133, "service_ContactSensor")
 			#indigo.server.log (unicode(x))
@@ -4231,6 +4252,35 @@ class Plugin(indigo.PluginBase):
 			return False
 			
 		return True
+		
+	#
+	# Get XML child element from dom
+	#
+	def _getChildElementsByTagName(self, elem, tagName):
+		childList = []
+		for child in elem.childNodes:
+			if child.nodeType == child.ELEMENT_NODE and (tagName == u"*" or child.tagName == tagName):
+				childList.append(child)
+		return childList
+	
+	#
+	# Get value of element from dom
+	#	
+	def _getElementValueByTagName(self, elem, tagName, required=True, default=None, filename=u"unknown"):
+		valueElemList = self._getChildElementsByTagName(elem, tagName)
+		if len(valueElemList) == 0:
+			if required:
+				raise ValueError(u"required XML element <%s> is missing in file %s" % (tagName,filename))
+			return default
+		elif len(valueElemList) > 1:
+			raise ValueError(u"found more than one XML element <%s> (should only be one) in file %s" % (tagName,filename))
+
+		valueStr = valueElemList[0].firstChild.data
+		if valueStr is None or len(valueStr) == 0:
+			if required:
+				raise ValueError(u"required XML element <%s> is empty in file %s" % (tagName,filename))
+			return default
+		return valueStr			
 	
 	#
 	# Build a configuration Dict for a given server
@@ -4305,23 +4355,97 @@ class Plugin(indigo.PluginBase):
 			cam["platform"] = "Camera-ffmpeg"
 			cameras = []
 			
+			# Check for any cameras
 			for r in includedDevices:
+				# Blue Iris Cameras
+				if r["hktype"] == "service_CameraRTPStreamManagement" and indigo.devices[int(r["id"])].pluginId == "com.GlennNZ.indigoplugin.BlueIris":
+					biDev = indigo.devices[int(r["id"])]
+					biWidth = biDev.states["width"]
+					biHeight = biDev.states["height"]
+					biName = biDev.states["optionValue"]
+					biFPS = 30
+					biURL = ""
+					
+					# Read the Blue Iris preferences file
+					prefFile = '{}/Preferences/Plugins/com.GlennNZ.indigoplugin.BlueIris.indiPref'.format(indigo.server.getInstallFolderPath())
+					
+					if os.path.isfile(prefFile):
+						file = open(prefFile, 'r')
+						prefdata = file.read()
+						dom = xml.dom.minidom.parseString(prefdata)	
+						prefs = self._getChildElementsByTagName(dom, u"prefs")
+						biServerIp = self._getElementValueByTagName(prefs, u"serverip", required=False, default=u"")
+						biPort = self._getElementValueByTagName(prefs, u"serverport", required=False, default=u"")
+						biUser = self._getElementValueByTagName(prefs, u"serverusername", required=False, default=u"")
+						biPass = self._getElementValueByTagName(prefs, u"serverpassword", required=False, default=u"")
+						
+						if biPass != "":
+							biURL = u"http://{}:{}".format(biServerIp, biPort)
+						else:
+							biURL = u"http://{}:{}@{}:{}".format(biUser, biPass, biServerIp, biPort)
+							
+						file.close()
+							
+					if biURL != "":						
+						camera = {}	
+						videoConfig = {}
+					
+						videoConfig["source"] = u"-re -i {}/h264/{}/temp.h264".format(biURL, biName)
+						videoConfig["stillImageSource"] = u"-re -i {}/images/{}?w={}".format(biURL, biName, biWidth)
+						videoConfig["maxWidth"] = biWidth
+						videoConfig["maxHeight"] = biHeight
+						videoConfig["maxFPS"] = biFPS		
+					
+						camera["name"] = r["alias"]
+						camera["videoConfig"] = videoConfig
+					
+						cameras.append(camera)	
+					
+				# Security Spy Cameras
 				if r["hktype"] == "service_CameraRTPStreamManagement" and indigo.devices[int(r["id"])].pluginId == "org.cynic.indigo.securityspy":
 					# Get the device and it's SS server
 					ssDev = indigo.devices[int(r["id"])]
 					ssServerId, ssCameraNum = ssDev.ownerProps["xaddress"].split("@")
 					ssServer = indigo.devices[int(ssServerId)]
+					ssSystem = u"http://{}:{}/++systemInfo".format(ssServer.ownerProps["xaddress"],ssServer.ownerProps["port"])
+					ssWidth = 640
+					ssHeight = 480
+					ssFPS = 30
 					
-					if ssServer.ownerProps["password"] != "":
-						ssURL = u"http://{}:{}@{}:{}".format(ssServer.ownerProps["username"],ssServer.ownerProps["password"],ssServer.ownerProps["xaddress"],ssServer.ownerProps["port"])
-					else:
+					if ssServer.ownerProps["password"] == "":
+						data = requests.get(ssSystem).content	# Pull XML data
 						ssURL = u"http://{}:{}".format(ssServer.ownerProps["xaddress"],ssServer.ownerProps["port"])
+					else:
+						data = requests.get(ssSystem, auth=(ssServer.ownerProps["username"], ssServer.ownerProps["password"])).content	
+						ssURL = u"http://{}:{}@{}:{}".format(ssServer.ownerProps["username"],ssServer.ownerProps["password"],ssServer.ownerProps["xaddress"],ssServer.ownerProps["port"])
+						
+					# Extract XML data
+					dom = xml.dom.minidom.parseString(data)			
+					system = self._getChildElementsByTagName(dom, u"system")
+					sscameralist = self._getChildElementsByTagName(system[0], u"cameralist")
+					sscameras = self._getChildElementsByTagName(sscameralist[0], u"camera")
+					
+					# Get the width and height from XML dta
+					for sscamera in sscameras:
+						try:
+							number = self._getElementValueByTagName(sscamera, u"number", required=False, default=u"")
+							if int(number) == int(ssCameraNum):
+								ssWidth = int(self._getElementValueByTagName(sscamera, u"width", required=False, default=u""))
+								ssHeight = int(self._getElementValueByTagName(sscamera, u"height", required=False, default=u""))
+								ssFPS = int(float(self._getElementValueByTagName(sscamera, u"current-fps", required=False, default=u"")))
+								if ssFPS < 10: ssFPS = 10
+								break
+						except:
+							self.logger.warning (u"Unable to retrieve SecuritySpy parameters for {}, defaulting to {}x{} and {} FPS".format(r["alias"], ssWidth, ssHeight, ssFPS))
 					
 					camera = {}	
 					videoConfig = {}
 					
-					videoConfig["source"] = u"-re -i {}/++video?cameraNum={}".format(ssURL, ssCameraNum)
-					videoConfig["stillImageSource"] = u"-i {}/++image?cameraNum={}".format(ssURL, ssCameraNum)
+					videoConfig["source"] = u"-re -i {}/++video?cameraNum={}&width={}&height={}".format(ssURL, ssCameraNum, ssWidth, ssHeight)
+					videoConfig["stillImageSource"] = u"-i {}/++image?cameraNum={}&width={}&height={}".format(ssURL, ssCameraNum, ssWidth, ssHeight)
+					videoConfig["maxWidth"] = ssWidth
+					videoConfig["maxHeight"] = ssHeight
+					videoConfig["maxFPS"] = ssFPS		
 					
 					camera["name"] = r["alias"]
 					camera["videoConfig"] = videoConfig
@@ -4332,35 +4456,7 @@ class Plugin(indigo.PluginBase):
 				cam["cameras"] = cameras			
 				platforms.append (cam)	
 			
-			# Experimental camera setup
-			if int(serverId) == 1794022133000:
-				cam = {}
-				
-				cam["platform"] = "Camera-ffmpeg"
-				
-				cameras = []
-				camera = {}			
-				
-				videoConfig = {}
-				#videoConfig["maxWidth"] = 640
-				#videoConfig["maxStreams"] = 2
-				#videoConfig["maxHeight"] = 360
-				#videoConfig["source"] = "-re -i rtsp://admin:29m50rc@10.1.200.197/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp"
-				#videoConfig["stillImageSource"] = "-i rtsp://admin:29m50rc@10.1.200.197/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp"
-				videoConfig["source"] = "-re -i http://admin:ranger@10.1.200.3:8000/++video?cameraNum=11"
-				videoConfig["stillImageSource"] = "-i http://admin:ranger@10.1.200.3:8000/++image?cameraNum=11"
-				#videoConfig["maxFPS"] = 30
-									
-				camera["name"] = "Testing"
-				camera["videoConfig"] = videoConfig
-				
-				cameras.append(camera)
-				cam["cameras"] = cameras				
-				
-				platforms.append (cam)
-			
-			# Add any additional plaforms here...
-			
+			# Add platforms
 			config["platforms"] = platforms
 							
 			if debugMode: indigo.server.log(unicode(config))

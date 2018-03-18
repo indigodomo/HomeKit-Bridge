@@ -1,23 +1,29 @@
 Release Notes
 ==========
 
-Version 0.19.4 (Beta 19.4)
+Version 0.19.5 (Beta 19.5)
 ==========
-* **NOTE** There are going to be a few miscellaneous builds flying through pretty fast to get SenseMe fans working for Webdeck, since he had such a big role in this plugin he gets special treatment - deal with it :).  Anyway, you don't need to update to these if you aren't using SenseMe.
-* Fixed SenseMe fan and light action names
+* Added retrieving width, height and FPS from SecuritySpy server so that HomeKit cameras represent the proper aspect ratio and frame rate
+* Added auto detect so that SecuritySpy and Blue Iris camera devices will default to a camera HomeKit type
+* Added **experimental** support for Blue Iris
 
 Previous Release Notes
 ==========
 
+Version 0.19.4 (Beta 19.4)
+---------------
+* **NOTE** There are going to be a few miscellaneous builds flying through pretty fast to get SenseMe fans working for Webdeck, since he had such a big role in this plugin he gets special treatment - deal with it :).  Anyway, you don't need to update to these if you aren't using SenseMe.
+* Fixed SenseMe fan and light action names
+
 Version 0.19.3 (Beta 19.3)
-==========
+---------------
 * **NOTE** There are going to be a few miscellaneous builds flying through pretty fast to get SenseMe fans working for Webdeck, since he had such a big role in this plugin he gets special treatment - deal with it :).  Anyway, you don't need to update to these if you aren't using SenseMe.
 * Fixed bug in thermostats that would report something other than currently heating or currently heating as auto instead of off
 * Fixed iteration problem for computed state value function (SenseMe work)
 * Added additional threshold for brightness values on SenseMe light
 
 Version 0.19.2 (Beta 19.2)
-==========
+---------------
 * **NOTE** There are going to be a few miscellaneous builds flying through pretty fast to get SenseMe fans working for Webdeck, since he had such a big role in this plugin he gets special treatment - deal with it :).  Anyway, you don't need to update to these if you aren't using SenseMe.
 * Added experimental light on/off/brightness controls for SenseMe as a lightbulb
 * Fix iteration typo on computed state value function (SenseMe work)

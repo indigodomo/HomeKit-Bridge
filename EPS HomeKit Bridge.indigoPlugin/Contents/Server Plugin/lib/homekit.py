@@ -227,6 +227,9 @@ class HomeKit:
 				
 			if dev.pluginId == "com.pennypacker.indigoplugin.senseme":
 				return "service_Fanv2"		
+				
+			if dev.pluginId == "com.GlennNZ.indigoplugin.BlueIris" or dev.pluginId == "org.cynic.indigo.securityspy":
+				return "service_CameraRTPStreamManagement"
 			
 			elif "brightnessLevel" in dev.states and "brightness" in dir(dev):
 				return "service_Lightbulb"
