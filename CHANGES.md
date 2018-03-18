@@ -1,15 +1,20 @@
 Release Notes
 ==========
 
-Version 0.19.6 (Beta 19.6)
+Version 0.19.7 (Beta 19.7)
 ==========
-* Fixed bug in Blue Iris XML parsing on server rebuild
+* Changed Blue Iris FPS data to pull from states but default to 30 FPS if the state is 0
+* Fixed type causing Blue Iris not to pull plugin prefs correctly
 
 Previous Release Notes
 ==========
 
+Version 0.19.6 (Beta 19.6)
+---------------
+* Fixed bug in Blue Iris XML parsing on server rebuild
+
 Version 0.19.5 (Beta 19.5)
-==========
+---------------
 * Added retrieving width, height and FPS from SecuritySpy server so that HomeKit cameras represent the proper aspect ratio and frame rate
 * Added auto detect so that SecuritySpy and Blue Iris camera devices will default to a camera HomeKit type
 * Added **experimental** support for Blue Iris

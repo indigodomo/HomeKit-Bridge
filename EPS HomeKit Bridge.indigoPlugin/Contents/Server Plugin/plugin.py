@@ -4262,7 +4262,7 @@ class Plugin(indigo.PluginBase):
 			if child.nodeType == child.ELEMENT_NODE and (tagName == u"*" or child.tagName == tagName):
 				childList.append(child)
 		return childList
-	
+
 	#
 	# Get value of element from dom
 	#	
@@ -4363,7 +4363,8 @@ class Plugin(indigo.PluginBase):
 					biWidth = biDev.states["width"]
 					biHeight = biDev.states["height"]
 					biName = biDev.states["optionValue"]
-					biFPS = 30
+					biFPS = biDev.states["FPS"]
+					if biFPS == 0: biFPS = 30
 					biURL = ""
 					
 					# Read the Blue Iris preferences file
@@ -4373,7 +4374,7 @@ class Plugin(indigo.PluginBase):
 						file = open(prefFile, 'r')
 						prefdata = file.read()
 						dom = xml.dom.minidom.parseString(prefdata)	
-						prefs = self._getChildElementsByTagName(dom, u"prefs")
+						prefs = self._getChildElementsByTagName(dom, u"Prefs")
 						biServerIp = self._getElementValueByTagName(prefs[0], u"serverip", required=False, default=u"")
 						biPort = self._getElementValueByTagName(prefs[0], u"serverport", required=False, default=u"")
 						biUser = self._getElementValueByTagName(prefs[0], u"serverusername", required=False, default=u"")
