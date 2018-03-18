@@ -1,13 +1,19 @@
 Release Notes
 ==========
 
-Version 0.19.1 (Beta 19.1)
+Version 0.19.2 (Beta 19.2)
 ==========
 * **NOTE** There are going to be a few miscellaneous builds flying through pretty fast to get SenseMe fans working for Webdeck, since he had such a big role in this plugin he gets special treatment - deal with it :).  Anyway, you don't need to update to these if you aren't using SenseMe.
-* Added experimental support for SenseMe fans.  They should autodetect as a Fan and control on/off/speed. 
+* Added experimental light on/off/brightness controls for SenseMe as a lightbulb
+* Fix iteration typo on computed state value function (SenseMe work)
 
 Previous Release Notes
 ==========
+
+Version 0.19.1 (Beta 19.1)
+---------------
+* **NOTE** There are going to be a few miscellaneous builds flying through pretty fast to get SenseMe fans working for Webdeck, since he had such a big role in this plugin he gets special treatment - deal with it :).  Anyway, you don't need to update to these if you aren't using SenseMe.
+* Added experimental support for SenseMe fans.  They should autodetect as a Fan and control on/off/speed. 
 
 Version 0.19.0 (Beta 19.0)
 ---------------

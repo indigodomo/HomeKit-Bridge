@@ -2095,7 +2095,46 @@ class Service (object):
 			self.actions.append (HomeKitAction(characteristic, "between", 0, "homekit.runPluginAction_ModifyValue", [indigo.devices[self.objId].pluginId, "=value=", "divide", 12.5, ["setFanSpeed", self.objId, valuesDict]], 100, {self.objId: "state_speed"}))			
 		
 		except Exception as e:
-			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))					
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))		
+			
+	#
+	# SenseMe Light Brightness
+	#
+	def special_SenseMeLightLevel (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			if self.serverId == 0: return
+		
+			obj = indigo.devices[self.objId]
+			
+			value = int(obj.states["brightness"]) * 5.89
+			if value > 100: value = 100
+			if value < 5.89: value = 0
+						
+			self.setAttributeValue (characteristic, value)
+			self.characterDict[characteristic] = getattr (self, characteristic).value
+			
+			valuesDict = {'lightLevel': "=calc="}
+			self.actions.append (HomeKitAction(characteristic, "between", 0, "homekit.runPluginAction_ModifyValue", [indigo.devices[self.objId].pluginId, "=value=", "divide", 5.89, ["setFanSpeed", self.objId, valuesDict]], 100, {self.objId: "state_brightness"}))			
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+			
+	#
+	# SenseMe Light Toggle
+	#
+	def special_SenseMeLightToggle (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			if self.serverId == 0: return
+		
+			obj = indigo.devices[self.objId]
+			self.setAttributeValue (characteristic, obj.states["light"])
+			self.characterDict[characteristic] = getattr (self, characteristic).value
+						
+			self.actions.append (HomeKitAction(characteristic, "equal", True, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["fanLightOn", self.objId]], 100, {self.objId: "state_light"}))			
+			self.actions.append (HomeKitAction(characteristic, "equal", False, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["fanLightOff", self.objId]], 100, {self.objId: "state_light"}))			
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))										
 			
 		
 	#
@@ -2434,7 +2473,7 @@ class HomeKitAction ():
 			elif calculationMethod == "multiply" and value != 0 and calculationValue != 0:
 				value = float(value) * calculationValue	
 				
-			for key, val in arguments:
+			for key, val in arguments.iteritems():
 				if val == "=calc=": arguments[key] = value
 				
 			return self.runPluginAction (pluginId, value, arguments)
@@ -3243,10 +3282,10 @@ class service_Lightbulb (Service):
 		super(service_Lightbulb, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_status.connected"}
+		self.required["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_status.connected", "indigo.Device.com.pennypacker.indigoplugin.senseme.SenseME_fan": "special_SenseMeLightToggle"}
 	
 		self.optional = {}
-		self.optional["Brightness"] = {"indigo.DimmerDevice": "attr_brightness", "indigo.SpeedControlDevice": "attr_speedLevel", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_volume"}
+		self.optional["Brightness"] = {"indigo.DimmerDevice": "attr_brightness", "indigo.SpeedControlDevice": "attr_speedLevel", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_volume", "indigo.Device.com.pennypacker.indigoplugin.senseme.SenseME_fan": "special_SenseMeLightLevel"}
 		self.optional["Hue"] = {"indigo.DimmerDevicexxx": "special_HSL", "indigo.DimmerDevice.com.nathansheldon.indigoplugin.HueLights.hueBulb": "state_hue", "indigo.DimmerDevice.com.autologplugin.indigoplugin.lifxcontroller.lifxDevice": "state_hsbkHue"}
 		self.optional["Saturation"] = {"indigo.DimmerDevicexxx": "special_HSL", "indigo.DimmerDevice.com.nathansheldon.indigoplugin.HueLights.hueBulb": "state_saturation", "indigo.DimmerDevice.com.autologplugin.indigoplugin.lifxcontroller.lifxDevice": "state_hsbkSaturation"}
 		self.optional["Name"] = {}
