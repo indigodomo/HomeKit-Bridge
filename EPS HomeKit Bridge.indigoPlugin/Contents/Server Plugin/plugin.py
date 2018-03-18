@@ -4374,10 +4374,10 @@ class Plugin(indigo.PluginBase):
 						prefdata = file.read()
 						dom = xml.dom.minidom.parseString(prefdata)	
 						prefs = self._getChildElementsByTagName(dom, u"prefs")
-						biServerIp = self._getElementValueByTagName(prefs, u"serverip", required=False, default=u"")
-						biPort = self._getElementValueByTagName(prefs, u"serverport", required=False, default=u"")
-						biUser = self._getElementValueByTagName(prefs, u"serverusername", required=False, default=u"")
-						biPass = self._getElementValueByTagName(prefs, u"serverpassword", required=False, default=u"")
+						biServerIp = self._getElementValueByTagName(prefs[0], u"serverip", required=False, default=u"")
+						biPort = self._getElementValueByTagName(prefs[0], u"serverport", required=False, default=u"")
+						biUser = self._getElementValueByTagName(prefs[0], u"serverusername", required=False, default=u"")
+						biPass = self._getElementValueByTagName(prefs[0], u"serverpassword", required=False, default=u"")
 						
 						if biPass != "":
 							biURL = u"http://{}:{}".format(biServerIp, biPort)
