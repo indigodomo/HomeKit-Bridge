@@ -2089,7 +2089,7 @@ class Service (object):
 			self.characterDict[characteristic] = getattr (self, characteristic).value
 			
 			valuesDict = {'speed': "=calc="}
-			self.actions.append (HomeKitAction(characteristic, "between", 0, "homekit.runPluginAction_ModifyValue", [indigo.devices[self.objId].pluginId, "=value=", "divide", 12.5, ["setFanSpeed", self.objId, valuesDict]], 100, {self.objId: "state_speed"}))			
+			self.actions.append (HomeKitAction(characteristic, "between", 0, "homekit.runPluginAction_ModifyValue", [indigo.devices[self.objId].pluginId, "=value=", "divide", 12.5, ["fanSpeed", self.objId, valuesDict]], 100, {self.objId: "state_speed"}))			
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))		
@@ -2112,7 +2112,7 @@ class Service (object):
 			self.characterDict[characteristic] = getattr (self, characteristic).value
 			
 			valuesDict = {'lightLevel': "=calc="}
-			self.actions.append (HomeKitAction(characteristic, "between", 0, "homekit.runPluginAction_ModifyValue", [indigo.devices[self.objId].pluginId, "=value=", "divide", 5.89, ["setFanSpeed", self.objId, valuesDict]], 100, {self.objId: "state_brightness"}))			
+			self.actions.append (HomeKitAction(characteristic, "between", 0, "homekit.runPluginAction_ModifyValue", [indigo.devices[self.objId].pluginId, "=value=", "divide", 5.89, ["fanLightBrightness", self.objId, valuesDict]], 100, {self.objId: "state_brightness"}))			
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
