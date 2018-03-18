@@ -1747,9 +1747,6 @@ class Service (object):
 				elif unicode(obj.hvacMode) == "Cool" or unicode(obj.hvacMode) == "ProgramCool":
 					self.setAttributeValue (characteristic, 2)
 					self.characterDict[characteristic] = getattr (self, characteristic).value
-				elif unicode(obj.hvacMode) == "HeatCool" or unicode(obj.hvacMode) == "ProgramHeatCool":
-					self.setAttributeValue (characteristic, 3)
-					self.characterDict[characteristic] = getattr (self, characteristic).value
 				else:
 					self.setAttributeValue (characteristic, 0)
 					self.characterDict[characteristic] = getattr (self, characteristic).value
@@ -2109,6 +2106,7 @@ class Service (object):
 			value = int(obj.states["brightness"]) * 5.89
 			if value > 100: value = 100
 			if value < 5.89: value = 0
+			if value > 83: value = 100 # 100 - 16
 						
 			self.setAttributeValue (characteristic, value)
 			self.characterDict[characteristic] = getattr (self, characteristic).value
@@ -2473,10 +2471,25 @@ class HomeKitAction ():
 			elif calculationMethod == "multiply" and value != 0 and calculationValue != 0:
 				value = float(value) * calculationValue	
 				
-			for key, val in arguments.iteritems():
-				if val == "=calc=": arguments[key] = value
+			# Iterate through the arguments LIST
+			newarguments = []
+			for arg in arguments:
+				if type(arg) == dict:
+					newdict = {}
+					for key, val in arg.iteritems():
+						if val == "=calc=": 
+							newdict[key] = value
+						else:
+							newdict[key] = val
+						
+					newarguments.append(newdict)
+					
+				else:
+					if arg == "=calc=": newarguments.append(arg)
+			
+			
 				
-			return self.runPluginAction (pluginId, value, arguments)
+			return self.runPluginAction (pluginId, value, newarguments)
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))

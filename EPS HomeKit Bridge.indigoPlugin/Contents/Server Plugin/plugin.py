@@ -98,6 +98,8 @@ class Plugin(indigo.PluginBase):
 			
 			#self.version_check()
 			
+			valuesDict = {'speed': "=calc="}
+			indigo.server.log(unicode(type(valuesDict)))
 			
 			#x = eps.homekit.getServiceObject (1642494335, 1794022133, "service_ContactSensor")
 			#indigo.server.log (unicode(x))
