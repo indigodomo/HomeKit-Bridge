@@ -691,6 +691,36 @@ class Plugin(indigo.PluginBase):
 			self.logger.error (ext.getException(e))	
 			
 	#
+	# Plugin configuration dialog validation
+	#
+	def onAfter_validatePrefsConfigUi(self, valuesDict):
+		errorsDict = indigo.Dict()
+		success = True
+		
+		try:
+			# Basic defaults if they left it blank
+			if valuesDict["lowbattery"] == "" or valuesDict["lowbattery"] == "0": valuesDict["lowbattery"] = "20"
+			if valuesDict["bitrate"] == "" or valuesDict["bitrate"] == "0": valuesDict["bitrate"] = "300"
+			if valuesDict["packetsize"] == "" or valuesDict["packetsize"] == "0": valuesDict["packetsize"] = "1316"
+			
+			# Validate the packet size since it has to be in increments of 188
+			packetPasses = False
+			for i in range (188, 1317):
+				if int(valuesDict["packetsize"]) == i:
+					packetPasses = True
+					break
+					
+			if not packetPasses:
+				errorsDict["showAlertText"] = "Packet sizes must be in increments of 188.  Please set the packet size to be an increment of 188 up to a maximum of 1316."
+				errorsDict["packetsize"] = "Invalid value"
+				return (False, valuesDict, errorsDict)	
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+		return (success, valuesDict, errorsDict)
+			
+	#
 	# Plugin device updated
 	#
 	def onAfter_pluginDevicePropChanged (self, origDev, newDev, changedProps):
@@ -4364,6 +4394,7 @@ class Plugin(indigo.PluginBase):
 					biHeight = biDev.states["height"]
 					biName = biDev.states["optionValue"]
 					biFPS = biDev.states["FPS"]
+					biAudio = biDev.states['audio']
 					if biFPS == 0: biFPS = 30
 					biURL = ""
 					
@@ -4380,7 +4411,7 @@ class Plugin(indigo.PluginBase):
 						biUser = self._getElementValueByTagName(prefs[0], u"serverusername", required=False, default=u"")
 						biPass = self._getElementValueByTagName(prefs[0], u"serverpassword", required=False, default=u"")
 						
-						if biPass != "":
+						if biPass == "":
 							biURL = u"http://{}:{}".format(biServerIp, biPort)
 						else:
 							biURL = u"http://{}:{}@{}:{}".format(biUser, biPass, biServerIp, biPort)
@@ -4391,11 +4422,15 @@ class Plugin(indigo.PluginBase):
 						camera = {}	
 						videoConfig = {}
 					
-						videoConfig["source"] = u"-re -i {}/h264/{}/temp.h264".format(biURL, biName)
-						videoConfig["stillImageSource"] = u"-re -i {}/images/{}?w={}".format(biURL, biName, biWidth)
+						videoConfig["source"] = u"-re -i {}/h264/{}/temp.m".format(biURL, biName)
+						videoConfig["stillImageSource"] = u"-i {}/image/{}".format(biURL, biName)
 						videoConfig["maxWidth"] = biWidth
 						videoConfig["maxHeight"] = biHeight
-						videoConfig["maxFPS"] = biFPS		
+						videoConfig["maxFPS"] = biFPS
+						videoConfig['maxBitrate'] = int(self.pluginPrefs.get("bitrate", "300"))
+						videoConfig['packetSize'] = int(self.pluginPrefs.get("packetsize", "1316"))
+						if self.pluginPrefs.get("cameradebug", False): videoConfig['debug'] = True
+						videoConfig['audio'] = biAudio 
 					
 						camera["name"] = r["alias"]
 						camera["videoConfig"] = videoConfig
@@ -4446,7 +4481,10 @@ class Plugin(indigo.PluginBase):
 					videoConfig["stillImageSource"] = u"-i {}/++image?cameraNum={}&width={}&height={}".format(ssURL, ssCameraNum, ssWidth, ssHeight)
 					videoConfig["maxWidth"] = ssWidth
 					videoConfig["maxHeight"] = ssHeight
-					videoConfig["maxFPS"] = ssFPS		
+					videoConfig["maxFPS"] = ssFPS	
+					videoConfig['maxBitrate'] = int(self.pluginPrefs.get("bitrate", "300"))
+					videoConfig['packetSize'] = int(self.pluginPrefs.get("packetsize", "1316"))	
+					if self.pluginPrefs.get("cameradebug", False): videoConfig['debug'] = True
 					
 					camera["name"] = r["alias"]
 					camera["videoConfig"] = videoConfig

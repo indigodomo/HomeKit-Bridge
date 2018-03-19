@@ -40,7 +40,22 @@
 		<Label>Low Battery Warning %:</Label>
 	</Field>   	
    	
-   	<Field id="sep_ifttt" type="separator" />
+   	<Field id="sep_battery" type="separator" />
+   	
+   	<Field type="textfield" id="bitrate" defaultValue="300" tooltip="Maximum bitrate of the video stream in kbit/s" >
+		<Label>Camera Bitrate:</Label>
+	</Field> 
+	
+	<Field type="textfield" id="packetsize" defaultValue="1316" tooltip="Packet size of camera stream in increments of 188" >
+		<Label>Camera Packet Size:</Label>
+	</Field> 
+	
+	<Field type="checkbox" id="cameradebug" defaultValue="false" tooltip="Debug camera streams into the Homebridge log file">
+		<Label> </Label>
+		<Description>Enable camera stream debugging</Description>
+	</Field>
+	
+	<Field id="sep_camera" type="separator" />
    	
    	<Field type="textfield" id="apiport" defaultValue="8558" hidden="false">
 		<Label>Enhanced API port:</Label>

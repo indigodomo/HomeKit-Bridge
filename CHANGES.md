@@ -1,13 +1,20 @@
 Release Notes
 ==========
 
-Version 0.19.7 (Beta 19.7)
+Version 0.19.8 (Beta 19.8)
 ==========
-* Changed Blue Iris FPS data to pull from states but default to 30 FPS if the state is 0
-* Fixed type causing Blue Iris not to pull plugin prefs correctly
+* Changed some Blue Iris integration parameters to match recommendations from Glenn
+* Updated Blue Iris and SecuritySpy integration to incorporate max bitrate, packet size and debug logging from the plugin prefs
+* Added packet size, frame rate and debug to the PLUGIN PREFS for camera configuration so you can tweak the settings.  You'll need to reload your camera server after any changes so the configuration can be rebuilt.
+* Fixed bug in Blue Iris that had authentication reversed
 
 Previous Release Notes
 ==========
+
+Version 0.19.7 (Beta 19.7)
+---------------
+* Changed Blue Iris FPS data to pull from states but default to 30 FPS if the state is 0
+* Fixed type causing Blue Iris not to pull plugin prefs correctly
 
 Version 0.19.6 (Beta 19.6)
 ---------------
