@@ -1,15 +1,28 @@
 Release Notes
 ==========
 
-Version 0.19.8 (Beta 19.8)
+Version 0.19.9 (Beta 19.9)
 ==========
-* Changed some Blue Iris integration parameters to match recommendations from Glenn
-* Updated Blue Iris and SecuritySpy integration to incorporate max bitrate, packet size and debug logging from the plugin prefs
-* Added packet size, frame rate and debug to the PLUGIN PREFS for camera configuration so you can tweak the settings.  You'll need to reload your camera server after any changes so the configuration can be rebuilt.
-* Fixed bug in Blue Iris that had authentication reversed
+* Added sanity checker to the configuration save functions to validate the folder structure and files to auto remove and rebuild the config folder if it detects something is wrong, this hopefully to finally close out the ongoing new-user-startup-issue that seems to always be resolve by rebuilding the config ([Issue #12](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/12))
+* Added URL message when the server cannot be started that points the user to the wiki page explaining how to rebuild the Homebridge folder if they are unable to start their server repeatedly
+* Added threaded startup for servers when the plugin is loaded to speed up the load time on the Homebridge servers
+* Added validation on plugin preference save that will not permit the user to save plugin prefs if there are any servers in a 'Starting' state
+* Added validation on plugin preferences where if a camera field is changed it will restart any servers impacted by that change (don't blame me, Indigo API limitations) ([Issue #75](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/75)
+* Added new Advanced Plugin Action for devices to log the contents of the Homebridge configuration, mostly for camera debugging since it's the only thing that actively manipulates the configuration
+* Removed "under development" warnings from Advanced Plugin Actions
+* Fixed bug in plugin config's packet size validation where it would allow **any** value between 188 and 1316 instead of only values in increments of 188
+* Fixed minor UI issue where the 'Model' field was not automatically populating when creating a new server
+* [Issue #75](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/75) feature added
 
 Previous Release Notes
 ==========
+
+Version 0.19.8 (Beta 19.8)
+---------------
+* Changed some Blue Iris integration parameters to match recommendations from Glenn
+* Updated Blue Iris and SecuritySpy integration to incorporate max bitrate, packet size and debug logging from the plugin prefs
+* Added [packet size, frame rate and debug to the PLUGIN PREFS](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Plugin-Preferences#camera-settings) for camera configuration so you can tweak the settings.  You'll need to reload your camera server after any changes so the configuration can be rebuilt.
+* Fixed bug in Blue Iris that had authentication reversed
 
 Version 0.19.7 (Beta 19.7)
 ---------------

@@ -210,12 +210,12 @@ Using this method is nit-picking performance since polling is almost equally as 
     	<Name>Advanced Plugin Actions</Name>
     	<ButtonTitle>Done</ButtonTitle>
         <ConfigUI>
-        	<Field type="label" id="lbl_devmessage" >
+        	<Field type="label" id="lbl_devmessage" hidden="true" >
 				<Label>NOTE: This window and all the options are currently being developed.  You are seeing this message because you are using a pre-release or development build and that means that some things may not yet be finished in the development stages, including everything on this form.  Use at your own risk.
 				</Label>
 			</Field>
 			
-			<Field id="sep_devmessage" type="separator" />
+			<Field id="sep_devmessage" type="separator" hidden="true"/>
 			
 			<Field type="checkbox" id="showDeviceActions" defaultValue="true" hidden="true">
 				<Label> </Label>
@@ -240,6 +240,7 @@ Using this method is nit-picking performance since polling is almost equally as 
 					<Option value="states">Indigo Device States</Option>
 					<Option value="data">Indigo Device Data Dump</Option>
 					<Option value="hblog">Show Homebridge Log</Option>
+					<Option value="hbconfig">Show Homebridge Configuration</Option>
 					<Option value="rebuild">Rebuild Homebridge Folder</Option>
 					<Option value="simhomekit">Simulate HomeKit For Server Item</Option>
 				</List>
@@ -306,9 +307,9 @@ Using this method is nit-picking performance since polling is almost equally as 
 				<CallbackMethod>btnAdvPluginAction</CallbackMethod>
 			</Field>
         	
-			<Field id="sep_notice" type="separator" />
+			<Field id="sep_notice" type="separator" hidden="true"/>
         	
-        	<Field type="label" id="lbl_devexclude" >
+        	<Field type="label" id="lbl_devexclude" hidden="true">
 				<Label>Use at your own risk.</Label>
 			</Field>
         	
