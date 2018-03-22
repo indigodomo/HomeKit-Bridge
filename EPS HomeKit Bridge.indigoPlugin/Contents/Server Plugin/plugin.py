@@ -4583,7 +4583,7 @@ class Plugin(indigo.PluginBase):
 						camera = {}	
 						videoConfig = {}
 					
-						videoConfig["source"] = u"-re -i {}/h264/{}/temp.m".format(biURL, biName)
+						videoConfig["source"] = u"-i {}/h264/{}/temp.h264".format(biURL, biName)
 						videoConfig["stillImageSource"] = u"-i {}/image/{}".format(biURL, biName)
 						videoConfig["maxWidth"] = biWidth
 						videoConfig["maxHeight"] = biHeight
