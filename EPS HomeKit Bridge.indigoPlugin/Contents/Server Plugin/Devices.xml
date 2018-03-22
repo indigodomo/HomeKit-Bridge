@@ -6,6 +6,8 @@
 		<Name>HomeKit Accessory Server</Name>
 		<SupportURL>https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Server-Device</SupportURL>
 		<ConfigUI>
+			<Field type="checkbox" id="SupportsStatusRequest" defaultValue="false" hidden="true" />
+		
 			<Field type="label" id="lbl_deviceLimitReached" visibleBindingId="deviceLimitReached" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true">
 				<Label>HomeKit can handle up to 99 devices and/or actions per server, you have reached this limit.  You can create additional servers if you need more than 99 devices and/or actions.
 		</Label>
@@ -274,6 +276,7 @@
 			<Field type="menu" id="hkType" defaultValue="none" enabledBindingId="homeKitTypeEnabled" visibleBindingId="deviceOrActionSelected" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true">
                 <Label>HomeKit Type:</Label>
                 <List class="self" filter="#plugin#[index=hkType, callback=serverListHomeKitDeviceTypes, ref=hideWrappedItems, nocache=true]" method="getCustomList" dynamicReload="true"/>
+				<CallbackMethod>formFieldChanged</CallbackMethod>
             </Field>
             
             <Field type="checkbox" id="enableOnOffInvert" defaultValue="false" hidden="true">

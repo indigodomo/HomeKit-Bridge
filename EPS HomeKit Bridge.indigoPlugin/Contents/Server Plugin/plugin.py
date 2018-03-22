@@ -85,9 +85,7 @@ class Plugin(indigo.PluginBase):
 	# Raised onBefore_ and onAfter_ for interesting Indigo or custom commands that 
 	# we want to intercept and do something with
 	################################################################################	
-	
-	
-	
+
 	#
 	# Development Testing
 	#
@@ -581,6 +579,11 @@ class Plugin(indigo.PluginBase):
 				# 0.17.6
 				if not "firmwareValue" in props:
 					props["firmwareValue"] = "indigoVersion"
+					changed = True
+					
+				# 0.19.10
+				if not "SupportsStatusRequest" in props:
+					props["SupportsStatusRequest"] = False
 					changed = True
 					
 				if changed: 
@@ -3902,6 +3905,11 @@ class Plugin(indigo.PluginBase):
 				valuesDict["deviceOrActionSelected"] = True
 				valuesDict["homeKitTypeEnabled"] = False
 				valuesDict["hkType"] = "service_CameraRTPStreamManagement"
+				
+			if valuesDict["hkType"] == "service_Thermostat" or valuesDict["hkType"] == "service_TemperatureSensor":
+				valuesDict["isFahrenheitEnabled"] = True
+			else:
+				valuesDict["isFahrenheitEnabled"] = False
 					
 			if valuesDict["objectAction"] == "add":
 				valuesDict["showEditArea"] = True

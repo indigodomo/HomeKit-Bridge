@@ -1,8 +1,26 @@
 Release Notes
 ==========
 
-Version 0.19.9 (Beta 19.9)
+Version 0.20.0 (Beta 20.0)
 ==========
+* Added failsafe code in thermostats that if a heat or cool set point is below 0 degrees F that the converted value will report as 0
+* Added Nest thermostat plugin support to properly indicate when it is currently heating or currently cooling
+* Added experimental support for Pi Beacon i2cTMP102, i2cBMExx, i2cMS5803 temperature sensors ([Issue #73](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/76))
+* Added experimental support for Pi Beacon i2cBMExx humidity sensors ([Issue #73](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/76))
+* Added experimental support for Pi Beacon occupancy sensors ([Issue #57](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/57))
+* Fixed bug in thermostat status that would only show at orange (heating) or blue (cooling), now it will properly determine if the thermostat is **actively** heating or cooling (orange/blue) or if it is currently idle (green)
+* Fixed bug in thermostat modes where Auto mode was not properly detected
+* Fixed UI bug where "Temperature value is in Fahrenheit" only shows up if the device is edited or if it defaulted to a temperature device, now it will trigger from changing the HomeKit type.  Resolves [issue reported on the forum by vtmikel](http://forums.indigodomo.com/viewtopic.php?p=157307#p157307)
+* Fixed UI bug where "Send Status Request" was enabled on the device list, causing confusion when clicking it and getting an Indigo error because it was not implemented ([Issue #80](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/80))
+* [Issue #80](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/80) resolved
+* [Issue #73](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/76) features partially added
+* [Issue #57](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/57) features added
+
+Previous Release Notes
+==========
+
+Version 0.19.9 (Beta 19.9)
+---------------
 * Added sanity checker to the configuration save functions to validate the folder structure and files to auto remove and rebuild the config folder if it detects something is wrong, this hopefully to finally close out the ongoing new-user-startup-issue that seems to always be resolve by rebuilding the config ([Issue #12](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/12))
 * Added URL message when the server cannot be started that points the user to the wiki page explaining how to rebuild the Homebridge folder if they are unable to start their server repeatedly
 * Added threaded startup for servers when the plugin is loaded to speed up the load time on the Homebridge servers
@@ -13,9 +31,6 @@ Version 0.19.9 (Beta 19.9)
 * Fixed bug in plugin config's packet size validation where it would allow **any** value between 188 and 1316 instead of only values in increments of 188
 * Fixed minor UI issue where the 'Model' field was not automatically populating when creating a new server
 * [Issue #75](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/75) feature added
-
-Previous Release Notes
-==========
 
 Version 0.19.8 (Beta 19.8)
 ---------------
