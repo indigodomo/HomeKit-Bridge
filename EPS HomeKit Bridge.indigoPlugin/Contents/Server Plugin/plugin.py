@@ -85,9 +85,7 @@ class Plugin(indigo.PluginBase):
 	# Raised onBefore_ and onAfter_ for interesting Indigo or custom commands that 
 	# we want to intercept and do something with
 	################################################################################	
-	
-	
-	
+
 	#
 	# Development Testing
 	#
@@ -583,6 +581,11 @@ class Plugin(indigo.PluginBase):
 					props["firmwareValue"] = "indigoVersion"
 					changed = True
 					
+				# 0.19.10
+				if not "SupportsStatusRequest" in props:
+					props["SupportsStatusRequest"] = False
+					changed = True
+					
 				if changed: 
 					self.logger.info (u"Upgrading {} for changes in this plugin release".format(dev.name))
 					dev.replacePluginPropsOnServer(props)
@@ -631,7 +634,7 @@ class Plugin(indigo.PluginBase):
 			try:
 				for devId in self.SERVER_STARTING:
 					if self.checkRunningHBServer (indigo.devices[devId]):
-						self.logger.info (u"Server '{}' has successfully started and can answer Siri commands".format(indigo.devices[devId].name))
+						self.logger.info (u"Server '{}' has successfully started, you can use your HomeKit apps or Siri for this accessory".format(indigo.devices[devId].name))
 					
 						# Remove this from the list so we don't check anymore
 						newList = []
@@ -641,12 +644,12 @@ class Plugin(indigo.PluginBase):
 						
 						self.SERVER_STARTING = newList
 					
-				if len(self.SERVER_STARTING) > 0 and self.STICKS > 30:
-					for devId in self.SERVER_STARTING:
-						self.logger.info (u"Server '{}' has not responded to a start request after more than 30 seconds, forcing an abort on the startup".format(indigo.devices[devId].name))
-						self.shellHBStopServer (indigo.devices[devId])
-						
-					self.STICKS = 0
+				#if len(self.SERVER_STARTING) > 0 and self.STICKS > 30:
+				#	for devId in self.SERVER_STARTING:
+				#		self.logger.info (u"Server '{}' has not responded to a start request after more than 30 seconds, forcing an abort on the startup".format(indigo.devices[devId].name))
+				#		self.shellHBStopServer (indigo.devices[devId])
+				#		
+				#	self.STICKS = 0
 					
 			except Exception as e:
 				self.logger.error (ext.getException(e))		
@@ -689,6 +692,54 @@ class Plugin(indigo.PluginBase):
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
+			
+	#
+	# Plugin configuration dialog validation
+	#
+	def onAfter_validatePrefsConfigUi(self, valuesDict):
+		errorsDict = indigo.Dict()
+		success = True
+		
+		try:
+			# Basic defaults if they left it blank
+			if valuesDict["lowbattery"] == "" or valuesDict["lowbattery"] == "0": valuesDict["lowbattery"] = "20"
+			if valuesDict["bitrate"] == "" or valuesDict["bitrate"] == "0": valuesDict["bitrate"] = "300"
+			if valuesDict["packetsize"] == "" or valuesDict["packetsize"] == "0": valuesDict["packetsize"] = "1316"
+			
+			# Validate the packet size since it has to be in increments of 188
+			packetPasses = False
+			for i in range (188, 1317, 188):
+				if int(valuesDict["packetsize"]) == i:
+					packetPasses = True
+					break
+					
+			if not packetPasses:
+				errorsDict["showAlertText"] = "Packet sizes must be in increments of 188.  Please set the packet size to be an increment of 188 up to a maximum of 1316."
+				errorsDict["packetsize"] = "Invalid value"
+				return (False, valuesDict, errorsDict)	
+				
+			if len(self.SERVER_STARTING) > 0:
+				errorsDict["showAlertText"] = "You still have servers that are trying to start, unable to save plugin preferences until all servers have finished starting."
+				return (False, valuesDict, errorsDict)		
+				
+			if valuesDict["bitrate"] != self.pluginPrefs.get("bitrate", "300") or valuesDict["packetsize"] != self.pluginPrefs.get("packetsize", "1316") or valuesDict["cameradebug"] != self.pluginPrefs.get("cameradebug", False):
+				for dev in indigo.devices.iter(self.pluginId + ".Server"):
+					needsRestart = False
+					if "includedDevices" in dev.pluginProps:
+						objects = json.loads(dev.pluginProps["includedDevices"])	
+						for r in objects:
+							if r["hktype"] == "service_CameraRTPStreamManagement":
+								needsRestart = True
+								break
+
+					if needsRestart:
+						thread.start_new_thread(self.restartRunningServer, (dev,))
+										
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+		return (success, valuesDict, errorsDict)
 			
 	#
 	# Plugin device updated
@@ -936,15 +987,31 @@ class Plugin(indigo.PluginBase):
 											
 					self.logger.info (logdetails)
 					
+			if valuesDict["deviceActions"] == "hbconfig": 
+				server = indigo.devices[int(valuesDict["device"])]
+				
+				startpath = self.CONFIGDIR + "/" + str(server.id)
+			
+				# Failsafe to make sure we have a server folder
+				if not os.path.exists (startpath):
+					self.logger.error (u"Unable to find a configuration folder for this server in {}".format(startpath))
+					return
+			
+				if os.path.exists (startpath):
+					filepath = startpath + "/config.json"
+					if os.path.isfile(filepath):
+						file = open(filepath, 'r')
+						logdetails = file.read()
+					else:
+						self.logger.error (u"Unable to open the Homebridge configuration at {}.  This indicates that the configuration was unable to write to this folder or there may be a filesystem problem.".format(filepath))
+						return
+											
+					self.logger.info (logdetails)		
+					
 			if valuesDict["deviceActions"] == "rebuild": 
 				server = indigo.devices[int(valuesDict["device"])]
 				
-				self.logger.warning (u"Removing Homebridge folder for {} at {}".format(server.name, self.CONFIGDIR + "/" + str(server.id)))
-				
-				import shutil
-				shutil.rmtree(self.CONFIGDIR + "/" + str(server.id))
-				
-				self.checkserverFoldersAndStartIfConfigured (server)
+				self.rebuildHomebridgeFolder (server)
 				
 				self.logger.warning (u"Homebridge folder for {} at {} has been rebuilt".format(server.name, self.CONFIGDIR + "/" + str(server.id)))
 				
@@ -2053,6 +2120,21 @@ class Plugin(indigo.PluginBase):
 				
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
+			
+	#
+	# Restart a server if it is running
+	#
+	def restartRunningServer (self, dev):
+		try:
+			# Restart the server if it's running, otherwise leave it off
+			if self.checkRunningHBServer (dev):
+				self.logger.debug(u"Restart requested, {} is running".format(dev.name))
+				if self.shellHBStopServer (dev):
+					self.logger.debug(u"Restart requested, {} was stopped, now restarting".format(dev.name))
+					self.shellHBStartServer (dev)
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
 	
 	#
 	# See if a port connection can be made - used to test if HB is running for a specific server
@@ -2112,7 +2194,8 @@ class Plugin(indigo.PluginBase):
 				
 				# If it's enabled then start the server
 				if "autoStartStop" in dev.pluginProps and dev.pluginProps["autoStartStop"]:
-					self.shellHBStartServer (dev)
+					#self.shellHBStartServer (dev)
+					thread.start_new_thread(self.shellHBStartServer, (dev, False))
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))		
@@ -2318,7 +2401,8 @@ class Plugin(indigo.PluginBase):
 			else:
 				rec["id"] = 0
 				rec["name"] = ""
-				rec["alias"] = ""
+				rec["alias"] = alias
+				if alias is None: rec["alias"] = ""
 				#rec["type"] = ""
 				#rec["typename"] = ""
 				rec["object"] = ""
@@ -3472,10 +3556,12 @@ class Plugin(indigo.PluginBase):
 			elif "stream" in valuesDict["objectType"]:
 				thistype = "Stream"
 				
-			if thistype == "stream":
+			if thistype == "Stream":
 				(valuesDict, errorsDict) = self.serverButtonAddDeviceOrAction_Stream (valuesDict, errorsDict, thistype, devId)
 			else:
 				(valuesDict, errorsDict) = self.serverButtonAddDeviceOrAction_Object (valuesDict, errorsDict, thistype, devId)
+				
+			if "showAlertText" in errorsDict: return (valuesDict, errorsDict)	
 			
 			# Wrap up
 			includedDevices = json.loads(valuesDict["includedDevices"])
@@ -3505,6 +3591,7 @@ class Plugin(indigo.PluginBase):
 			if valuesDict["action"] == "": valuesDict["action"] = ""	
 			valuesDict["invertOnOff"] = False # Failsafe
 			valuesDict["isFahrenheit"] = False # Failsafe
+			if valuesDict["objectType"] == "stream": valuesDict["objectType"] = "device"
 				
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -3521,14 +3608,42 @@ class Plugin(indigo.PluginBase):
 			#valuesDict = self.serverCheckForJSONKeys (valuesDict)
 			total = 0
 			
-			if valuesDict["device"] == "" or valuesDict["device"] == "-line-" or valuesDict["device"] == "-fill-":
-				errorsDict = eps.ui.setErrorStatus (errorsDict, "{} is not a valid device ID, please verify your selection.".format(valuesDict["device"]))
-				errorsDict["device"] = "Invalid device"
-				return (valuesDict, errorsDict)
+			requiredfields = ["videoURL", "stillURL", "alias"]
+			
+			for f in requiredfields:
+				if valuesDict[f] == "":
+					errorsDict = eps.ui.setErrorStatus (errorsDict, "Invalid field value, please correct the red field.")
+					errorsDict[f] = "Invalid value"
+					return (valuesDict, errorsDict)
+				
+			packetPasses = False
+			for i in range (188, 1317, 188):
+				if int(valuesDict["packet"]) == i:
+					packetPasses = True
+					break
+					
+			if not packetPasses:
+				errorsDict["showAlertText"] = "Packet sizes must be in increments of 188.  Please set the packet size to be an increment of 188 up to a maximum of 1316."
+				errorsDict["packet"] = "Invalid value"
+				return (False, valuesDict, errorsDict)		
 			
 			(includeList, max) = self.getIncludeStashList (thistype, valuesDict)
 			
+			device = self.createJSONItemRecord (None, valuesDict["alias"])
+			device["object"] = "Stream"
+			device["api"] = False
+			device["apilock"] = False
+			device["hktype"] = "service_CameraRTPStreamManagement"
+			device["name"] = device["alias"]
+						
+			from random import randint
+			device["id"] = randint(100000, 100000001)
 			
+			total = total + 1			
+			includeList.append (device)
+		
+			valuesDict = self.getIncludeStashList (thistype, valuesDict, includeList)
+			return (valuesDict, errorsDict)
 	
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -3790,6 +3905,11 @@ class Plugin(indigo.PluginBase):
 				valuesDict["deviceOrActionSelected"] = True
 				valuesDict["homeKitTypeEnabled"] = False
 				valuesDict["hkType"] = "service_CameraRTPStreamManagement"
+				
+			if valuesDict["hkType"] == "service_Thermostat" or valuesDict["hkType"] == "service_TemperatureSensor":
+				valuesDict["isFahrenheitEnabled"] = True
+			else:
+				valuesDict["isFahrenheitEnabled"] = False
 					
 			if valuesDict["objectAction"] == "add":
 				valuesDict["showEditArea"] = True
@@ -4147,6 +4267,7 @@ class Plugin(indigo.PluginBase):
 			
 			indigo.devices[dev.id].updateStateOnServer("onOffState", False, uiValue="Starting")
 			self.logger.info (u"Attempting to start '{0}'".format(dev.name))
+			self.SERVER_STARTING.append(dev.id)
 						
 			# We cannot check the running port and have the server start because that will pause our web server too, so add
 			# it to the global so that concurrent threading can check on the startup
@@ -4160,12 +4281,12 @@ class Plugin(indigo.PluginBase):
 				time.sleep (5)
 				result = self.checkRunningHBServer (dev)
 				if result: 
-					self.logger.info (u"HomeKit server '{0}' has been started".format(dev.name))
+					self.logger.debug (u"HomeKit server '{0}' has been started".format(dev.name))
 					return True
 					
 				loopcount = loopcount + 1
 					
-			self.logger.error (u"HomeKit server '{0}' could not be started, please check the service logs for more information, now issuing a forced shutdown of the service to be safe.".format(dev.name))	
+			self.logger.error (u"HomeKit server '{0}' could not be started, please check the service logs for more information,\nnow issuing a forced shutdown of the service to be safe.\n\nIf you continue to have problems starting this server use the Advanced Plugin Actions menu option to rebuild the Homebridge folder.\nInstructions at https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Plugin-Menu-Utilities#rebuild-homebridge-folder".format(dev.name))	
 			self.shellHBStopServer (dev)
 			
 			# To help prevent a possible hang	
@@ -4181,6 +4302,14 @@ class Plugin(indigo.PluginBase):
 	#
 	def shellHBStopServer (self, dev, noStatus = False, blind = False):
 		try:
+			# If it's in the startup list then remove it
+			if dev.id in self.SERVER_STARTING:
+				newlist = []
+				for id in self.SERVER_STARTING:
+					if id != dev.id: newlist.append(id)
+					
+				self.SERVER_STARTING = newlist
+			
 			# Start the HB server
 			self.logger.threaddebug ('Running: "' + self.HBDIR + '/unload" "' + self.CONFIGDIR + "/" + str(dev.id) + '"')
 			os.system('"' + self.HBDIR + '/unload" "' + self.CONFIGDIR + "/" + str(dev.id) + '"')
@@ -4217,7 +4346,67 @@ class Plugin(indigo.PluginBase):
 		
 	################################################################################
 	# HOMEBRIDGE CONFIGURATION BUILDER
-	################################################################################		
+	################################################################################	
+	
+	#
+	# Do a folder sanity check on the Homebridge folder and rebuild it if it's not correct
+	#
+	def homebridgeFolderSanityCheck (self, server, checkForConfig = True):
+		try:
+			files = [u"com.webdeck.homebridge.{}.plist".format(server.id)]
+			folders = ["accessories", "persist"]
+			
+			if checkForConfig: files.append(config.json)
+			
+			isSane = True
+			startpath = self.CONFIGDIR + "/" + str(server.id)
+			
+			if os.path.exists (startpath):
+				for f in files:
+					if not os.path.isfile(u"{}/{}".format(startpath, f)):
+						self.logger.error (u"While performing a sanity check on the config folder, {}/{} was not there.".format(startpath, f))
+						isSane = False
+						break
+						
+				for f in folders:
+					if not os.path.exists(u"{}/{}".format(startpath, f)):
+						self.logger.error (u"While performing a sanity check on the config folder, {}/{} was not there.".format(startpath, f))
+						isSane = False
+						break
+
+			else:
+				self.logger.error (u"While performing a sanity check on the config folder, {} was not there.".format(startpath))
+				isSane = False
+				
+			if not isSane:
+				self.rebuildHomebridgeFolder (server)
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			return False
+			
+		return True	
+		
+	#
+	# Recreate the homebridge folder
+	#
+	def rebuildHomebridgeFolder (self, server):
+		try:
+			startpath = self.CONFIGDIR + "/" + str(server.id)
+			
+			if os.path.exists (startpath):
+				self.logger.info (u"Removing {} so it can be regenerated.".format(startpath))
+				import shutil
+				shutil.rmtree(self.CONFIGDIR + "/" + str(server.id))
+			
+			self.shellCreateServerConfigFolders (server)
+			self.logger.info (u"Recreated the configuration folder at {}.".format(startpath))
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			return False
+			
+		return True	
 	
 	#
 	# Write server configuration to disk
@@ -4225,6 +4414,8 @@ class Plugin(indigo.PluginBase):
 	def saveConfigurationToDisk (self, server):
 		try:
 			self.logger.debug (u"Saving '{}' configuration to {}".format(server.name, self.CONFIGDIR + "/" + str(server.id)))
+			self.homebridgeFolderSanityCheck (server, False)
+			
 			config = self.buildServerConfigurationDict (server.id)
 			if config is None:
 				self.logger.error (u"Unable to build server configuration for '{0}'.".format(server.name))
@@ -4364,6 +4555,7 @@ class Plugin(indigo.PluginBase):
 					biHeight = biDev.states["height"]
 					biName = biDev.states["optionValue"]
 					biFPS = biDev.states["FPS"]
+					biAudio = biDev.states['audio']
 					if biFPS == 0: biFPS = 30
 					biURL = ""
 					
@@ -4380,7 +4572,7 @@ class Plugin(indigo.PluginBase):
 						biUser = self._getElementValueByTagName(prefs[0], u"serverusername", required=False, default=u"")
 						biPass = self._getElementValueByTagName(prefs[0], u"serverpassword", required=False, default=u"")
 						
-						if biPass != "":
+						if biPass == "":
 							biURL = u"http://{}:{}".format(biServerIp, biPort)
 						else:
 							biURL = u"http://{}:{}@{}:{}".format(biUser, biPass, biServerIp, biPort)
@@ -4391,11 +4583,15 @@ class Plugin(indigo.PluginBase):
 						camera = {}	
 						videoConfig = {}
 					
-						videoConfig["source"] = u"-re -i {}/h264/{}/temp.h264".format(biURL, biName)
-						videoConfig["stillImageSource"] = u"-re -i {}/images/{}?w={}".format(biURL, biName, biWidth)
+						videoConfig["source"] = u"-re -i {}/h264/{}/temp.m".format(biURL, biName)
+						videoConfig["stillImageSource"] = u"-i {}/image/{}".format(biURL, biName)
 						videoConfig["maxWidth"] = biWidth
 						videoConfig["maxHeight"] = biHeight
-						videoConfig["maxFPS"] = biFPS		
+						videoConfig["maxFPS"] = biFPS
+						videoConfig['maxBitrate'] = int(self.pluginPrefs.get("bitrate", "300"))
+						videoConfig['packetSize'] = int(self.pluginPrefs.get("packetsize", "1316"))
+						if self.pluginPrefs.get("cameradebug", False): videoConfig['debug'] = True
+						videoConfig['audio'] = biAudio 
 					
 						camera["name"] = r["alias"]
 						camera["videoConfig"] = videoConfig
@@ -4446,7 +4642,10 @@ class Plugin(indigo.PluginBase):
 					videoConfig["stillImageSource"] = u"-i {}/++image?cameraNum={}&width={}&height={}".format(ssURL, ssCameraNum, ssWidth, ssHeight)
 					videoConfig["maxWidth"] = ssWidth
 					videoConfig["maxHeight"] = ssHeight
-					videoConfig["maxFPS"] = ssFPS		
+					videoConfig["maxFPS"] = ssFPS	
+					videoConfig['maxBitrate'] = int(self.pluginPrefs.get("bitrate", "300"))
+					videoConfig['packetSize'] = int(self.pluginPrefs.get("packetsize", "1316"))	
+					if self.pluginPrefs.get("cameradebug", False): videoConfig['debug'] = True
 					
 					camera["name"] = r["alias"]
 					camera["videoConfig"] = videoConfig

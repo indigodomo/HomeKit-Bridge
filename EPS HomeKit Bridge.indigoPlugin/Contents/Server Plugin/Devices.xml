@@ -6,6 +6,8 @@
 		<Name>HomeKit Accessory Server</Name>
 		<SupportURL>https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Server-Device</SupportURL>
 		<ConfigUI>
+			<Field type="checkbox" id="SupportsStatusRequest" defaultValue="false" hidden="true" />
+		
 			<Field type="label" id="lbl_deviceLimitReached" visibleBindingId="deviceLimitReached" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true">
 				<Label>HomeKit can handle up to 99 devices and/or actions per server, you have reached this limit.  You can create additional servers if you need more than 99 devices and/or actions.
 		</Label>
@@ -65,7 +67,7 @@
 				</Label>
 			</Field>
 			
-			<Field type="menu" id="modelValue" defaultValue="indigoSubmodel" visibleBindingId="configOption" visibleBindingValue="config">
+			<Field type="menu" id="modelValue" defaultValue="indigoModelSubmodel" visibleBindingId="configOption" visibleBindingValue="config">
                 <Label>Model source:</Label>
                 <List>
                 	<Option value="indigoModel">Indigo device model</Option>
@@ -229,28 +231,36 @@
 			</Field>
 			
 			<!-- =========== custom camera stream =========== -->
-			<Field type="textfield" id="videoURL" visibleBindingId="objectType" visibleBindingValue="stream" alwaysUseInDialogHeightCalc="true" >
+			<Field type="textfield" id="videoURL" defaultValue ="-re -i http://" visibleBindingId="objectType" visibleBindingValue="stream" alwaysUseInDialogHeightCalc="true" >
 				<Label>Video URL:</Label>
 			</Field>
 			
-			<Field type="textfield" id="stillURL" visibleBindingId="objectType" visibleBindingValue="stream" alwaysUseInDialogHeightCalc="true" >
+			<Field type="textfield" id="stillURL" defaultValue ="-i http://" visibleBindingId="objectType" visibleBindingValue="stream" alwaysUseInDialogHeightCalc="true" >
 				<Label>Still URL:</Label>
 			</Field>
 			
-			<Field type="textfield" id="maxStreams" visibleBindingId="objectType" visibleBindingValue="stream" alwaysUseInDialogHeightCalc="true" >
+			<Field type="textfield" id="maxStreams" defaultValue ="2" visibleBindingId="objectType" visibleBindingValue="stream" alwaysUseInDialogHeightCalc="true" >
 				<Label>Streams:</Label>
 			</Field>
 			
-			<Field type="textfield" id="camWidth" visibleBindingId="objectType" visibleBindingValue="stream" alwaysUseInDialogHeightCalc="true" >
+			<Field type="textfield" id="camWidth" defaultValue ="1280" visibleBindingId="objectType" visibleBindingValue="stream" alwaysUseInDialogHeightCalc="true" >
 				<Label>Width:</Label>
 			</Field>
 			
-			<Field type="textfield" id="camHeight" visibleBindingId="objectType" visibleBindingValue="stream" alwaysUseInDialogHeightCalc="true" >
+			<Field type="textfield" id="camHeight" defaultValue ="720" visibleBindingId="objectType" visibleBindingValue="stream" alwaysUseInDialogHeightCalc="true" >
 				<Label>Height:</Label>
 			</Field>
 			
-			<Field type="textfield" id="fps" visibleBindingId="objectType" visibleBindingValue="stream" alwaysUseInDialogHeightCalc="true" >
+			<Field type="textfield" id="fps" defaultValue ="30" visibleBindingId="objectType" visibleBindingValue="stream" alwaysUseInDialogHeightCalc="true" >
 				<Label>FPS:</Label>
+			</Field>
+			
+			<Field type="textfield" id="bitrate" defaultValue ="300" visibleBindingId="objectType" visibleBindingValue="stream" alwaysUseInDialogHeightCalc="true" >
+				<Label>Bitrate:</Label>
+			</Field>
+			
+			<Field type="textfield" id="packet" defaultValue ="1316" visibleBindingId="objectType" visibleBindingValue="stream" alwaysUseInDialogHeightCalc="true" >
+				<Label>Packet size:</Label>
 			</Field>
 			
 			<!-- =========== homekit fields =========== -->
@@ -266,6 +276,7 @@
 			<Field type="menu" id="hkType" defaultValue="none" enabledBindingId="homeKitTypeEnabled" visibleBindingId="deviceOrActionSelected" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true">
                 <Label>HomeKit Type:</Label>
                 <List class="self" filter="#plugin#[index=hkType, callback=serverListHomeKitDeviceTypes, ref=hideWrappedItems, nocache=true]" method="getCustomList" dynamicReload="true"/>
+				<CallbackMethod>formFieldChanged</CallbackMethod>
             </Field>
             
             <Field type="checkbox" id="enableOnOffInvert" defaultValue="false" hidden="true">

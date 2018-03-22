@@ -1548,6 +1548,17 @@ class Service (object):
 				#if "maxValue" in dir(obj) and obj.value > obj.maxValue: obj.value = obj.maxValue
 				pass
 	
+			# Do temperature conversion on the value
+			if attribute in ["CurrentTemperature", "TargetTemperature", "HeatingThresholdTemperature", "CoolingThresholdTemperature"]:
+				if self.convertFahrenheit:
+					try:
+						cvalue = float(obj.value)
+						cvalue = (cvalue - 32) / 1.8000
+						if cvalue < 0: cvalue = 0
+						obj.value = cvalue
+					except:
+						pass # Nothing happened, leave the current value
+	
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
 			ret = False
@@ -1736,11 +1747,77 @@ class Service (object):
 		except Exception as e:
 			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))				
 
+	#
+	# Pi Beacon Status
+	#
+	def special_piBeaconStatus (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			obj = indigo.devices[self.objId]
+			
+			if "status" in obj.states and obj.states["status"].lower() == "up":
+				self.setAttributeValue (characteristic, True) # Heating
+				self.characterDict[characteristic] = getattr (self, characteristic).value
+			else:
+				self.setAttributeValue (characteristic, False) # Off
+				self.characterDict[characteristic] = getattr (self, characteristic).value
+			
+			self.actions.append (HomeKitAction(characteristic, "equal", 0, "STUB", [self.objId, indigo.kHvacMode.Off], 0, {self.objId: "state_status"}))
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+
+	#
+	# Nest HVAC mode
+	#
+	def special_nestHvacMode (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			obj = indigo.devices[self.objId]
+			
+			if "isheating" in obj.states and obj.states["isheating"].lower() == "yes":
+				self.setAttributeValue (characteristic, 1) # Heating
+				self.characterDict[characteristic] = getattr (self, characteristic).value
+			elif "iscooling" in obj.states and obj.states["iscooling"].lower() == "yes":
+				self.setAttributeValue (characteristic, 2) # Cooling
+				self.characterDict[characteristic] = getattr (self, characteristic).value
+			else:
+				self.setAttributeValue (characteristic, 0) # Off
+				self.characterDict[characteristic] = getattr (self, characteristic).value
+			
+			self.actions.append (HomeKitAction(characteristic, "equal", 0, "STUB", [self.objId, indigo.kHvacMode.Off], 0, {self.objId: "state_isheating"}))
+			self.actions.append (HomeKitAction(characteristic, "equal", 0, "STUB", [self.objId, indigo.kHvacMode.Off], 0, {self.objId: "state_iscooling"}))
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+			
 
 	#
 	# Thermostat HVAC mode
 	#
 	def special_thermHVACMode (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			obj = indigo.devices[self.objId]
+			
+			if "heatIsOn" in dir(obj) and obj.heatIsOn:
+				self.setAttributeValue (characteristic, 1) # Heating
+				self.characterDict[characteristic] = getattr (self, characteristic).value
+			elif "heatIsOn" in dir(obj) and obj.coolIsOn:
+				self.setAttributeValue (characteristic, 2) # Cooling
+				self.characterDict[characteristic] = getattr (self, characteristic).value
+			else:
+				self.setAttributeValue (characteristic, 0) # Off
+				self.characterDict[characteristic] = getattr (self, characteristic).value
+			
+			self.actions.append (HomeKitAction(characteristic, "equal", 0, "STUB", [self.objId, indigo.kHvacMode.Off], 0, {self.objId: "attr_heatIsOn"}))
+			self.actions.append (HomeKitAction(characteristic, "equal", 0, "STUB", [self.objId, indigo.kHvacMode.Off], 0, {self.objId: "attr_coolIsOn"}))
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+			
+			
+	#
+	# Thermostat set HVAC mode
+	#
+	def special_thermHVACModeSet (self, classes, sourceDict, getter, characteristic, isOptional = False):
 		try:
 			obj = indigo.devices[self.objId]
 			if "hvacMode" in dir(obj):
@@ -1750,6 +1827,9 @@ class Service (object):
 				elif unicode(obj.hvacMode) == "Cool" or unicode(obj.hvacMode) == "ProgramCool":
 					self.setAttributeValue (characteristic, 2)
 					self.characterDict[characteristic] = getattr (self, characteristic).value
+				elif unicode(obj.hvacMode) == "HeatCool" or unicode(obj.hvacMode) == "ProgramHeatCool":
+					self.setAttributeValue (characteristic, 3)
+					self.characterDict[characteristic] = getattr (self, characteristic).value	
 				else:
 					self.setAttributeValue (characteristic, 0)
 					self.characterDict[characteristic] = getattr (self, characteristic).value
@@ -1760,18 +1840,18 @@ class Service (object):
 				self.setAttributeValue (characteristic, 0)
 				self.characterDict[characteristic] = 0 
 				
-			self.actions.append (HomeKitAction("TargetHeatingCoolingState", "equal", 0, "thermostat.setHvacMode", [self.objId, indigo.kHvacMode.Off], 0, {self.objId: "attr_hvacMode"}))
-			self.actions.append (HomeKitAction("TargetHeatingCoolingState", "equal", 1, "thermostat.setHvacMode", [self.objId, indigo.kHvacMode.Heat], 0, {self.objId: "attr_hvacMode"}))
-			self.actions.append (HomeKitAction("TargetHeatingCoolingState", "equal", 2, "thermostat.setHvacMode", [self.objId, indigo.kHvacMode.Cool], 0, {self.objId: "attr_hvacMode"}))
-			self.actions.append (HomeKitAction("TargetHeatingCoolingState", "equal", 3, "thermostat.setHvacMode", [self.objId, indigo.kHvacMode.HeatCool], 0, {self.objId: "attr_hvacMode"}))
+			self.actions.append (HomeKitAction(characteristic, "equal", 0, "thermostat.setHvacMode", [self.objId, indigo.kHvacMode.Off], 0, {self.objId: "attr_hvacMode"}))
+			self.actions.append (HomeKitAction(characteristic, "equal", 1, "thermostat.setHvacMode", [self.objId, indigo.kHvacMode.Heat], 0, {self.objId: "attr_hvacMode"}))
+			self.actions.append (HomeKitAction(characteristic, "equal", 2, "thermostat.setHvacMode", [self.objId, indigo.kHvacMode.Cool], 0, {self.objId: "attr_hvacMode"}))
+			self.actions.append (HomeKitAction(characteristic, "equal", 3, "thermostat.setHvacMode", [self.objId, indigo.kHvacMode.HeatCool], 0, {self.objId: "attr_hvacMode"}))
 		
 		except Exception as e:
-			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))				
 						
 	#
 	# Change a thermostats set point
 	#
-	def special_thermTemperatureSetPoint (self, classes, sourceDict, getter, characteristic, isOptional = False):
+	def special_thermTemperatureSetPointXXX (self, classes, sourceDict, getter, characteristic, isOptional = False):
 		try:
 			obj = indigo.devices[self.objId]
 			if self.serverId == 0: return
@@ -1780,6 +1860,7 @@ class Service (object):
 				value = float(obj.coolSetpoint)
 				if unicode(obj.hvacMode) == "Heat" or unicode(obj.hvacMode) == "ProgramHeat": value = float(obj.heatSetpoint)
 				value = (value - 32) / 1.8000
+				if value < 0: value = 0
 				
 				self.setAttributeValue (characteristic, round(value, 2))
 				self.characterDict[characteristic] = getattr (self, characteristic).value
@@ -1799,6 +1880,32 @@ class Service (object):
 					
 		except Exception as e:
 			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+			
+			
+	#
+	# Change a thermostats set point
+	#
+	def special_thermTemperatureSetPoint (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			obj = indigo.devices[self.objId]
+			if self.serverId == 0: return
+			
+			value = float(obj.coolSetpoint)
+			if unicode(obj.hvacMode) == "Heat" or unicode(obj.hvacMode) == "ProgramHeat": value = float(obj.heatSetpoint)
+			
+			self.setAttributeValue (characteristic, round(float(value), 2))
+			self.characterDict[characteristic] = getattr (self, characteristic).value
+										
+			if unicode(obj.hvacMode) == "Heat" or unicode(obj.hvacMode) == "ProgramHeat":
+				self.actions.append (HomeKitAction(characteristic, "between", 0.0, "homekit.commandSetTargetThermostatTemperature", [self.objId, self.serverId, "=value="], 100.0, {self.objId: "attr_heatSetpoint"}))
+			else:	
+				self.actions.append (HomeKitAction(characteristic, "between", 0.0, "homekit.commandSetTargetThermostatTemperature", [self.objId, self.serverId, "=value="], 100.0, {self.objId: "attr_coolSetpoint"}))		
+				
+			
+					
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+			
 			
 	
 	#
@@ -1941,6 +2048,7 @@ class Service (object):
 			if self.convertFahrenheit:
 				value = float(obj.states["temperatureInput1"])
 				value = (value - 32) / 1.8000
+				if value < 0: value = 0
 				
 				self.setAttributeValue (characteristic, round(value, 2))
 				self.characterDict[characteristic] = getattr (self, characteristic).value
@@ -3213,7 +3321,7 @@ class service_HumiditySensor (Service):
 		super(service_HumiditySensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["CurrentRelativeHumidity"] = {"*": "attr_sensorValue", "indigo.ThermostatDevice": "state_humidityInput1", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "state_relativeHumidity"}
+		self.required["CurrentRelativeHumidity"] = {"*": "attr_sensorValue", "indigo.ThermostatDevice": "state_humidityInput1", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "state_relativeHumidity", "indigo.Device.com.karlwachs.piBeacon.i2cBMExx": "state_Humidity"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
@@ -3412,7 +3520,7 @@ class service_OccupancySensor (Service):
 		super(service_OccupancySensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["OccupancyDetected"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open"}
+		self.required["OccupancyDetected"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open", "indigo.Device.com.karlwachs.piBeacon.beacon": "special_piBeaconStatus"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
@@ -3625,7 +3733,8 @@ class service_TemperatureSensor (Service):
 		super(service_TemperatureSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["CurrentTemperature"] = {"indigo.SensorDevice": "special_sensorTemperature", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "special_wuTemperature", "indigo.ThermostatDevice": "special_thermTemperature", "indigo.Device.com.perceptiveautomation.indigoplugin.weathersnoop.ws3station": "special_wsTemperature"}
+		#self.required["CurrentTemperature"] = {"indigo.SensorDevice": "special_sensorTemperature", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "special_wuTemperature", "indigo.ThermostatDevice": "special_thermTemperature", "indigo.Device.com.perceptiveautomation.indigoplugin.weathersnoop.ws3station": "special_wsTemperature"}
+		self.required["CurrentTemperature"] = {"indigo.SensorDevice": "attr_sensorValue", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "state_temp", "indigo.ThermostatDevice": "state_temperatureInput1", "indigo.Device.com.perceptiveautomation.indigoplugin.weathersnoop.ws3station": "state_temperature_F", "indigo.Device.com.karlwachs.piBeacon.i2cTMP102": "state_Temperature", "indigo.Device.com.karlwachs.piBeacon.i2cBMExx": "state_Temperature", "indigo.Device.com.karlwachs.piBeacon.i2cMS5803": "state_Temperature"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
@@ -3653,17 +3762,21 @@ class service_Thermostat (Service):
 		super(service_Thermostat, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["CurrentHeatingCoolingState"] = {"indigo.ThermostatDevice": "special_thermHVACMode"}
-		self.required["TargetHeatingCoolingState"] = {"indigo.ThermostatDevice": "special_thermHVACMode"}
-		self.required["CurrentTemperature"] = {"indigo.ThermostatDevice": "special_thermTemperature"}
+		self.required["CurrentHeatingCoolingState"] = {"indigo.ThermostatDevice": "special_thermHVACMode", "indigo.ThermostatDevice.com.corporatechameleon.nestplugBeta.nestThermostat": "special_nestHvacMode"}
+		self.required["TargetHeatingCoolingState"] = {"indigo.ThermostatDevice": "special_thermHVACModeSet"}
+		#self.required["CurrentTemperature"] = {"indigo.ThermostatDevice": "special_thermTemperature"}
+		self.required["CurrentTemperature"] = {"indigo.ThermostatDevice": "state_temperatureInput1"}
 		self.required["TargetTemperature"] = {"indigo.ThermostatDevice": "special_thermTemperatureSetPoint"}
+		#self.required["TargetTemperature"] = {"indigo.ThermostatDevice": "state_temperatureInput1"}
 		self.required["TemperatureDisplayUnits"] = {"indigo.ThermostatDevice": "special_serverCorFSetting"}
 	
 		self.optional = {}
 		self.optional["CurrentRelativeHumidity"] = {"indigo.ThermostatDevice": "state_humidityInput1"}
 		self.optional["TargetRelativeHumidity"] = {}
-		self.optional["CoolingThresholdTemperature"] = {"indigo.ThermostatDevice": "special_thermCoolSet"}
-		self.optional["HeatingThresholdTemperature"] = {"indigo.ThermostatDevice": "special_thermHeatSet"}
+		#self.optional["CoolingThresholdTemperature"] = {"indigo.ThermostatDevice": "special_thermCoolSet"}
+		#self.optional["HeatingThresholdTemperature"] = {"indigo.ThermostatDevice": "special_thermHeatSet"}
+		self.optional["CoolingThresholdTemperature"] = {"indigo.ThermostatDevice": "attr_coolSetpoint"}
+		self.optional["HeatingThresholdTemperature"] = {"indigo.ThermostatDevice": "attr_heatSetpoint"}
 		self.optional["Name"] = {}
 					
 		super(service_Thermostat, self).setAttributes ()	
