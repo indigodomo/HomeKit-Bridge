@@ -4582,8 +4582,8 @@ class Plugin(indigo.PluginBase):
 					if biURL != "":						
 						camera = {}	
 						videoConfig = {}
-						videoConfig['additionalCommandline'] = ''
-						videoConfig["source"] = u"-re -i {}/video/{}/2.0?stream=0&audio=2&extend=0".format(biURL, biName)
+						#videoConfig['additionalCommandline'] = ' ' # str('-preset ultrafast -profile:v main -level 2')
+						videoConfig["source"] = u"-re -i {}/video/{}/2.0?stream=2&audio=0&extend=0".format(biURL, biName)
 					#	videoConfig["source"] = u"-re -i {}/h264/{}/temp.h264".format(	biURL, biName)
 						videoConfig["stillImageSource"] = u"-i {}/image/{}".format(biURL, biName)
 						videoConfig["maxWidth"] = biWidth
@@ -4593,8 +4593,11 @@ class Plugin(indigo.PluginBase):
 						videoConfig['packetSize'] = int(self.pluginPrefs.get("packetsize", "1316"))
 						if self.pluginPrefs.get("cameradebug", False): videoConfig['debug'] = True
 
+                        #if biAudio:
+                            # if audio is true - deal with it here:  Otherwise ingore
 
-						videoConfig['audio'] = biAudio
+						# Never tell ffmpeg need audio...
+						#videoConfig['audio'] = biAudio
 						camera["name"] = r["alias"]
 						camera["videoConfig"] = videoConfig
 
