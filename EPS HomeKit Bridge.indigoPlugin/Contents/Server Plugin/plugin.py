@@ -4584,9 +4584,10 @@ class Plugin(indigo.PluginBase):
 						videoConfig = {}
 						#videoConfig['additionalCommandline'] = ' ' # str('-preset ultrafast -profile:v main -level 2')
 						videoConfig["source"] = u"-re -i {}/video/{}/2.0?stream=2&audio=0&extend=0".format(biURL, biName)
-					#	videoConfig["source"] = u"-re -i {}/h264/{}/temp.h264".format(	biURL, biName)
+						#videoConfig["source"] = u"-re -i {}/h264/{}/temp.m".format(	biURL, biName)
 						videoConfig["stillImageSource"] = u"-i {}/image/{}".format(biURL, biName)
 						videoConfig["maxWidth"] = biWidth
+						videoConfig['vcodec']='libopenh264'
 						videoConfig["maxHeight"] = biHeight
 						videoConfig["maxFPS"] = biFPS
 						videoConfig['maxBitrate'] = int(self.pluginPrefs.get("bitrate", "300"))
