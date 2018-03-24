@@ -4558,7 +4558,35 @@ class Plugin(indigo.PluginBase):
 					biAudio = biDev.states['audio']
 					if biFPS == 0: biFPS = 30
 					biURL = ""
-					
+					# Create LAN / WAN dict to store correct stream numbers
+					biLANWAN = {'LAN':'','WAN':''}
+
+					# need to get BI Server Device Information
+					# There is one server device for the plugin which holds uptodate server information
+					# Type = BlueIrisServer
+					for dev in indigo.devices.iter('com.GlennNZ.indigoplugin.BlueIris'):
+						if dev.deviceTypeId =='BlueIrisServer':
+							# split streams in list
+							# stream states added to new Plugin Version
+							if 'streams' in dev.states:
+								biStreams = dev.states['streams'].split('|')
+								#self.logger.info(unicode(biStreams))
+								# do stream check in Python as truck load easier than node javascript
+								# check for CBR and apply highest number to LAN and lowest to WAN
+								# ignore VBR % streams
+								for i,j in enumerate(biStreams):
+									try:
+										start = j.index('CBR ') + len ('CBR ')
+										end = j.index(' kbps', start)
+										temp = str(j)
+										biStreams[i] = int(temp[start:end])
+									except ValueError:
+										biStreams[i]= None
+								self.logger.info(u'Bistreams:'+unicode(biStreams))
+								biLANWAN['LAN']=biStreams.index(max(biStreams))
+								biLANWAN['WAN']=biStreams.index(min(i for i in biStreams if i is not None))
+								self.logger.info('biLanwAN:'+unicode(biLANWAN))
+
 					# Read the Blue Iris preferences file
 					prefFile = '{}/Preferences/Plugins/com.GlennNZ.indigoplugin.BlueIris.indiPref'.format(indigo.server.getInstallFolderPath())
 					
@@ -4582,27 +4610,28 @@ class Plugin(indigo.PluginBase):
 					if biURL != "":						
 						camera = {}	
 						videoConfig = {}
-						#videoConfig['additionalCommandline'] = ' ' # str('-preset ultrafast -profile:v main -level 2')
-						videoConfig["source"] = u"-re -i {}/video/{}/2.0?stream=2&audio=0&extend=0".format(biURL, biName)
-						#videoConfig["source"] = u"-re -i {}/h264/{}/temp.m".format(	biURL, biName)
+						# use this to pass information - as now standand with ffmpeg minimise code changes
+						# for BI pass two numbers first is LAN stream, second is WAN stream
+						videoConfig['LANWAN'] = str(biLANWAN['LAN'])+str(biLANWAN['WAN'])
+						#videoConfig['additionalCommandline'] =
+						# str('-preset ultrafast -profile:v main -level 2')
+						#videoConfig["source"] = u"-re -i {}/video/{}/2.0?stream=1".format(biURL, biName)
+						# add the stream selector ?stream=2 (0 and 1 can be used for Lan and WAN ;
+						# remove the steam selector add in javascript code
+						videoConfig["source"] =  u"-re -i {}/h264/{}/temp.m?stream=".format(	biURL, biName)
 						videoConfig["stillImageSource"] = u"-i {}/image/{}".format(biURL, biName)
 						videoConfig["maxWidth"] = biWidth
 						videoConfig['vcodec']='libopenh264'
+
+						#videoConfig['acodec']='libopus'
 						videoConfig["maxHeight"] = biHeight
 						videoConfig["maxFPS"] = biFPS
 						videoConfig['maxBitrate'] = int(self.pluginPrefs.get("bitrate", "300"))
 						videoConfig['packetSize'] = int(self.pluginPrefs.get("packetsize", "1316"))
 						if self.pluginPrefs.get("cameradebug", False): videoConfig['debug'] = True
-
-                        #if biAudio:
-                            # if audio is true - deal with it here:  Otherwise ingore
-
-						# Never tell ffmpeg need audio...
-						#videoConfig['audio'] = biAudio
+						videoConfig['audio'] = biAudio
 						camera["name"] = r["alias"]
 						camera["videoConfig"] = videoConfig
-
-
 
 						cameras.append(camera)	
 					
