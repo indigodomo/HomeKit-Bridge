@@ -36,7 +36,11 @@ import xml.dom.minidom # read xml for 3rd party plugin support
 #hserver = httpServer(None)
 #from lib import httpsvr
 
+# New iFactory libraries
+from lib import hkfactory
+
 eps = eps(None)
+HomeKit = hkfactory.HomeKitFactory(None)
 
 ################################################################################
 # plugin - 	Basically serves as a shell for the main plugin functions, it passes
@@ -75,6 +79,8 @@ class Plugin(indigo.PluginBase):
 		eps.__init__ (self)
 		eps.loadLibs (self.PLUGIN_LIBS)
 		
+		HomeKit.__init__ (self)
+		
 		# Create JSON stash record for server devices
 		self.setupJstash ()
 		self.catalogServerDevices()
@@ -99,26 +105,7 @@ class Plugin(indigo.PluginBase):
 			
 			#self.version_check()
 			
-			
-			url = 'http://10.1.200.3:8000/++systemInfo'
-			username = 'admin'
-			password = 'ranger'
-			data = requests.get(url, auth=(username, password)).content
-			
-			dom = xml.dom.minidom.parseString(data)
-			
-			system = self._getChildElementsByTagName(dom, u"system")
-			cameralist = self._getChildElementsByTagName(system[0], u"cameralist")
-			cameras = self._getChildElementsByTagName(cameralist[0], u"camera")
-			
-			for camera in cameras:
-				number = self._getElementValueByTagName(camera, u"number", required=False, default=u"")
-				width = self._getElementValueByTagName(camera, u"width", required=False, default=u"")
-				height = self._getElementValueByTagName(camera, u"height", required=False, default=u"")
-				indigo.server.log(u"{}: {} x {}".format(number, width, height))
-			
-			indigo.server.log(unicode(cameras))
-			
+			HomeKit.test()
 			
 			#x = eps.homekit.getServiceObject (1642494335, 1794022133, "service_ContactSensor")
 			#indigo.server.log (unicode(x))
@@ -202,6 +189,7 @@ class Plugin(indigo.PluginBase):
 			
 			# Subscribe to changes so we can send update requests to Homebridge
 			eps.plug.subscribeChanges (["devices", "actionGroups"])
+			
 			
 			# Check that we have a server set up
 			for dev in indigo.devices.iter(self.pluginId + ".Server"):
@@ -1316,6 +1304,8 @@ class Plugin(indigo.PluginBase):
 			
 			obj = eps.homekit.getServiceObject (r["id"], serverId, r["hktype"], False, True)
 			server = indigo.devices[int(serverId)]
+			
+			#if r["id"] == 145155245: HomeKit.legacy_get_payload (obj, r, serverId)
 			
 			# Invert if configured
 			#if "invert" in r: 
@@ -4612,9 +4602,11 @@ class Plugin(indigo.PluginBase):
 					if ssServer.ownerProps["password"] == "":
 						data = requests.get(ssSystem).content	# Pull XML data
 						ssURL = u"http://{}:{}".format(ssServer.ownerProps["xaddress"],ssServer.ownerProps["port"])
+						if ssServer.ownerProps["xaddress"] == "": ssURL = u"http://{}".format(ssServer.ownerProps["address"])
 					else:
 						data = requests.get(ssSystem, auth=(ssServer.ownerProps["username"], ssServer.ownerProps["password"])).content	
 						ssURL = u"http://{}:{}@{}:{}".format(ssServer.ownerProps["username"],ssServer.ownerProps["password"],ssServer.ownerProps["xaddress"],ssServer.ownerProps["port"])
+						if ssServer.ownerProps["xaddress"] == "": ssURL = u"http://{}:{}@{}".format(ssServer.ownerProps["username"],ssServer.ownerProps["password"], ssServer.ownerProps["address"])
 						
 					# Extract XML data
 					dom = xml.dom.minidom.parseString(data)			

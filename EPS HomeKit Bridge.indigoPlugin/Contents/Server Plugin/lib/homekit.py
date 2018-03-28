@@ -1227,6 +1227,7 @@ class Service (object):
 			
 			if a.readonly: 
 				self.logger.threaddebug (u"Not setting a default action for {} because that characteristic is read only".format(characteristic))
+				self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "state_" + state}))
 				return # There are no actions for readonly characteristics, why add unnecessary data?
 			
 			# Define some defaults
@@ -2790,11 +2791,11 @@ class HomeKitAction ():
 			else:
 				value = targetTemperature
 							
-			if unicode(dev.hvacMode) == "Heat":			
+			if unicode(dev.hvacMode) == "Heat" or unicode(dev.hvacMode) == "ProgramHeat":			
 				#indigo.server.log ("Set heat set point of {} on server {} to {}".format(str(devId), str(serverId), str(value)))
 				indigo.thermostat.setHeatSetpoint (devId, value)
 				
-			if unicode(dev.hvacMode) == "Cool":			
+			if unicode(dev.hvacMode) == "Cool" or unicode(dev.hvacMode) == "ProgramCool":			
 				#indigo.server.log ("Set cool set point of {} on server {} to {}".format(str(devId), str(serverId), str(value)))
 				indigo.thermostat.setCoolSetpoint (devId, value)
 		
