@@ -293,236 +293,6 @@ class Plugin(indigo.PluginBase):
 		except Exception as e:
 			self.logger.error (ext.getException(e))			
 			
-			
-	#
-	# Compose and output a sample complication (pseudo documentation)
-	#
-	def complicationTestOutput (self):
-		try:
-			complications = []
-			
-			#########################
-			# Sample of one to many #
-			#########################
-			
-			# Complication Data
-			complication = {}
-			complication["name"] 			= "Indigo Thermostat and Fan"
-			complication["deviceIds"] 		= []
-			complication["method"]	 		= 0 # One to many
-			complication["devId"]	 		= 12345
-			complication["indigoDevTypes"]	= ["indigo.ThermostatDevice"] # Only if these are found, an * anywhere will fall to conditions
-			complication["criteriaScope"]	= "indigo.devices"
-			complication["criteria"]		= []
-						
-			members = []
-			
-			# The Thermostat
-			member = {}
-			member["type"]					= 0 # Same device
-			member["object"]				= "state_temperatureInput1"
-			member["service"]				= "Thermostat"
-			member["prefix"]				= ""
-			member["suffix"]				= ""
-			member["lookup"]				= []
-			member["characteristics"]		= {}
-			member["actions"]				= []
-			
-			members.append(member)
-			
-			# The Fan
-			member = {}
-			member["type"]					= 0 # Same device
-			member["object"]				= "attr_fanIsOn"
-			member["service"]				= "Fanv2"
-			member["prefix"]				= ""
-			member["suffix"]				= " (Fan)"
-			member["lookup"]				= []
-			
-			characteristics = {} # For demonstration purposes, if left blank then use plugin defaults
-			characteristics["active"]				= {"indigo.ThermostatDevice": "attr_fanIsOn"}
-			characteristics["CurrentFanState"]		= {"indigo.ThermostatDevice": "special_thermFanMode"}
-			
-			member["characteristics"]		= characteristics
-			
-			actions = [] # For demonstration purposes, if left blank then use plugin defaults
-			
-			# First action condition
-			action = {}
-			action["characteristic"]		= "Active"
-			action["qualifier"]				= "equal"
-			action["value"]					= True
-			action["highValue"]				= None
-			action["command"]				= "thermostat.setFanMode"
-			action["args"]					= ["=memberDevId=", indigo.kFanMode.Auto]
-			
-			actions.append (action)
-			
-			# Second action condition
-			action = {}
-			action["characteristic"]		= "Active"
-			action["qualifier"]				= "equal"
-			action["value"]					= False
-			action["highValue"]				= None
-			action["command"]				= "thermostat.setFanMode"
-			action["args"]					= ["=memberDevId=", indigo.kFanMode.AlwaysOn]
-			
-			actions.append (action)
-			
-			member["actions"]				= actions
-						
-			members.append(member)
-			
-			# Add all members to complication
-			complication["members"] 		= members
-			
-			# Add complication to all complications
-			complications.append(complication)
-			
-			##########################
-			# Sample of many to many #
-			##########################
-			
-			complication = {}
-			complication["name"] 			= "Fibaro Motion Sensor FBGS001"
-			complication["deviceIds"] 		= []
-			complication["method"]	 		= 1 # Many to many
-			complication["devId"]	 		= 12345
-			complication["indigoDevTypes"]	= [] # Empty means analyse all against criteria
-			complication["criteriaScope"]	= "indigo.devices"
-			
-			allcriteria = [] # If more than one then it is always AND, if OR is needed then create another complication with THOSE criteria
-			
-			# 1st Criteria
-			criteria = {}
-			criteria["object"]				= "attr_model"
-			criteria["qualifier"]			= "contains"
-			criteria["value"]				= "FGS001"
-			
-			allcriteria.append(criteria)
-			
-			#2nd Criteria (AND)
-			criteria = {}
-			criteria["object"]				= "attr_model"
-			criteria["qualifier"]			= "contains"
-			criteria["value"]				= "Motion Sensor"
-			
-			allcriteria.append(criteria)
-			
-			complication["criteria"]		= allcriteria
-			
-			members = []
-			
-			# The Motion Sensor
-			member = {}
-			member["type"]					= 0
-			member["object"]				= "attr_onState"
-			member["service"]				= "MotionSensor"
-			member["prefix"]				= ""
-			member["suffix"]				= ""
-			member["lookup"]				= []
-			member["characteristics"]		= {}
-			member["actions"]				= []
-			
-			members.append(member)
-			
-			# The Light Sensor
-			member = {}
-			member["type"]					= 1 # Device lookup
-			member["object"]				= "attr_onState"
-			member["service"]				= "LightSensor"
-			member["prefix"]				= ""
-			member["suffix"]				= " (Lux)"
-			
-			lookups = [] # If more than one then it is always AND, if OR is needed then create another complication with THOSE criteria
-			
-			# 1st Criteria
-			lookup = {}
-			lookup["object"]				= "attr_address"
-			lookup["qualifier"]				= "equal"
-			lookup["value"]					= "=address="
-			
-			lookups.append(lookup)
-			
-			# 2nd Criteria
-			lookup = {}
-			lookup["object"]				= "attr_model"
-			lookup["qualifier"]				= "contains"
-			lookup["value"]					= "FGS001"
-			
-			lookups.append(lookup)
-			
-			# 3rd Criteria
-			lookup = {}
-			lookup["object"]				= "attr_model"
-			lookup["qualifier"]				= "contains"
-			lookup["value"]					= "Luminance"
-			
-			lookups.append(lookup)
-			
-			member["lookup"]				= lookups
-			
-			member["characteristics"]		= {}
-			member["actions"]				= []
-			
-			members.append(member)
-			
-			# The Temperature Sensor
-			member = {}
-			member["type"]					= 1 # Device lookup
-			member["object"]				= "attr_onState"
-			member["service"]				= "TemperatureSensor"
-			member["prefix"]				= ""
-			member["suffix"]				= " (Temp)"
-			
-			lookups = [] # If more than one then it is always AND, if OR is needed then create another complication with THOSE criteria
-			
-			# 1st Criteria
-			lookup = {}
-			lookup["object"]				= "attr_address"
-			lookup["qualifier"]				= "equal"
-			lookup["value"]					= "=address="
-			
-			lookups.append(lookup)
-			
-			# 2nd Criteria
-			lookup = {}
-			lookup["object"]				= "attr_model"
-			lookup["qualifier"]				= "contains"
-			lookup["value"]					= "FGS001"
-			
-			lookups.append(lookup)
-			
-			# 3rd Criteria
-			lookup = {}
-			lookup["object"]				= "attr_model"
-			lookup["qualifier"]				= "contains"
-			lookup["value"]					= "Temperature"
-			
-			lookups.append(lookup)
-			
-			member["lookup"]				= lookups
-			
-			member["characteristics"]		= {}
-			member["actions"]				= []
-			
-			members.append(member)
-			
-			# Add all members to complication
-			complication["members"] 		= members
-			
-			# Add complication to all complications
-			complications.append(complication)
-			
-			
-			
-			# Output
-			indigo.server.log(unicode(json.dumps(complications, indent = 4)))
-			indigo.server.log(unicode(json.dumps(complications)))
-		
-		except Exception as e:
-			self.logger.error (ext.getException(e))		
-			
 	#
 	# Plugin upgraded
 	#
@@ -1219,7 +989,8 @@ class Plugin(indigo.PluginBase):
 					r["type"] = r["model"]
 					del(r["model"])
 				elif "modelValue" in server.pluginProps:
-					r["type"] = self._getHKAPIModelData (r, server.pluginProps["modelValue"])
+					#r["type"] = self._getHKAPIModelData (r, server.pluginProps["modelValue"])
+					r["type"] = HomeKit.convert.homekit_type_and_firmware(server.pluginProps["modelValue"], r["id"], server.id)
 				else:
 					r["type"] = indigo.devices[r["id"]].model
 				
@@ -1227,7 +998,8 @@ class Plugin(indigo.PluginBase):
 					r["versByte"] = r["firmware"]
 					del(r["firmware"])	
 				elif "firmwareValue" in server.pluginProps:
-					r["versByte"] = self._getHKAPIModelData (r, server.pluginProps["firmwareValue"])
+					#r["versByte"] = self._getHKAPIModelData (r, server.pluginProps["firmwareValue"])
+					r["versByte"] = HomeKit.convert.homekit_type_and_firmware(server.pluginProps["firmwareValue"], r["id"], server.id)
 				else:	
 					r["versByte"] = indigo.devices[r["id"]].pluginId
 					
@@ -1239,46 +1011,6 @@ class Plugin(indigo.PluginBase):
 			self.logger.error (ext.getException(e))	
 			
 		return r
-		
-	#
-	# Compose the type and versByte from server details
-	#
-	def _getHKAPIModelData (self, r, value):
-		try:			
-			if value == "indigoModel":
-				return u"{}".format(indigo.devices[r["id"]].model)
-			elif value == "indigoModelSubmodel":
-				return u"{}: {}".format(indigo.devices[r["id"]].model, indigo.devices[r["id"]].subModel)
-			elif value == "indigoName":
-				return u"{}".format(indigo.devices[r["id"]].name)
-			elif value == "indigoType":
-				return u"{}".format(str(type(indigo.devices[r["id"]])).replace("<class '", "").replace("'>", "").replace("indigo.",""))
-			elif value == "pluginName":
-				if indigo.devices[r["id"]].pluginId != "":
-					plugin = indigo.server.getPlugin(indigo.devices[r["id"]].pluginId)
-					#indigo.server.log(unicode(plugin))
-					return u"{}".format(plugin.pluginDisplayName)
-				else:
-					return "Indigo"
-			elif value == "pluginType":
-				if indigo.devices[r["id"]].deviceTypeId != "":
-					return u"{}".format(indigo.devices[r["id"]].deviceTypeId)	
-				else:
-					return u"{}".format(str(type(indigo.devices[r["id"]])).replace("<class '", "").replace("'>", "").replace("indigo.",""))
-			elif value == "pluginVersion":
-				if indigo.devices[r["id"]].pluginId != "":
-					plugin = indigo.server.getPlugin(indigo.devices[r["id"]].pluginId)
-					#indigo.server.log(unicode(plugin))
-					return u"{}".format(plugin.pluginVersion)	
-				else:
-					return u"{}".format(indigo.server.version)
-			elif value == "indigoVersion":
-				return u"{}".format(indigo.devices[r["id"]].version)			
-		
-		except Exception as e:
-			self.logger.error (ext.getException(e))	
-			
-		return ""
 			
 	#
 	# Build HK API details for object ID
@@ -1305,7 +1037,7 @@ class Plugin(indigo.PluginBase):
 			obj = eps.homekit.getServiceObject (r["id"], serverId, r["hktype"], False, True)
 			server = indigo.devices[int(serverId)]
 			
-			#if r["id"] == 145155245: HomeKit.legacy_get_payload (obj, r, serverId)
+			if r["id"] == 145155245: HomeKit.legacy_get_payload (obj, r, serverId)
 			
 			# Invert if configured
 			#if "invert" in r: 
@@ -1332,7 +1064,9 @@ class Plugin(indigo.PluginBase):
 				charItem["value"] = charValue
 				
 				if runningAction and charItem["name"] == "On": charItem["value"] = True
-				if not characteristic is None and not value is None and charItem["name"] == characteristic: charItem["value"] = value # Force it to see what it expects to see so it doesn't beachball
+				if not characteristic is None and not value is None and charItem["name"] == characteristic: 
+					#indigo.server.log(u"Lying about {} being {}".format(characteristic, value))
+					charItem["value"] = value # Force it to see what it expects to see so it doesn't beachball
 				
 				charItem["readonly"] = characteristic.readonly
 				charItem["notify"] = characteristic.notify
@@ -4510,26 +4244,32 @@ class Plugin(indigo.PluginBase):
 			platforms = []
 			if debugMode: platforms = indigo.List()
 			
-			hb = {}
-			if debugMode: hb = indigo.Dict()
+			# Count devices to see if we need to add HB-Indigo2
+			devicecount = len(includedActions)
+			for r in includedDevices:
+				if r["hktype"] != "service_CameraRTPStreamManagement": devicecount = devicecount + 1
 			
-			hb["platform"] = "Indigo2"
-			hb["name"] = "HomeKit Bridge Server"
+			if devicecount > 0:
+				hb = {}
+				if debugMode: hb = indigo.Dict()
 			
-			# The following come from the plugin prefs for where to find Indigo's API
-			#hb["protocol"] = self.pluginPrefs["protocol"]
-			hb["protocol"] = "http"
-			hb["host"] = "127.0.0.1" # Fixed localhost only for now
-			#hb["port"] = self.pluginPrefs["port"]
-			#hb["apiPort"] = self.pluginPrefs["apiport"] # Arbitrary when we develop the API
-			hb["port"] = self.pluginPrefs.get('apiport', '8558')
-			#hb["path"] = self.pluginPrefs["path"]
-			#hb["username"] = self.pluginPrefs["username"]
-			#hb["password"] = self.pluginPrefs["password"]
-			hb["listenPort"] = server.pluginProps["listenPort"]
-			hb["serverId"] = serverId
+				hb["platform"] = "Indigo2"
+				hb["name"] = "HomeKit Bridge Server"
 			
-			platforms.append (hb)
+				# The following come from the plugin prefs for where to find Indigo's API
+				#hb["protocol"] = self.pluginPrefs["protocol"]
+				hb["protocol"] = "http"
+				hb["host"] = "127.0.0.1" # Fixed localhost only for now
+				#hb["port"] = self.pluginPrefs["port"]
+				#hb["apiPort"] = self.pluginPrefs["apiport"] # Arbitrary when we develop the API
+				hb["port"] = self.pluginPrefs.get('apiport', '8558')
+				#hb["path"] = self.pluginPrefs["path"]
+				#hb["username"] = self.pluginPrefs["username"]
+				#hb["password"] = self.pluginPrefs["password"]
+				hb["listenPort"] = server.pluginProps["listenPort"]
+				hb["serverId"] = serverId
+			
+				platforms.append (hb)
 			
 			# See if there are any securityspy camera devices
 			cam = {}
@@ -4594,20 +4334,19 @@ class Plugin(indigo.PluginBase):
 					ssDev = indigo.devices[int(r["id"])]
 					ssServerId, ssCameraNum = ssDev.ownerProps["xaddress"].split("@")
 					ssServer = indigo.devices[int(ssServerId)]
-					ssSystem = u"http://{}:{}/++systemInfo".format(ssServer.ownerProps["xaddress"],ssServer.ownerProps["port"])
 					ssWidth = 640
 					ssHeight = 480
 					ssFPS = 30
 					
-					if ssServer.ownerProps["password"] == "":
-						data = requests.get(ssSystem).content	# Pull XML data
-						ssURL = u"http://{}:{}".format(ssServer.ownerProps["xaddress"],ssServer.ownerProps["port"])
-						if ssServer.ownerProps["xaddress"] == "": ssURL = u"http://{}".format(ssServer.ownerProps["address"])
-					else:
-						data = requests.get(ssSystem, auth=(ssServer.ownerProps["username"], ssServer.ownerProps["password"])).content	
-						ssURL = u"http://{}:{}@{}:{}".format(ssServer.ownerProps["username"],ssServer.ownerProps["password"],ssServer.ownerProps["xaddress"],ssServer.ownerProps["port"])
-						if ssServer.ownerProps["xaddress"] == "": ssURL = u"http://{}:{}@{}".format(ssServer.ownerProps["username"],ssServer.ownerProps["password"], ssServer.ownerProps["address"])
-						
+					ssuPw = u"{}:{}@".format(ssServer.ownerProps["username"],ssServer.ownerProps["password"])
+					if ssServer.ownerProps["password"] == "": ssuPw = ""
+					
+					ssURL = u"http://{}{}:{}".format(ssuPw, ssServer.ownerProps["xaddress"],ssServer.ownerProps["port"])
+					if ssServer.ownerProps["xaddress"] == "": ssURL = u"http://{}{}".format(ssuPw, ssServer.ownerProps["address"])
+					
+					ssSystem = u"{}/++systemInfo".format(ssURL)
+					data = requests.get(ssSystem).content	# Pull XML data
+					
 					# Extract XML data
 					dom = xml.dom.minidom.parseString(data)			
 					system = self._getChildElementsByTagName(dom, u"system")

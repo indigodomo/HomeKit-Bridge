@@ -54,9 +54,7 @@ class JStuff:
 			self.logger.error (ex.stack_trace(e))
 			
 		
-	#
-	# UI form field changed
-	#
+	###
 	def onformFieldChanged (self, valuesDict, typeId, devId):
 		"""
 		A form field was changed, prompting a call from the factory to here in case there are JSON parameters.
@@ -141,9 +139,7 @@ class JStuff:
 			
 		return (valuesDict, errorsDict)
 		
-	#
-	# Write to JSON
-	#
+	###
 	def _saveJSON (self, valuesDict):
 		"""
 		Write the contents of the cached records to the valuesDict form field in JSON format.
@@ -177,9 +173,7 @@ class JStuff:
 		return valuesDict
 		
 		
-	#
-	# UI form passing a record definition
-	#
+	###
 	def fieldStuffIndex (self, filter, valuesDict, typeId, targetId):
 		"""
 		Device.xml dynamic list field that defines the jstuff record.

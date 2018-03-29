@@ -2,7 +2,7 @@
 
 __version__ 	= "1.0.0"
 
-__modname__		= "Homebridge-Indigo2 Payload Data"
+__modname__		= "Homebridge-Indigo2 Device Payload"
 __author__ 		= "ColoradoFourWheeler"
 __copyright__ 	= "Copyright 2018, ColoradoFourWheeler & EPS"
 __credits__ 	= ["ColoradoFourWheeler"]
@@ -36,7 +36,7 @@ class HomebridgePayloadDevice:
 		"""
 		
 		try:
-			self.logger = logging.getLogger ("Plugin.HomebridgePayload")
+			self.logger = logging.getLogger ("Plugin.HomebridgePayloadDevice")
 			self.tabtitle = ""			# Title indention on __str__
 			self.tabcontent = ""		# Content indention on __str__
 			
@@ -90,8 +90,8 @@ class HomebridgePayloadDevice:
 			self.url = u"/HomeKit?objId={}&serverId={}&jkey={}".format(str(obj.objId), str(serverId), r["jkey"])
 			self.serverId = serverId
 			self.id = r["jkey"]
-			#self.type = ""
-			#self.versByte = ""
+			self.type = self.factory.convert.homekit_type_and_firmware (indigo.devices[serverId].pluginProps["modelValue"], obj.objId, serverId)
+			self.versByte = self.factory.convert.homekit_type_and_firmware (indigo.devices[serverId].pluginProps["firmwareValue"], obj.objId, serverId)
 			self.hkservice = obj.type
 			
 			for charName, charValue in obj.characterDict.iteritems():

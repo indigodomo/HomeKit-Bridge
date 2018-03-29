@@ -1,8 +1,20 @@
 Release Notes
 ==========
 
-Version 0.20.1 (Beta 21.1)
+Version 0.21.0 (Beta 21.0)
 ==========
+* **NOTE** This release begins the process of rewriting the entire HomeKit integration, small chunks at a time, so it's possible that this can break things.  I'm trying to thoroughly test changes to make sure the end result is the same, but you have been warned.
+* Added failsafe when saving the Homebridge configuration that if there are no Indigo devices being passed that the Homebridge-indigo2 platform will not be loaded, this in case you are using a "camera server" that has nothing else on it doesn't cause issues with Homebridge-Indigo2 trying to load zero accessories
+* Changed model:submodel device resolution to detect if either model or submodel is an empty attribute and not pass the ":" separator if that is the case
+* Completely rewrote the SecuritySpy URL construction routine to better support users who don't store the xpassword state ([Issue #81](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/81))
+* Moved model/firmware resolution out of the main plugin and into the new factory package
+* Code housekeeping and cleanup
+
+Previous Release Notes
+==========
+
+Version 0.20.1 (Beta 20.1)
+---------------
 * Added additional sanity check on SecuritySpy servers that if they don't have the xaddress populated to get the address from a different field ([Issue #81](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/81))
 * Added 'ProgramHeat' and 'ProgramCool' to conditions for sending temperature set commands to a thermostat ([Issue #79](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/79))
 * Fixed bug where if a thermostat was set to auto heat/cool that changing temperatures in HomeKit would time out in the plugin because the plugin didn't know what to set, it will now increase the heat if the target temp is warmer than the current temp and increase cooling if it is cooler
@@ -10,9 +22,6 @@ Version 0.20.1 (Beta 21.1)
 * [Issue #81](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/81) resolved
 * [Issue #79](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/79) resolved
 * [Issue #86](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/86) resolved
-
-Previous Release Notes
-==========
 
 Version 0.20.0 (Beta 20.0)
 ---------------
