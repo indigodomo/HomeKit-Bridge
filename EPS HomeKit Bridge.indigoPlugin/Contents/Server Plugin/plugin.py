@@ -4288,7 +4288,34 @@ class Plugin(indigo.PluginBase):
 					biAudio = biDev.states['audio']
 					if biFPS == 0: biFPS = 30
 					biURL = ""
-					
+					# Create LAN / WAN to store correct stream numbers
+					biLANWAN = {'LAN':'','WAN':''}
+
+					# Need to get BI Server Device Information
+					# There is one server device for the plugin which holds uptodate server information
+					# Type = BlueIrisServer
+                    # Get the various Webserver streams settings from the Server to decide what stream to use for LAN and what for WAN
+                    # Store it in biLANWAN as two numbers eg. 01  Stream=0 for LAN, Stream=1 for WAN
+					for dev in indigo.devices.iter('com.GlennNZ.indigoplugin.BlueIris'):
+						if dev.deviceTypeId =='BlueIrisServer':
+							# split streams in list
+							# stream states added to new Plugin Version
+							if 'streams' in dev.states:
+								biStreams = dev.states['streams'].split('|')
+								# do stream check in Python as truck load easier than node javascript
+								# check for CBR and apply highest number to LAN and lowest to WAN
+								# ignore VBR % streams
+								for i,j in enumerate(biStreams):
+									try:
+										start = j.index('CBR ') + len ('CBR ')
+										end = j.index(' kbps', start)
+										temp = str(j)
+										biStreams[i] = int(temp[start:end])
+									except ValueError:
+										biStreams[i]= None
+								biLANWAN['LAN']=biStreams.index(max(biStreams))
+								biLANWAN['WAN']=biStreams.index(min(i for i in biStreams if i is not None))
+
 					# Read the Blue Iris preferences file
 					prefFile = '{}/Preferences/Plugins/com.GlennNZ.indigoplugin.BlueIris.indiPref'.format(indigo.server.getInstallFolderPath())
 					
@@ -4312,20 +4339,29 @@ class Plugin(indigo.PluginBase):
 					if biURL != "":						
 						camera = {}	
 						videoConfig = {}
-					
-						videoConfig["source"] = u"-re -i {}/h264/{}/temp.m".format(biURL, biName)
+						# for BI pass two numbers first is LAN stream, second is WAN stream
+						videoConfig['LANWAN'] = str(biLANWAN['LAN'])+str(biLANWAN['WAN'])
+						# add the stream selector ?stream=2 (0 and 1 can be used for Lan and WAN ;
+						# leave default stream at 0 - but remove it if LANWAN result in ffmpeg.js
+						videoConfig["source"] =  u"-re -i {}/h264/{}/temp.m?stream=0".format(	biURL, biName)
 						videoConfig["stillImageSource"] = u"-i {}/image/{}".format(biURL, biName)
 						videoConfig["maxWidth"] = biWidth
+						# use libopenh264 as codec - needs FFMPEG compiled with this as option
+                        # otherwise stream is static at low bandwidth
+                        # After much testing cannot get libx264 to work with low bandwidth stream
+						videoConfig['vcodec']='libopenh264'
+                        # Default audio codec - unchanged - still appears best option
+                        # OPUS codec longer term might be better but ffmpeg MAC OSX version has limited availability of libopus that I could find
+						videoConfig['acodec']='libfdk_aac'
 						videoConfig["maxHeight"] = biHeight
 						videoConfig["maxFPS"] = biFPS
 						videoConfig['maxBitrate'] = int(self.pluginPrefs.get("bitrate", "300"))
 						videoConfig['packetSize'] = int(self.pluginPrefs.get("packetsize", "1316"))
 						if self.pluginPrefs.get("cameradebug", False): videoConfig['debug'] = True
-						videoConfig['audio'] = biAudio 
-					
+						videoConfig['audio'] = biAudio
 						camera["name"] = r["alias"]
 						camera["videoConfig"] = videoConfig
-					
+
 						cameras.append(camera)	
 					
 				# Security Spy Cameras

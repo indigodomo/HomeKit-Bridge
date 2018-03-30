@@ -3735,7 +3735,7 @@ class service_TemperatureSensor (Service):
 		
 		self.required = {}
 		#self.required["CurrentTemperature"] = {"indigo.SensorDevice": "special_sensorTemperature", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "special_wuTemperature", "indigo.ThermostatDevice": "special_thermTemperature", "indigo.Device.com.perceptiveautomation.indigoplugin.weathersnoop.ws3station": "special_wsTemperature"}
-		self.required["CurrentTemperature"] = {"indigo.SensorDevice": "attr_sensorValue", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "state_temp", "indigo.ThermostatDevice": "state_temperatureInput1", "indigo.Device.com.perceptiveautomation.indigoplugin.weathersnoop.ws3station": "state_temperature_F", "indigo.Device.com.karlwachs.piBeacon.i2cTMP102": "state_Temperature", "indigo.Device.com.karlwachs.piBeacon.i2cBMExx": "state_Temperature", "indigo.Device.com.karlwachs.piBeacon.i2cMS5803": "state_Temperature"}
+		self.required["CurrentTemperature"] = {"indigo.SensorDevice": "attr_sensorValue", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "state_temp", "indigo.ThermostatDevice": "state_temperatureInput1", "indigo.Device.com.perceptiveautomation.indigoplugin.weathersnoop.ws3station": "state_temperature_F", "indigo.Device.com.karlwachs.piBeacon.i2cTMP102": "state_Temperature", "indigo.Device.com.karlwachs.piBeacon.i2cBMExx": "state_Temperature", "indigo.Device.com.karlwachs.piBeacon.i2cBMP280": "state_Temperature","indigo.Device.com.karlwachs.piBeacon.i2cMCP9808": "state_Temperature","indigo.Device.com.karlwachs.piBeacon.i2cMS5803": "state_Temperature"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
