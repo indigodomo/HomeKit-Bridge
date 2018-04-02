@@ -40,11 +40,13 @@ class IFactory:
 		"""
 	
 		try:
+			if plugin is None: return # pre-loading before init
+			
 			self.PluginBase = plugin	# References the Indigo plugin
 			self._set_log_format()		# Set the standard log format
 			self._init_libraries()		# Initialize the factory libs
 		
-			self.logger.info ("{} {} loaded".format(__modname__, __version__))
+			self.logger.debug ("{} {} loaded".format(__modname__, __version__))
 			
 		except Exception as e:
 			self.logger.error (ex.stack_trace(e))

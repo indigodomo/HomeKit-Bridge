@@ -1016,9 +1016,14 @@ class Service (object):
 				# Create the characteristic as an attribute
 				classname = "characteristic_{}".format(characteristic)
 				if classname in classes:
-					self.logger.threaddebug (u"Adding {} attribute to {}".format(characteristic, self.alias.value))
-					cclass = classes[classname]
-					setattr (self, characteristic, cclass())
+					if not characteristic in dir(self):
+						self.logger.threaddebug (u"Adding {} attribute to {}".format(characteristic, self.alias.value))
+						cclass = classes[classname]
+						setattr (self, characteristic, cclass())
+						
+					else:
+						# Using the cache, remove the characteristic so it will repopulate on refreshes
+						if characteristic in self.characterDict: del(self.characterDict[characteristic])
 					
 					if getter == "attr_STUB":
 						# Add the default value to the characterdict so it passes through to the API and then exit out

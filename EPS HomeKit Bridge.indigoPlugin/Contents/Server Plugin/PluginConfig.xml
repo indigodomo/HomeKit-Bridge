@@ -60,5 +60,12 @@
    	<Field type="textfield" id="apiport" defaultValue="8558" hidden="false">
 		<Label>Enhanced API port:</Label>
 	</Field>
+	
+	<Field id="sep_apiport" type="separator" />
+	
+	<Field type="checkbox" id="newpackage" defaultValue="true" >
+		<Label>New Methods:</Label>
+		<Description>Use new library methods for this release</Description>
+	</Field>
 
 </PluginConfig>

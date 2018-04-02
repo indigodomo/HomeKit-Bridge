@@ -4,7 +4,36 @@
 	<!-- Defaults to the main ColoradoFourWheeler forum on Indigo -->
 	<SupportURL>http://forums.indigodomo.com/viewforum.php?f=192</SupportURL>
 	
+	<Action id="restartServer" deviceFilter="self" uiPath="DeviceActions">
+		<Name>Restart Accessory Server</Name>
+		<CallbackMethod>serverActionRestart</CallbackMethod>
+	</Action>
+	
+	<Action id="restartServers">
+		<Name>Restart All Accessory Servers</Name>
+		<CallbackMethod>serverActionRestartAll</CallbackMethod>
+	</Action>
+	
 	<Action id="sep_1" uiPath="DeviceActions"/>
+	<Action id="sep_2"/>
+	
+	<Action id="refreshHomeKitDevice" deviceFilter="self" uiPath="DeviceActions">
+		<Name>Force HomeKit Refresh</Name>
+		<CallbackMethod>serverActionRefreshDevice</CallbackMethod>
+		<ConfigUI>
+			<Field type="menu" id="deviceList" >
+				<Label> </Label>
+				<List class="self" filter="" method="serverListJSONDevicesForAction" dynamicReload="true" />
+			</Field>
+		</ConfigUI>
+	</Action>
+	
+	<Action id="restartServersAll" deviceFilter="self">
+		<Name>Force HomeKit Refresh On All Items</Name>
+		<CallbackMethod>serverActionRefreshDeviceAll</CallbackMethod>
+	</Action>
+	
+	<Action id="sep_3" uiPath="DeviceActions"/>
 	
 	<!-- Hidden Actions For API -->
 	<Action id="voiceAPI" uiPath="hidden">

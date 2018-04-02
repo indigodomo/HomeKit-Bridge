@@ -1,17 +1,32 @@
 Release Notes
 ==========
 
-Version 0.21.0 (Beta 21.0)
+Version 0.22.0 (Beta 22.0)
 ==========
+* **NOTE** As stated earlier, the entire HomeKit engine is being optimized and rewritten for various reasons.  There is a new plugin configuration option that allows you to revert to the previous method if the new method is causing problem, but this is on a release-by-release basis, meaning that only changes in **this** release will roll back to using the old methods, the next release will not be able to roll back anything from this release.  The functions impacted will be noted in the release notes as 'Library Change'.  Please report any issues that are caused by the new library that are resolved by returning to the old methods.
+* Added error trapping around building the camera configuration in case there's an odd setup that may cause the camera build to fail it will not impact the rest of the homekit devices
+* Added new action under device actions to [restart an individual server](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Actions#restart-accessory-server)
+* Added new action in the action root to [restart all running servers](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Actions#restart-all-accessory-servers)
+* Added new action under device actions to [force a HomeKit refresh for a device](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Actions#force-homekit-refresh) - this may help with [Issue #87](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/87)
+* Added new action in the action root to [force a HomeKit refresh for all devices on a server](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/Actions#force-homekit-refresh-on-all-items)
+* Library Change: Added minimum and maximum values to the API payload so Homebridge can dynamically change the ranges as needed - particularly in situations where the built-in ranges were incorrect, such as temperature values that couldn't go below 50F or above 100F.
+* Library Change: Optimized API payload processing method, API calls will only return what Homebridge wants with no extra fields and does it far more efficiently
+* Library Change: Moved API payload processing to new factory package
+* Library Change: Experimental change to not wait for commands to run - this may be restored in the next release but I believe waiting is unnecessary because HomeKit will be updated when the command completes anyway, the benefit of this is faster response (and if you use slow devices like curtain controls it will prevent Siri from saying 'some of your devices are not responding')
+* Library Change: Started adding the underlying structure to test the _possibility_ of using Indigo variables as HomeKit devices
+* Library Change: Cache HomeKit devices and update dynamically, improved API performance by 600%
+
+Previous Release Notes
+==========
+
+Version 0.21.0 (Beta 21.0)
+---------------
 * **NOTE** This release begins the process of rewriting the entire HomeKit integration, small chunks at a time, so it's possible that this can break things.  I'm trying to thoroughly test changes to make sure the end result is the same, but you have been warned.
 * Added failsafe when saving the Homebridge configuration that if there are no Indigo devices being passed that the Homebridge-indigo2 platform will not be loaded, this in case you are using a "camera server" that has nothing else on it doesn't cause issues with Homebridge-Indigo2 trying to load zero accessories
 * Changed model:submodel device resolution to detect if either model or submodel is an empty attribute and not pass the ":" separator if that is the case
 * Completely rewrote the SecuritySpy URL construction routine to better support users who don't store the xpassword state ([Issue #81](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/81))
 * Moved model/firmware resolution out of the main plugin and into the new factory package
 * Code housekeeping and cleanup
-
-Previous Release Notes
-==========
 
 Version 0.20.1 (Beta 20.1)
 ---------------

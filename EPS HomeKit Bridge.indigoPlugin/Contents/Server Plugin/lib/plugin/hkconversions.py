@@ -68,7 +68,7 @@ class HomeKitDataConversion:
 			self.logger.debug (u"Converting {} keyword for HomeKit type or firmware on '{}'".format(keyword, indigo.devices[devId].name))
 			
 			if keyword is None or keyword == "":
-				return "N/A"						
+				return "N/A"									
 			elif keyword == "indigoModel":
 				return u"{}".format(indigo.devices[devId].model)
 			elif keyword == "indigoSubmodel":

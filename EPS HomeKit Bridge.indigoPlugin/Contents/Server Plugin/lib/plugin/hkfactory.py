@@ -24,7 +24,9 @@ from ..ifactory.include import ex
 import hkconversions
 
 # Package Modules
+import hkplprocessor  # Payload processor
 import hkpldevice  # Payload device class
+
 
 class HomeKitFactory:
 	"""
@@ -34,8 +36,8 @@ class HomeKitFactory:
 	HKCACHE = {}  			# All HomeKit device payloads, updated dynamically as Indigo device changes are detected
 	HKDEFINITIONS = {}  	# All service definitions for all HomeKit devices so that HKCACHE can update payloads
 	HKCOMPLICATIONS = {}  	# All defined complications
-	HKSERVICES = {}  		# All HomeKit services
-	HKCHARACTERISTICS = {}	# All HomeKit characteristics
+	#HKSERVICES = {}  		# All HomeKit services
+	#HKCHARACTERISTICS = {}	# All HomeKit characteristics
 	
 	###
 	def __init__(self, factory):
@@ -60,7 +62,8 @@ class HomeKitFactory:
 		
 		try:
 			self.convert = hkconversions.HomeKitDataConversion (self)
-		
+			self.api = hkplprocessor.HomebridgePayloadProcessor (self)
+			
 		except Exception as e:
 			self.logger.error (ex.stack_trace(e))
 			
@@ -79,7 +82,52 @@ class HomeKitFactory:
 	
 		try:
 			payload = hkpldevice.HomebridgePayloadDevice (self)
-			payload.legacy_populate_from_service (obj, r, serverId)
+			return payload.legacy_populate_from_service (obj, r, serverId)
 	
 		except Exception as e:
-				self.logger.error (ex.stack_trace(e))
+			self.logger.error (ex.stack_trace(e))
+				
+
+	###
+	def legacy_cache_device (self, r, serverId):
+		"""
+		Creates or refreshes the service object in cache.
+		
+		Arguments:
+			r:			JSON record to get the service object for
+			serverId:	Indigo device Id of the server hosting this r device
+		"""
+		
+		try:
+			if r["jkey"] in self.HKDEFINITIONS:
+				self.logger.threaddebug (u"Updating cache for '{}'".format(r["alias"]))
+				obj = self.HKDEFINITIONS[r["jkey"]]
+				obj.setAttributes()  # Refresh the characteristic values
+			else:
+				# Cache the service object
+				self.logger.threaddebug (u"Caching '{}'".format(r["alias"]))
+				obj = self.api.legacy_get_homekit_object (r["id"], serverId, r["hktype"])
+				self.HKDEFINITIONS[r["jkey"]] = obj
+			
+			# Cache the API payload
+			payload = self.legacy_get_payload(obj, r, serverId)
+			self.HKCACHE[r["jkey"]] = payload
+		
+		except Exception as e:
+			self.logger.error (ex.stack_trace(e))
+
+	###
+	def process_incoming_api_call (self, request, query): return self.api.process_incoming_api_call (request, query)
+		
+			
+
+
+
+
+
+
+
+
+
+
+

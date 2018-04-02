@@ -37,9 +37,11 @@ import xml.dom.minidom # read xml for 3rd party plugin support
 #from lib import httpsvr
 
 # New iFactory libraries
+from lib import ifactory
 from lib import hkfactory
 
 eps = eps(None)
+iFactory = ifactory.IFactory(None)
 HomeKit = hkfactory.HomeKitFactory(None)
 
 ################################################################################
@@ -79,7 +81,9 @@ class Plugin(indigo.PluginBase):
 		eps.__init__ (self)
 		eps.loadLibs (self.PLUGIN_LIBS)
 		
-		HomeKit.__init__ (self)
+		self.epslibrary = eps # Allows new iFactory package to access legacy factory package routines
+		iFactory.__init__ (self)
+		HomeKit.__init__ (iFactory)
 		
 		# Create JSON stash record for server devices
 		self.setupJstash ()
@@ -105,7 +109,15 @@ class Plugin(indigo.PluginBase):
 			
 			#self.version_check()
 			
-			HomeKit.test()
+			#plugin = indigo.server.getPlugin(self.pluginId)
+			#plugin.restart(waitUntilDone=False)
+			#self.sleep(5)
+			
+			for dev in indigo.devices.iter(self.pluginId + ".Server"):
+				if self.checkRunningHBServer (dev):
+					if self.shellHBStopServer (dev):
+						self.shellHBStartServer (dev)
+				
 			
 			#x = eps.homekit.getServiceObject (1642494335, 1794022133, "service_ContactSensor")
 			#indigo.server.log (unicode(x))
@@ -658,6 +670,10 @@ class Plugin(indigo.PluginBase):
 					if updateRequired:
 						self.logger.debug (u"Device {} had an update that HomeKit needs to know about".format(obj.alias.value))
 						#self.serverSendObjectUpdateToHomebridge (indigo.devices[serverId], newDev.id)
+						
+						if self.pluginPrefs.get('newpackage', True):
+							HomeKit.legacy_cache_device(r, serverId)
+						
 						self.serverSendObjectUpdateToHomebridge (indigo.devices[serverId], r["jkey"])
 						
 			if rebuildRequired:
@@ -868,103 +884,102 @@ class Plugin(indigo.PluginBase):
 	#
 	def onBefore_onReceivedHTTPGETRequest (self, request, query):	
 		try:
-			#indigo.server.log("HTTP query to plugin")
-			#indigo.server.log(unicode(request))
-			#indigo.server.log(unicode(query))
+			#if "serverId" in query and int(query["serverId"][0]) == 1794022133: return HomeKit.process_incoming_api_call (request, query)
+			if self.pluginPrefs.get('newpackage', True):
+				self.logger.threaddebug (u"Processing API request and delivering payload via new package")
+				return HomeKit.process_incoming_api_call (request, query)
 			
-			if "/HomeKit" in request.path:
-				if "cmd" in query and query["cmd"][0] == "setCharacteristic":
-					if "objId" in query:
-						devId = int(query["objId"][0])
-						
-					if "serverId" in query:
-						serverId = int(query["serverId"][0])
-						
-					# Load up the HK and server objects
-					valuesDict = self.serverCheckForJSONKeys (indigo.devices[serverId].pluginProps)	
-					includedDevices = json.loads(valuesDict["includedDevices"])
-					includedActions = json.loads(valuesDict["includedActions"])
-					
-					isAction = False
-					r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", devId)
-					if r is None: 
-						r = eps.jstash.getRecordWithFieldEquals (includedActions, "id", devId)
-						isAction = True
-					
-					obj = eps.homekit.getServiceObject (r["id"], serverId, r["hktype"], False,  True)
-					
-					# Invert if configured - Now in library
-					#if "invert" in r: 
-					#	obj.invertOnState = r["invert"]
-					#	if obj.invertOnState: obj.setAttributes() # Force it to refresh values so we get our inverted action
-					
-					# Loop through actions to see if any of them are in the query
-					processedActions = False
-					response = False
-					thisCharacteristic = None
-					thisValue = None
-					#indigo.server.log(unicode(obj))
-					for a in obj.actions:
-						#indigo.server.log(unicode(a))
-						#indigo.server.log("Checking if {} is in {}".format(a.characteristic, unicode(query)))
-						if a.characteristic in query and not processedActions: 
-							self.logger.debug (u"Received {} in query, setting to {} using {} if rules apply".format(a.characteristic, query[a.characteristic][0], a.command))
-							#processedActions.append(a.characteristic)
-							#ret = a.run (query[a.characteristic][0], r["id"], True)
-							
-							thisCharacteristic = a.characteristic
-							thisValue = query[a.characteristic][0]
-							ret = a.run (thisValue, r["id"])
-							#self.HKREQUESTQUEUE[obj.id] = a.characteristic # It's ok that this overwrites, it's the same
-							if ret: 
-								response = True # Only change it if its true, that way we know the operation was a success
-								processedActions = True
-								break # we only ever get a single command on each query
-										
-					r = self.buildHKAPIDetails (devId, serverId, r["jkey"], thisCharacteristic, thisValue, isAction)		
-					return "text/css",	json.dumps(r, indent=4)
+			if not "/HomeKit" in request.path:
+				msg = {}
+				msg["result"] = "fail"
+				msg["message"] = "Invalid path"
+				return "text/css",	json.dumps(msg, indent=4)
 				
-				if "cmd" in query and query["cmd"][0] == "getInfo":
-					if "objId" in query:
-						devId = int(query["objId"][0])
-						jkey = query["jkey"][0]
+			if not "cmd" in query:
+				msg = {}
+				msg["result"] = "fail"
+				msg["message"] = "Invalid command parameter"
+				return "text/css",	json.dumps(msg, indent=4)
 			
-						serverId = 0
-						#if devId in self.SERVER_ID: 
-						#	if len(self.SERVER_ID[devId]) == 1: serverId = self.SERVER_ID[devId][0]
-						if "serverId" in query:
-							server = indigo.devices[int(query["serverId"][0])]
-							serverId = server.id
+			devId = 0
+			serverId = 0
+			jkey = None
+			isAction = False
+			obj = None
+			cmd = query["cmd"][0]
+			
+			
+			
+			if "objId" in query: devId = int(query["objId"][0])
+			if "serverId" in query: 
+				serverId = int(query["serverId"][0])
+				valuesDict = self.serverCheckForJSONKeys (indigo.devices[serverId].pluginProps)	
+				includedDevices = json.loads(valuesDict["includedDevices"])
+				includedActions = json.loads(valuesDict["includedActions"])	
+
+			if "jkey" in query: 
+				jkey = query["jkey"][0]
+				r = eps.jstash.getRecordWithFieldEquals (includedDevices, "jkey", jkey)
+				if r is None: 
+					r = eps.jstash.getRecordWithFieldEquals (includedActions, "jkey", jkey)
+					isAction = True
+					
+				obj = eps.homekit.getServiceObject (r["id"], serverId, r["hktype"], False,  True)
+				
+				if not obj:
+					msg = {}
+					msg["result"] = "fail"
+					msg["message"] = "Device could not be found"
+					return "text/css",	json.dumps(msg, indent=4)
+			
+			if serverId == 0:
+				msg = {}
+				msg["result"] = "fail"
+				msg["message"] = "Server ID was not passed to query, unable to process"
+				return "text/css",	json.dumps(msg, indent=4)
+			
+			if cmd == "setCharacteristic":
+				# Loop through actions to see if any of them are in the query
+				processedActions = False
+				response = False
+				thisCharacteristic = None
+				thisValue = None
+				#indigo.server.log(unicode(obj))
+				for a in obj.actions:
+					#indigo.server.log(unicode(a))
+					#indigo.server.log("Checking if {} is in {}".format(a.characteristic, unicode(query)))
+					if a.characteristic in query and not processedActions: 
+						self.logger.debug (u"Received {} in query, setting to {} using {} if rules apply".format(a.characteristic, query[a.characteristic][0], a.command))
+						#processedActions.append(a.characteristic)
+						#ret = a.run (query[a.characteristic][0], r["id"], True)
 						
-						if serverId == 0:
-							msg = {}
-							msg["result"] = "fail"
-							msg["message"] = "Server ID was not passed to query, unable to process"
-							return "text/css",	json.dumps(msg, indent=4)
-						
-						r = self.buildHKAPIDetails (devId, serverId, jkey)
-						return "text/css",	json.dumps(r, indent=4)
-						
-				if "cmd" in query and query["cmd"][0] == "deviceList":
-					if "serverId" in query:
-						server = indigo.devices[int(query["serverId"][0])]
-						serverId = server.id
-						
-						# Load up the HK and server objects
-						valuesDict = self.serverCheckForJSONKeys (indigo.devices[serverId].pluginProps)	
-						includedDevices = json.loads(valuesDict["includedDevices"])
-						includedActions = json.loads(valuesDict["includedActions"])
-						
-						ret = []
-						for d in includedDevices:
-							r = self.buildHKAPIDetails (d["id"], serverId, d["jkey"])
-							if r is not None and len(r) > 0: ret.append (r)
-							
-						for a in includedActions:
-							r = self.buildHKAPIDetails (a["id"], serverId, a["jkey"])
-							if r is not None and len(r) > 0: ret.append (r)	
-						
-						return "text/css",	json.dumps(ret, indent=4)
+						thisCharacteristic = a.characteristic
+						thisValue = query[a.characteristic][0]
+						ret = a.run (thisValue, r["id"], True)
+						#self.HKREQUESTQUEUE[obj.id] = a.characteristic # It's ok that this overwrites, it's the same
+						if ret: 
+							response = True # Only change it if its true, that way we know the operation was a success
+							processedActions = True
+							break # we only ever get a single command on each query
+									
+				r = self.buildHKAPIDetails (devId, serverId, r["jkey"], thisCharacteristic, thisValue, isAction)		
+				return "text/css",	json.dumps(r, indent=4)
+			
+			elif cmd == "getInfo":
+				r = self.buildHKAPIDetails (devId, serverId, jkey)
+				return "text/css",	json.dumps(r, indent=4)
+					
+			elif cmd == "deviceList":
+				ret = []
+				for d in includedDevices:
+					r = self.buildHKAPIDetails (d["id"], serverId, d["jkey"])
+					if r is not None and len(r) > 0: ret.append (r)
+					
+				for a in includedActions:
+					r = self.buildHKAPIDetails (a["id"], serverId, a["jkey"])
+					if r is not None and len(r) > 0: ret.append (r)	
+				
+				return "text/css",	json.dumps(ret, indent=4)
 						
 			
 			msg = {}
@@ -1037,7 +1052,7 @@ class Plugin(indigo.PluginBase):
 			obj = eps.homekit.getServiceObject (r["id"], serverId, r["hktype"], False, True)
 			server = indigo.devices[int(serverId)]
 			
-			if r["id"] == 145155245: HomeKit.legacy_get_payload (obj, r, serverId)
+			#if r["id"] == 145155245: HomeKit.legacy_get_payload (obj, r, serverId)
 			
 			# Invert if configured
 			#if "invert" in r: 
@@ -1094,10 +1109,10 @@ class Plugin(indigo.PluginBase):
 			if runningAction:
 				#self.serverSendObjectUpdateToHomebridge (indigo.devices[int(serverId)], r["id"])
 				#thread.start_new_thread(self.timedCallbackToURL, (serverId, r["id"], 2))
-				thread.start_new_thread(self.timedCallbackToURL, (serverId, r["jkey"], 2))
+				thread.start_new_thread(self.timedCallbackToURL, (serverId, r["jkey"], 2, r))
 			
 			if obj.recurringUpdate:
-				thread.start_new_thread(self.timedCallbackToURL, (serverId, r["jkey"], obj.recurringSeconds))	
+				thread.start_new_thread(self.timedCallbackToURL, (serverId, r["jkey"], obj.recurringSeconds, r))	
 			
 			
 			# Before we return r, use the jstash ID for our ID instead of the Indigo ID
@@ -1124,9 +1139,13 @@ class Plugin(indigo.PluginBase):
 	#
 	# Run in a thread, this will run the URL in the specified seconds
 	#
-	def timedCallbackToURL (self, serverId, devId, waitSeconds):
+	def timedCallbackToURL (self, serverId, devId, waitSeconds, r = None):
 		try:
 			if waitSeconds > 0: time.sleep(waitSeconds)
+			
+			if self.pluginPrefs.get('newpackage', True):
+				HomeKit.legacy_cache_device(r, serverId)
+			
 			self.serverSendObjectUpdateToHomebridge (indigo.devices[int(serverId)], devId)
 		
 		except Exception as e:
@@ -1795,13 +1814,16 @@ class Plugin(indigo.PluginBase):
 			self.SERVERS = []
 			self.SERVER_ID = {}
 			
+			if self.pluginPrefs.get('newpackage', True):
+				self.logger.info("Caching all HomeKit Bridge devices...")
+			
 			if serverId == 0:
 				for dev in indigo.devices.iter(self.pluginId + ".Server"):
-					self._catalogServerDevices (dev)
+					self._catalogServerDevices (dev, dev.id)
 					
 			else:
 				dev = indigo.devices[serverId]
-				self._catalogServerDevices (dev)
+				self._catalogServerDevices (dev, dev.id)
 				
 			#indigo.server.log(unicode(self.SERVER_ALIAS))
 			#indigo.server.log(unicode(self.SERVER_ID))
@@ -1812,7 +1834,7 @@ class Plugin(indigo.PluginBase):
 	#
 	# Callback for catalog server devices
 	#
-	def _catalogServerDevices (self, dev):
+	def _catalogServerDevices (self, dev, serverId):
 		try:
 			valuesDict = self.serverCheckForJSONKeys (dev.pluginProps)	
 			includedDevices = json.loads(valuesDict["includedDevices"])
@@ -1821,6 +1843,9 @@ class Plugin(indigo.PluginBase):
 			self.SERVERS.append(dev.id)
 			
 			for d in includedDevices:
+				if self.pluginPrefs.get('newpackage', True):
+					HomeKit.legacy_cache_device(d, serverId)
+			
 				self.SERVER_ALIAS[d["alias"]] = dev.id
 				
 				if d["id"] not in self.SERVER_ID:
@@ -1832,6 +1857,9 @@ class Plugin(indigo.PluginBase):
 						self.SERVER_ID[d["id"]] = servers
 						
 			for d in includedActions:
+				if self.pluginPrefs.get('newpackage', True):
+					HomeKit.legacy_cache_device(d, serverId)
+					
 				self.SERVER_ALIAS[d["alias"]] = dev.id
 				
 				if d["id"] not in self.SERVER_ID:
@@ -2791,6 +2819,93 @@ class Plugin(indigo.PluginBase):
 	################################################################################
 	# SERVER METHODS
 	################################################################################
+	#
+	# Restart a server
+	#
+	def serverActionRestart (self, action, serverId = None):
+		try:
+			if serverId:
+				dev = indigo.devices[serverId]
+			else:
+				dev = indigo.devices[action.deviceId]
+				
+			if self.checkRunningHBServer (dev):
+				if self.shellHBStopServer (dev):
+					self.shellHBStartServer (dev)
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+	#
+	# Restart all servers
+	#
+	def serverActionRestartAll (self, action):
+		try:
+			for dev in indigo.devices.iter(self.pluginId + ".Server"):
+				self.serverActionRestart(action, dev.id)
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+	#
+	# Request Homebridge refresh a device
+	#
+	def serverActionRefreshDevice (self, action):
+		try:
+			self._serverActionRefreshDevice (action)
+			
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))		
+			
+	#
+	# Refresh Device action
+	#
+	def _serverActionRefreshDevice (self, action, r = None, server = None):
+		try:
+			if r is None:
+				server = indigo.devices[action.deviceId]
+				valuesDict = server.pluginProps	
+				includedDevices = json.loads(valuesDict["includedDevices"])
+				includedActions = json.loads(valuesDict["includedActions"])
+			
+				r = eps.jstash.getRecordWithFieldEquals (includedDevices, "jkey", action.props["deviceList"])
+				if r is None: 
+					r = eps.jstash.getRecordWithFieldEquals (includedActions, "jkey", action.props["deviceList"])
+
+			if r is None: return
+			
+			self.logger.info(u"Sending HomeKit refresh request for '{}'".format(r["alias"]))
+			
+			if self.pluginPrefs.get('newpackage', True):
+				HomeKit.legacy_cache_device(r, server.id)
+				
+			self.serverSendObjectUpdateToHomebridge (server, r["jkey"])	
+			
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+		
+			
+	#
+	# Restart all servers
+	#
+	def serverActionRefreshDeviceAll (self, action):
+		try:
+			server = indigo.devices[action.deviceId]
+			valuesDict = server.pluginProps	
+			includedDevices = json.loads(valuesDict["includedDevices"])
+			includedActions = json.loads(valuesDict["includedActions"])
+
+			for r in includedDevices:
+				self._serverActionRefreshDevice (action, r, server)
+				
+			for r in includedActions:
+				self._serverActionRefreshDevice (action, r, server)	
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))		
+									
 
 	#
 	# JSON data check for valuesDict
@@ -3057,6 +3172,59 @@ class Plugin(indigo.PluginBase):
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
 			return ret		
+			
+	#
+	# All devices stored in our server JSON data
+	#
+	def serverListJSONDevicesForAction (self, filter="", valuesDict=None, typeId="", targetId=0):
+		ret = [("default", "No data")]
+		
+		try:
+			server = indigo.devices[targetId]
+			valuesDict = server.pluginProps	
+			includedDevices = json.loads(valuesDict["includedDevices"])
+			includedActions = json.loads(valuesDict["includedActions"])
+			
+			# Combine the lists for the return
+			includedObjects = []
+			
+			for d in includedDevices:
+				name = d["alias"]
+				if name == "": name = d["name"]
+				d["sortbyname"] = name.lower()
+				
+				name = u"{0}: {1}".format(d["object"], name)
+				d["sortbytype"] = name.lower()
+				
+				
+				includedObjects.append (d)
+				
+			for d in includedActions:
+				name = d["alias"]
+				if name == "": name = d["name"]
+				d["sortbyname"] = name.lower()
+				
+				name = u"{0}: {1}".format(d["object"], name)
+				d["sortbytype"] = name.lower()
+				
+				includedObjects.append (d)	
+			
+			retList = []
+			
+			includedObjects = eps.jstash.sortStash (includedObjects, "sortbyname")
+			
+			for d in includedObjects:
+				name = d["alias"]
+				if name == "": name = d["name"]
+				name = u"{0}: {1}".format(d["object"], name)
+				
+				retList.append ( (str(d["jkey"]), name) )
+				
+			return retList
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			return ret			
 			
 
 		
@@ -3894,7 +4062,7 @@ class Plugin(indigo.PluginBase):
 			if not server.states["onOffState"]:
 				self.logger.debug (u"Homebridge update requested, but '{}' isn't running, ignoring update request".format(server.name))
 				return
-			
+				
 			url = "http://127.0.0.1:{1}/devices/{0}".format(str(objId), server.pluginProps["listenPort"])
 			
 			#data = {'isOn':1, 'brightness': 100}
@@ -4278,114 +4446,121 @@ class Plugin(indigo.PluginBase):
 			
 			# Check for any cameras
 			for r in includedDevices:
-				# Blue Iris Cameras
-				if r["hktype"] == "service_CameraRTPStreamManagement" and indigo.devices[int(r["id"])].pluginId == "com.GlennNZ.indigoplugin.BlueIris":
-					biDev = indigo.devices[int(r["id"])]
-					biWidth = biDev.states["width"]
-					biHeight = biDev.states["height"]
-					biName = biDev.states["optionValue"]
-					biFPS = biDev.states["FPS"]
-					biAudio = biDev.states['audio']
-					if biFPS == 0: biFPS = 30
-					biURL = ""
+				try:
+					# Blue Iris Cameras
+					if r["hktype"] == "service_CameraRTPStreamManagement" and indigo.devices[int(r["id"])].pluginId == "com.GlennNZ.indigoplugin.BlueIris":
+						biDev = indigo.devices[int(r["id"])]
+						biWidth = biDev.states["width"]
+						biHeight = biDev.states["height"]
+						biName = biDev.states["optionValue"]
+						biFPS = biDev.states["FPS"]
+						biAudio = biDev.states['audio']
+						if biFPS == 0: biFPS = 30
+						biURL = ""
 					
-					# Read the Blue Iris preferences file
-					prefFile = '{}/Preferences/Plugins/com.GlennNZ.indigoplugin.BlueIris.indiPref'.format(indigo.server.getInstallFolderPath())
+						# Read the Blue Iris preferences file
+						prefFile = '{}/Preferences/Plugins/com.GlennNZ.indigoplugin.BlueIris.indiPref'.format(indigo.server.getInstallFolderPath())
 					
-					if os.path.isfile(prefFile):
-						file = open(prefFile, 'r')
-						prefdata = file.read()
-						dom = xml.dom.minidom.parseString(prefdata)	
-						prefs = self._getChildElementsByTagName(dom, u"Prefs")
-						biServerIp = self._getElementValueByTagName(prefs[0], u"serverip", required=False, default=u"")
-						biPort = self._getElementValueByTagName(prefs[0], u"serverport", required=False, default=u"")
-						biUser = self._getElementValueByTagName(prefs[0], u"serverusername", required=False, default=u"")
-						biPass = self._getElementValueByTagName(prefs[0], u"serverpassword", required=False, default=u"")
+						if os.path.isfile(prefFile):
+							file = open(prefFile, 'r')
+							prefdata = file.read()
+							dom = xml.dom.minidom.parseString(prefdata)	
+							prefs = self._getChildElementsByTagName(dom, u"Prefs")
+							biServerIp = self._getElementValueByTagName(prefs[0], u"serverip", required=False, default=u"")
+							biPort = self._getElementValueByTagName(prefs[0], u"serverport", required=False, default=u"")
+							biUser = self._getElementValueByTagName(prefs[0], u"serverusername", required=False, default=u"")
+							biPass = self._getElementValueByTagName(prefs[0], u"serverpassword", required=False, default=u"")
 						
-						if biPass == "":
-							biURL = u"http://{}:{}".format(biServerIp, biPort)
-						else:
-							biURL = u"http://{}:{}@{}:{}".format(biUser, biPass, biServerIp, biPort)
+							if biPass == "":
+								biURL = u"http://{}:{}".format(biServerIp, biPort)
+							else:
+								biURL = u"http://{}:{}@{}:{}".format(biUser, biPass, biServerIp, biPort)
 							
-						file.close()
+							file.close()
 							
-					if biURL != "":						
+						if biURL != "":						
+							camera = {}	
+							videoConfig = {}
+					
+							videoConfig["source"] = u"-re -i {}/h264/{}/temp.m".format(biURL, biName)
+							videoConfig["stillImageSource"] = u"-i {}/image/{}".format(biURL, biName)
+							videoConfig["maxWidth"] = biWidth
+							videoConfig["maxHeight"] = biHeight
+							videoConfig["maxFPS"] = biFPS
+							videoConfig['maxBitrate'] = int(self.pluginPrefs.get("bitrate", "300"))
+							videoConfig['packetSize'] = int(self.pluginPrefs.get("packetsize", "1316"))
+							if self.pluginPrefs.get("cameradebug", False): videoConfig['debug'] = True
+							videoConfig['audio'] = biAudio 
+					
+							camera["name"] = r["alias"]
+							camera["videoConfig"] = videoConfig
+					
+							cameras.append(camera)	
+					
+					# Security Spy Cameras
+					if r["hktype"] == "service_CameraRTPStreamManagement" and indigo.devices[int(r["id"])].pluginId == "org.cynic.indigo.securityspy":
+						# Get the device and it's SS server
+						ssDev = indigo.devices[int(r["id"])]
+						ssServerId, ssCameraNum = ssDev.ownerProps["xaddress"].split("@")
+						ssServer = indigo.devices[int(ssServerId)]
+						ssWidth = 640
+						ssHeight = 480
+						ssFPS = 30
+					
+						ssuPw = u"{}:{}@".format(ssServer.ownerProps["username"],ssServer.ownerProps["password"])
+						if ssServer.ownerProps["password"] == "": ssuPw = ""
+					
+						ssURL = u"http://{}{}:{}".format(ssuPw, ssServer.ownerProps["xaddress"],ssServer.ownerProps["port"])
+						if ssServer.ownerProps["xaddress"] == "": ssURL = u"http://{}{}".format(ssuPw, ssServer.ownerProps["address"])
+					
+						ssSystem = u"{}/++systemInfo".format(ssURL)
+						data = requests.get(ssSystem).content	# Pull XML data
+					
+						# Extract XML data
+						dom = xml.dom.minidom.parseString(data)			
+						system = self._getChildElementsByTagName(dom, u"system")
+						sscameralist = self._getChildElementsByTagName(system[0], u"cameralist")
+						sscameras = self._getChildElementsByTagName(sscameralist[0], u"camera")
+					
+						# Get the width and height from XML dta
+						for sscamera in sscameras:
+							try:
+								number = self._getElementValueByTagName(sscamera, u"number", required=False, default=u"")
+								if int(number) == int(ssCameraNum):
+									ssWidth = int(self._getElementValueByTagName(sscamera, u"width", required=False, default=u""))
+									ssHeight = int(self._getElementValueByTagName(sscamera, u"height", required=False, default=u""))
+									ssFPS = int(float(self._getElementValueByTagName(sscamera, u"current-fps", required=False, default=u"")))
+									if ssFPS < 10: ssFPS = 10
+									break
+							except:
+								self.logger.warning (u"Unable to retrieve SecuritySpy parameters for {}, defaulting to {}x{} and {} FPS".format(r["alias"], ssWidth, ssHeight, ssFPS))
+					
 						camera = {}	
 						videoConfig = {}
 					
-						videoConfig["source"] = u"-re -i {}/h264/{}/temp.m".format(biURL, biName)
-						videoConfig["stillImageSource"] = u"-i {}/image/{}".format(biURL, biName)
-						videoConfig["maxWidth"] = biWidth
-						videoConfig["maxHeight"] = biHeight
-						videoConfig["maxFPS"] = biFPS
+						videoConfig["source"] = u"-re -i {}/++video?cameraNum={}&width={}&height={}".format(ssURL, ssCameraNum, ssWidth, ssHeight)
+						videoConfig["stillImageSource"] = u"-i {}/++image?cameraNum={}&width={}&height={}".format(ssURL, ssCameraNum, ssWidth, ssHeight)
+						videoConfig["maxWidth"] = ssWidth
+						videoConfig["maxHeight"] = ssHeight
+						videoConfig["maxFPS"] = ssFPS	
 						videoConfig['maxBitrate'] = int(self.pluginPrefs.get("bitrate", "300"))
-						videoConfig['packetSize'] = int(self.pluginPrefs.get("packetsize", "1316"))
+						videoConfig['packetSize'] = int(self.pluginPrefs.get("packetsize", "1316"))	
 						if self.pluginPrefs.get("cameradebug", False): videoConfig['debug'] = True
-						videoConfig['audio'] = biAudio 
 					
 						camera["name"] = r["alias"]
 						camera["videoConfig"] = videoConfig
 					
-						cameras.append(camera)	
-					
-				# Security Spy Cameras
-				if r["hktype"] == "service_CameraRTPStreamManagement" and indigo.devices[int(r["id"])].pluginId == "org.cynic.indigo.securityspy":
-					# Get the device and it's SS server
-					ssDev = indigo.devices[int(r["id"])]
-					ssServerId, ssCameraNum = ssDev.ownerProps["xaddress"].split("@")
-					ssServer = indigo.devices[int(ssServerId)]
-					ssWidth = 640
-					ssHeight = 480
-					ssFPS = 30
-					
-					ssuPw = u"{}:{}@".format(ssServer.ownerProps["username"],ssServer.ownerProps["password"])
-					if ssServer.ownerProps["password"] == "": ssuPw = ""
-					
-					ssURL = u"http://{}{}:{}".format(ssuPw, ssServer.ownerProps["xaddress"],ssServer.ownerProps["port"])
-					if ssServer.ownerProps["xaddress"] == "": ssURL = u"http://{}{}".format(ssuPw, ssServer.ownerProps["address"])
-					
-					ssSystem = u"{}/++systemInfo".format(ssURL)
-					data = requests.get(ssSystem).content	# Pull XML data
-					
-					# Extract XML data
-					dom = xml.dom.minidom.parseString(data)			
-					system = self._getChildElementsByTagName(dom, u"system")
-					sscameralist = self._getChildElementsByTagName(system[0], u"cameralist")
-					sscameras = self._getChildElementsByTagName(sscameralist[0], u"camera")
-					
-					# Get the width and height from XML dta
-					for sscamera in sscameras:
-						try:
-							number = self._getElementValueByTagName(sscamera, u"number", required=False, default=u"")
-							if int(number) == int(ssCameraNum):
-								ssWidth = int(self._getElementValueByTagName(sscamera, u"width", required=False, default=u""))
-								ssHeight = int(self._getElementValueByTagName(sscamera, u"height", required=False, default=u""))
-								ssFPS = int(float(self._getElementValueByTagName(sscamera, u"current-fps", required=False, default=u"")))
-								if ssFPS < 10: ssFPS = 10
-								break
-						except:
-							self.logger.warning (u"Unable to retrieve SecuritySpy parameters for {}, defaulting to {}x{} and {} FPS".format(r["alias"], ssWidth, ssHeight, ssFPS))
-					
-					camera = {}	
-					videoConfig = {}
-					
-					videoConfig["source"] = u"-re -i {}/++video?cameraNum={}&width={}&height={}".format(ssURL, ssCameraNum, ssWidth, ssHeight)
-					videoConfig["stillImageSource"] = u"-i {}/++image?cameraNum={}&width={}&height={}".format(ssURL, ssCameraNum, ssWidth, ssHeight)
-					videoConfig["maxWidth"] = ssWidth
-					videoConfig["maxHeight"] = ssHeight
-					videoConfig["maxFPS"] = ssFPS	
-					videoConfig['maxBitrate'] = int(self.pluginPrefs.get("bitrate", "300"))
-					videoConfig['packetSize'] = int(self.pluginPrefs.get("packetsize", "1316"))	
-					if self.pluginPrefs.get("cameradebug", False): videoConfig['debug'] = True
-					
-					camera["name"] = r["alias"]
-					camera["videoConfig"] = videoConfig
-					
-					cameras.append(camera)
+						cameras.append(camera)
+						
+				except:	
+					self.logger.error (ext.getException(e))
+					self.logger.warning (u"Configuration will be built despite the error")			
 					
 			if cameras:
 				cam["cameras"] = cameras			
 				platforms.append (cam)	
+				
+
 			
 			# Add platforms
 			config["platforms"] = platforms
