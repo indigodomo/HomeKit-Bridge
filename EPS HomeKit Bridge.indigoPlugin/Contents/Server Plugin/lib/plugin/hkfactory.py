@@ -89,20 +89,26 @@ class HomeKitFactory:
 				
 
 	###
-	def legacy_cache_device (self, r, serverId):
+	def legacy_cache_device (self, r, serverId, norefresh = False):
 		"""
 		Creates or refreshes the service object in cache.
 		
 		Arguments:
 			r:			JSON record to get the service object for
 			serverId:	Indigo device Id of the server hosting this r device
+			norefresh:	when false the attributes and payload won't refresh - built for calling back to HBI2 since it would have refreshed prior to that anyway
+			
+		Returns:
+			payload:	the cached payload
+			obj:		the service object
 		"""
 		
 		try:
 			if r["jkey"] in self.HKDEFINITIONS:
-				self.logger.threaddebug (u"Updating cache for '{}'".format(r["alias"]))
+				if not norefresh: self.logger.threaddebug (u"Updating cache for '{}'".format(r["alias"]))
+				if norefresh: self.logger.threaddebug (u"Retrieving cache for '{}'".format(r["alias"]))
 				obj = self.HKDEFINITIONS[r["jkey"]]
-				obj.setAttributes()  # Refresh the characteristic values
+				if not norefresh: obj.setAttributes()  # Refresh the characteristic values
 			else:
 				# Cache the service object
 				self.logger.threaddebug (u"Caching '{}'".format(r["alias"]))
@@ -110,11 +116,18 @@ class HomeKitFactory:
 				self.HKDEFINITIONS[r["jkey"]] = obj
 			
 			# Cache the API payload
-			payload = self.legacy_get_payload(obj, r, serverId)
-			self.HKCACHE[r["jkey"]] = payload
+			if not norefresh: 
+				payload = self.legacy_get_payload(obj, r, serverId)
+				self.HKCACHE[r["jkey"]] = payload
+			else:
+				payload = self.HKCACHE[r["jkey"]]
+			
+			return self.HKCACHE[r["jkey"]], obj
 		
 		except Exception as e:
 			self.logger.error (ex.stack_trace(e))
+			
+		return {}, None
 
 	###
 	def process_incoming_api_call (self, request, query): return self.api.process_incoming_api_call (request, query)

@@ -231,6 +231,7 @@ class HomebridgePayloadProcessor:
 			deviceList = []
 
 			for r in includedDevices:
+				if r["hktype"] == "service_CameraRTPStreamManagement": continue
 				if r["jkey"] in self.factory.HKCACHE:
 					deviceList.append(self.factory.HKCACHE[r["jkey"]])
 				else:		
@@ -243,6 +244,7 @@ class HomebridgePayloadProcessor:
 					deviceList.append(payload.legacy_populate_from_service (obj, r, serverId))
 				
 			for r in includedActions:
+				if r["hktype"] == "service_CameraRTPStreamManagement": continue
 				if r["jkey"] in self.factory.HKCACHE:
 					deviceList.append(self.factory.HKCACHE[r["jkey"]])
 				else:		
@@ -259,6 +261,7 @@ class HomebridgePayloadProcessor:
 				#deviceList.append(payload.legacy_populate_from_service (obj, r, serverId))
 				
 			for r in includedVariables:
+				if r["hktype"] == "service_CameraRTPStreamManagement": continue
 				if r["jkey"] in self.factory.HKCACHE:
 					deviceList.append(self.factory.HKCACHE[r["jkey"]])
 				else:		

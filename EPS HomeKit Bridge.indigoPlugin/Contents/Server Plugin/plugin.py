@@ -356,6 +356,11 @@ class Plugin(indigo.PluginBase):
 					props["SupportsStatusRequest"] = False
 					changed = True
 					
+				# 0.22.0
+				if "newpackage" in self.pluginPrefs and not self.pluginPrefs["newpackage"]:
+					self.logger.warning ("Re-enabled plugin preference option to 'Use New Library Methods'")
+					self.pluginPrefs["newpackage"] = True
+					
 				if changed: 
 					self.logger.info (u"Upgrading {} for changes in this plugin release".format(dev.name))
 					dev.replacePluginPropsOnServer(props)
@@ -674,7 +679,7 @@ class Plugin(indigo.PluginBase):
 						if self.pluginPrefs.get('newpackage', True):
 							HomeKit.legacy_cache_device(r, serverId)
 						
-						self.serverSendObjectUpdateToHomebridge (indigo.devices[serverId], r["jkey"])
+						self.serverSendObjectUpdateToHomebridge (indigo.devices[serverId], r["jkey"], r)
 						
 			if rebuildRequired:
 				self.catalogServerDevices()
@@ -1139,14 +1144,14 @@ class Plugin(indigo.PluginBase):
 	#
 	# Run in a thread, this will run the URL in the specified seconds
 	#
-	def timedCallbackToURL (self, serverId, devId, waitSeconds, r = None):
+	def timedCallbackToURL (self, serverId, devId, waitSeconds, r):
 		try:
 			if waitSeconds > 0: time.sleep(waitSeconds)
 			
 			if self.pluginPrefs.get('newpackage', True):
 				HomeKit.legacy_cache_device(r, serverId)
 			
-			self.serverSendObjectUpdateToHomebridge (indigo.devices[int(serverId)], devId)
+			self.serverSendObjectUpdateToHomebridge (indigo.devices[int(serverId)], devId, r)
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -2880,7 +2885,7 @@ class Plugin(indigo.PluginBase):
 			if self.pluginPrefs.get('newpackage', True):
 				HomeKit.legacy_cache_device(r, server.id)
 				
-			self.serverSendObjectUpdateToHomebridge (server, r["jkey"])	
+			self.serverSendObjectUpdateToHomebridge (server, r["jkey"], r)	
 			
 		
 		except Exception as e:
@@ -4057,7 +4062,7 @@ class Plugin(indigo.PluginBase):
 	#
 	# Send an update to Homebridge
 	#
-	def serverSendObjectUpdateToHomebridge (self, server, objId):
+	def serverSendObjectUpdateToHomebridge (self, server, objId, r):
 		try:
 			if not server.states["onOffState"]:
 				self.logger.debug (u"Homebridge update requested, but '{}' isn't running, ignoring update request".format(server.name))
@@ -4066,14 +4071,18 @@ class Plugin(indigo.PluginBase):
 			url = "http://127.0.0.1:{1}/devices/{0}".format(str(objId), server.pluginProps["listenPort"])
 			
 			#data = {'isOn':1, 'brightness': 100}
-			data = {}
+			#data = {}
+			
+			data, obj = HomeKit.legacy_cache_device (r, server.id, True)  # Get cached values, they should have already refreshed so we send True to the norefresh argument
 			
 			data_json = json.dumps(data)
 			payload = {'json_payload': data_json}
+			headers = {'content-type': 'application/json'}
 			
 			self.logger.debug (u"Homebridge update requested, querying {0} on {1}".format(url, server.name))
 			
-			r = requests.get(url, data=payload)
+			#r = requests.get(url, data=payload)
+			r = requests.post(url, data=data_json, headers=headers)
 			
 			#indigo.server.log(unicode(r))
 			
@@ -4552,7 +4561,7 @@ class Plugin(indigo.PluginBase):
 					
 						cameras.append(camera)
 						
-				except:	
+				except Exception as e:	
 					self.logger.error (ext.getException(e))
 					self.logger.warning (u"Configuration will be built despite the error")			
 					
