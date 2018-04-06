@@ -17,6 +17,9 @@ import os
 import inspect
 import logging
 import linecache
+import time
+import requests
+import json
 
 # Third Party Modules
 import indigo
@@ -128,6 +131,57 @@ class HomeKitFactory:
 			self.logger.error (ex.stack_trace(e))
 			
 		return {}, None
+				
+	###
+	def queue_homebridge_refresh (self, jkey, waitSeconds = 0):
+		"""
+		Calls the send_refresh_to_homebridge after a delay.  Meant to be used as a threaded method to contact Homebridge-Indigo2.
+		"""
+		
+		try:
+			if waitSeconds > 0: time.sleep(waitSeconds)
+			return self.send_refresh_to_homebridge (jkey)
+			
+		except Exception as e:
+			self.logger.error (ex.stack_trace(e))
+			
+		return False
+			
+	###
+	def send_refresh_to_homebridge (self, jkey):
+		"""
+		Sends a POST request to the Homebridge-Indigo2 API port with a full cached JSON payload.  Cache updates happen before this is called.
+		"""
+		
+		try:
+			if not jkey in self.HKDEFINITIONS or not jkey in self.HKCACHE:
+				self.logger.error ("Unable to update HomeKit ID {} because it is not cached".format(jkey))
+				return False
+			
+			obj = self.HKDEFINITIONS[jkey]
+			server = indigo.devices[obj.serverId]
+			
+			if not server.states["onOffState"]:
+				self.logger.debug (u"Homebridge update requested, but '{}' isn't running, ignoring update request".format(server.name))
+				return False
+				
+			if obj.type == "CameraRTPStreamManagement": return False  # Failsafe to make sure cameras don't try to update
+			
+			url = "http://127.0.0.1:{1}/devices/{0}".format(jkey, server.pluginProps["listenPort"])
+			
+			payload = json.dumps(self.HKCACHE[jkey])
+			headers = {'content-type': 'application/json'}
+			
+			self.logger.debug (u"Homebridge update requested, querying {0} on {1} to update {2}".format(url, server.name, obj.alias.value))
+			
+			r = requests.post(url, data=payload, headers=headers)
+			
+			return True
+		
+		except Exception as e:
+			self.logger.error (ex.stack_trace(e))		
+			
+		return False
 
 	###
 	def process_incoming_api_call (self, request, query): return self.api.process_incoming_api_call (request, query)

@@ -2910,7 +2910,7 @@ class service_BatteryService (Service):
 	#
 	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "BatteryService"
-		desc = "Battery Service (3rd Party Only)"
+		desc = "Battery Service (3rd Party and Siri Only)"
 		
 		self.wiki = "This service is unsupported by the native Apple Home application but is supported, in varying degrees, in 3rd party HomeKit apps.  Apps tested with this service that work are the [non-Apple version of Home](https://itunes.apple.com/us/app/home-smart-home-automation/id995994352?mt=8) and [Elgato Eve](https://itunes.apple.com/us/app/elgato-eve/id917695792?mt=8)."
 	
@@ -2938,9 +2938,9 @@ class service_CameraRTPStreamManagement (Service):
 	#
 	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "CameraRTPStreamManagement"
-		desc = "Camera RTP Stream Management (Experimental)"
+		desc = "Camera RTP Stream"
 		
-		self.wiki = "This service is completely experimental as it relies on video encoding that has not yet been figured out, consider this unusable until further notice and only appears in the plugin for development testing"
+		self.wiki = "Only supported for SecuritySpy and Blue Iris Indigo devices currently"
 			
 		super(service_CameraRTPStreamManagement, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
@@ -3172,7 +3172,7 @@ class service_Faucet (Service):
 	#
 	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "Faucet"
-		desc = "Faucet (3rd Party Only)"
+		desc = "Faucet (3rd Party and Siri Only)"
 		
 		self.wiki = "This service is unsupported by the native Apple Home application but is supported, in varying degrees, in 3rd party HomeKit apps.  Apps tested with this service that work are the [non-Apple version of Home](https://itunes.apple.com/us/app/home-smart-home-automation/id995994352?mt=8) and [Elgato Eve](https://itunes.apple.com/us/app/elgato-eve/id917695792?mt=8)."
 		
@@ -3199,7 +3199,7 @@ class service_FilterMaintenance (Service):
 	#
 	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "FilterMaintenance"
-		desc = "Filter Maintenance (3rd Party Only)"
+		desc = "Filter Maintenance (3rd Party and Siri Only)"
 
 		self.wiki = "This service is unsupported by the native Apple Home application but is supported, in varying degrees, in 3rd party HomeKit apps.  Apps tested with this service that work are the [non-Apple version of Home](https://itunes.apple.com/us/app/home-smart-home-automation/id995994352?mt=8) and [Elgato Eve](https://itunes.apple.com/us/app/elgato-eve/id917695792?mt=8)."
 
@@ -3466,7 +3466,7 @@ class service_Microphone (Service):
 	#
 	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "Microphone"
-		desc = "Microphone (3rd Party Only)"
+		desc = "Microphone (3rd Party and Siri Only)"
 		
 		self.wiki = "This service is unsupported by the native Apple Home application but is supported, in varying degrees, in 3rd party HomeKit apps.  Apps tested with this service that work are the [non-Apple version of Home](https://itunes.apple.com/us/app/home-smart-home-automation/id995994352?mt=8) and [Elgato Eve](https://itunes.apple.com/us/app/elgato-eve/id917695792?mt=8)."
 	
@@ -3626,7 +3626,7 @@ class service_Slat (Service):
 	#
 	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "Slat"
-		desc = "Slat (3rd Party Only)"
+		desc = "Slat (3rd Party and Siri Only)"
 		
 		self.wiki = "This service is unsupported by the native Apple Home application but is supported, in varying degrees, in 3rd party HomeKit apps.  Apps tested with this service that work are the [non-Apple version of Home](https://itunes.apple.com/us/app/home-smart-home-automation/id995994352?mt=8) and [Elgato Eve](https://itunes.apple.com/us/app/elgato-eve/id917695792?mt=8)."
 		
@@ -3684,7 +3684,7 @@ class service_Speaker (Service):
 	#
 	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "Speaker"
-		desc = "Speaker (3rd Party Only)"
+		desc = "Speaker (3rd Party and Siri Only)"
 		
 		self.wiki = "This service is unsupported by the native Apple Home application but is supported, in varying degrees, in 3rd party HomeKit apps.  Apps tested with this service that work are the [non-Apple version of Home](https://itunes.apple.com/us/app/home-smart-home-automation/id995994352?mt=8) and [Elgato Eve](https://itunes.apple.com/us/app/elgato-eve/id917695792?mt=8)."
 	
@@ -3903,6 +3903,7 @@ class characteristic_Active:
 		
 		self.readonly = False
 		self.notify = True
+		self.changeMinMax = False
 		
 # ==============================================================================
 # BATTERY LEVEL
@@ -3915,7 +3916,8 @@ class characteristic_BatteryLevel:
 		self.minStep = 1
 		
 		self.readonly = True
-		self.notify = True		
+		self.notify = True
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # BRIGHTNESS
@@ -3929,6 +3931,7 @@ class characteristic_Brightness:
 		
 		self.readonly = False
 		self.notify = True
+		self.changeMinMax = False
 		
 # ==============================================================================
 # CARBON DIOXIDE DETECTED
@@ -3944,6 +3947,7 @@ class characteristic_CarbonDioxideDetected:
 		
 		self.readonly = True
 		self.notify = True	
+		self.changeMinMax = False
 		
 # ==============================================================================
 # CARBON DIOXIDE LEVEL
@@ -3956,6 +3960,7 @@ class characteristic_CarbonDioxideLevel:
 		
 		self.readonly = False
 		self.notify = True	
+		self.changeMinMax = False
 		
 # ==============================================================================
 # CARBON DIOXIDE PEAK LEVEL
@@ -3967,7 +3972,8 @@ class characteristic_CarbonDioxidePeakLevel:
 		self.minValue = 0
 		
 		self.readonly = False
-		self.notify = True			
+		self.notify = True	
+		self.changeMinMax = False		
 		
 # ==============================================================================
 # CARBON MONOXIDE DETECTED
@@ -3983,6 +3989,7 @@ class characteristic_CarbonMonoxideDetected:
 		
 		self.readonly = True
 		self.notify = True	
+		self.changeMinMax = False
 		
 # ==============================================================================
 # CARBON MONOXIDE LEVEL
@@ -3995,6 +4002,7 @@ class characteristic_CarbonMonoxideLevel:
 		
 		self.readonly = False
 		self.notify = True	
+		self.changeMinMax = False
 		
 # ==============================================================================
 # CARBON MONOXIDE PEAK LEVEL
@@ -4006,7 +4014,8 @@ class characteristic_CarbonMonoxidePeakLevel:
 		self.minValue = 0
 		
 		self.readonly = False
-		self.notify = True						
+		self.notify = True		
+		self.changeMinMax = False				
 		
 # ==============================================================================
 # CHARGING STATE
@@ -4021,7 +4030,8 @@ class characteristic_ChargingState:
 		self.validValuesStr = "[not charging, charging, not chargable]"
 		
 		self.readonly = False
-		self.notify = True			
+		self.notify = True		
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # COLOR TEMPERATURE (Need to update homebridge/hap-nodejs/lib/gen/HomeKitTypes.js to extend this range)
@@ -4036,6 +4046,7 @@ class characteristic_ColorTemperature:
 		
 		self.readonly = False
 		self.notify = True	
+		self.changeMinMax = True
 		
 # ==============================================================================
 # CONTACT SENSOR STATE
@@ -4050,7 +4061,8 @@ class characteristic_ContactSensorState:
 		self.validValuesStr = "[contact detected, contact not detected]"
 		
 		self.readonly = False
-		self.notify = True			
+		self.notify = True		
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # COOLING THRESHOLD TEMPERATURE
@@ -4063,7 +4075,8 @@ class characteristic_CoolingThresholdTemperature:
 		self.minStep = 0.1
 
 		self.readonly = False
-		self.notify = True			
+		self.notify = True		
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # CURRENT AMBIENT LIGHT LEVEL
@@ -4076,7 +4089,8 @@ class characteristic_CurrentAmbientLightLevel:
 		self.minStep = 0.0001
 
 		self.readonly = True
-		self.notify = True			
+		self.notify = True		
+		self.changeMinMax = False	
 	
 # ==============================================================================
 # CURRENT AIR PURIFIER STATE
@@ -4091,7 +4105,8 @@ class characteristic_CurrentAirPurifierState:
 		self.validValuesStr = "[inactive, idle, purifying air]"
 		
 		self.readonly = True
-		self.notify = True			
+		self.notify = True		
+		self.changeMinMax = False	
 				
 # ==============================================================================
 # CURRENT DOOR STATE
@@ -4106,7 +4121,8 @@ class characteristic_CurrentDoorState:
 		self.validValuesStr = "[open, closed, opening, closing, stopped]"
 		
 		self.readonly = True
-		self.notify = True			
+		self.notify = True		
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # CURRENT FAN STATE
@@ -4121,7 +4137,8 @@ class characteristic_CurrentFanState:
 		self.validValuesStr = "[inactive, idle, blowing air]"
 		
 		self.readonly = True
-		self.notify = True		
+		self.notify = True	
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # CURRENT HEATING/COOLING STATE
@@ -4137,6 +4154,7 @@ class characteristic_CurrentHeatingCoolingState:
 		
 		self.readonly = True
 		self.notify = True		
+		self.changeMinMax = False
 		
 # ==============================================================================
 # CURRENT HEATER/COOLER STATE
@@ -4151,7 +4169,8 @@ class characteristic_CurrentHeaterCoolerState:
 		self.validValuesStr = "[inactive, idle, heating, cooling]"
 		
 		self.readonly = True
-		self.notify = True			
+		self.notify = True	
+		self.changeMinMax = False		
 		
 # ==============================================================================
 # CURRENT HORIZONTAL TILT ANGLE
@@ -4165,6 +4184,7 @@ class characteristic_CurrentHorizontalTiltAngle:
 
 		self.readonly = True
 		self.notify = True	
+		self.changeMinMax = False
 		
 # ==============================================================================
 # CURRENT HUMIDIFIER / DEHUMIDIFIER STATE
@@ -4179,7 +4199,8 @@ class characteristic_CurrentHumidifierDehumidifierState:
 		self.validValuesStr = "[inactive, idle, humidifying, dehumidifying]"
 		
 		self.readonly = True
-		self.notify = True				
+		self.notify = True	
+		self.changeMinMax = False			
 		
 # ==============================================================================
 # CURRENT POSITION
@@ -4192,7 +4213,8 @@ class characteristic_CurrentPosition:
 		self.minStep = 1
 
 		self.readonly = True
-		self.notify = True			
+		self.notify = True	
+		self.changeMinMax = False		
 		
 # ==============================================================================
 # CURRENT RELATIVE HUMIDITY
@@ -4206,6 +4228,7 @@ class characteristic_CurrentRelativeHumidity:
 
 		self.readonly = True
 		self.notify = True		
+		self.changeMinMax = False
 		
 # ==============================================================================
 # CURRENT SLAT STATE
@@ -4220,7 +4243,8 @@ class characteristic_CurrentSlatState:
 		self.validValuesStr = "[fixed, jammed, swinging]"
 		
 		self.readonly = False
-		self.notify = True				
+		self.notify = True		
+		self.changeMinMax = False		
 		
 # ==============================================================================
 # CURRENT TEMPERATURE (Need to update homebridge/hap-nodejs/lib/gen/HomeKitTypes.js to extend this range)
@@ -4229,13 +4253,14 @@ class characteristic_CurrentTemperature:
 	def __init__(self):
 		self.value = 0.0
 		#self.maxValue = 100
-		self.maxValue = 1000
+		self.maxValue = 500
 		#self.minValue = 0
-		self.minValue = -1000
+		self.minValue = -100
 		self.minStep = 0.1
 
 		self.readonly = True
 		self.notify = True	
+		self.changeMinMax = True
 		
 # ==============================================================================
 # CURRENT TILT ANGLE
@@ -4248,7 +4273,8 @@ class characteristic_CurrentVerticalTiltAngle:
 		self.minStep = 1
 
 		self.readonly = True
-		self.notify = True				
+		self.notify = True			
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # CURRENT VERTICAL TILT ANGLE
@@ -4261,7 +4287,8 @@ class characteristic_CurrentVerticalTiltAngle:
 		self.minStep = 1
 
 		self.readonly = True
-		self.notify = True				
+		self.notify = True		
+		self.changeMinMax = False		
 		
 # ==============================================================================
 # FILTER CHANGE INDICATION
@@ -4276,7 +4303,8 @@ class characteristic_FilterChangeIndication:
 		self.validValuesStr = "[filter OK, change filter]"
 		
 		self.readonly = False
-		self.notify = True		
+		self.notify = True	
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # FILTER LIFE LEVEL
@@ -4289,7 +4317,8 @@ class characteristic_FilterLifeLevel:
 		self.minStep = 1
 
 		self.readonly = True
-		self.notify = True				
+		self.notify = True	
+		self.changeMinMax = False			
 		
 # ==============================================================================
 # HEATING THRESHOLD TEMPERATURE
@@ -4303,6 +4332,7 @@ class characteristic_HeatingThresholdTemperature:
 
 		self.readonly = False
 		self.notify = True	
+		self.changeMinMax = False
 		
 # ==============================================================================
 # HOLD POSITION
@@ -4314,7 +4344,8 @@ class characteristic_HoldPosition:
 		self.validValues = [True, False]
 		
 		self.readonly = True
-		self.notify = False					
+		self.notify = False	
+		self.changeMinMax = False				
 		
 # ==============================================================================
 # HUE
@@ -4328,6 +4359,7 @@ class characteristic_Hue:
 		
 		self.readonly = False
 		self.notify = True
+		self.changeMinMax = False
 		
 # ==============================================================================
 # IN USE
@@ -4343,6 +4375,7 @@ class characteristic_InUse:
 		
 		self.readonly = True
 		self.notify = True		
+		self.changeMinMax = False
 		
 # ==============================================================================
 # IS CONFIGURED
@@ -4357,7 +4390,8 @@ class characteristic_IsConfigured:
 		self.validValuesStr = "[not configured, is configured]"
 		
 		self.readonly = False
-		self.notify = True				
+		self.notify = True			
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # LEAK DETECTED
@@ -4372,7 +4406,8 @@ class characteristic_LeakDetected:
 		self.validValuesStr = "[leak not detected, leak detected]"
 		
 		self.readonly = False
-		self.notify = True			
+		self.notify = True		
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # LOCK CURRENT STATE
@@ -4388,6 +4423,7 @@ class characteristic_LockCurrentState:
 		
 		self.readonly = True
 		self.notify = True
+		self.changeMinMax = False
 		
 # ==============================================================================
 # LOCK PHYSICAL CONTROLS
@@ -4403,6 +4439,7 @@ class characteristic_LockPhysicalControls:
 		
 		self.readonly = False
 		self.notify = True		
+		self.changeMinMax = False
 		
 # ==============================================================================
 # LOCK TARGET STATE
@@ -4418,6 +4455,7 @@ class characteristic_LockTargetState:
 		
 		self.readonly = False
 		self.notify = True		
+		self.changeMinMax = False
 
 # ==============================================================================
 # MOTION DETECTED
@@ -4429,7 +4467,8 @@ class characteristic_MotionDetected:
 		self.validValues = [True, False]
 		
 		self.readonly = True
-		self.notify = False		
+		self.notify = False	
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # MUTE
@@ -4441,7 +4480,8 @@ class characteristic_Mute:
 		self.validValues = [True, False]
 		
 		self.readonly = False
-		self.notify = False				
+		self.notify = False		
+		self.changeMinMax = False		
 		
 # ==============================================================================
 # NAME
@@ -4452,6 +4492,7 @@ class characteristic_Name:
 		
 		self.readonly = False
 		self.notify = False
+		self.changeMinMax = False
 		
 # ==============================================================================
 # NITROGEN DIOXIDE DENSITY
@@ -4464,7 +4505,8 @@ class characteristic_NitrogenDioxideDensity:
 		self.minStep = 1
 		
 		self.readonly = True
-		self.notify = True			
+		self.notify = True	
+		self.changeMinMax = False		
 		
 # ==============================================================================
 # OCCUPANCY DETECTED
@@ -4477,6 +4519,7 @@ class characteristic_OccupancyDetected:
 		
 		self.readonly = True
 		self.notify = False			
+		self.changeMinMax = False
 		
 # ==============================================================================
 # OBSTRUCTION DETECTED
@@ -4488,7 +4531,8 @@ class characteristic_ObstructionDetected:
 		self.validValues = [True, False]
 		
 		self.readonly = True
-		self.notify = False				
+		self.notify = False		
+		self.changeMinMax = False		
 		
 # ==============================================================================
 # ON
@@ -4500,7 +4544,8 @@ class characteristic_On:
 		self.validValues = [True, False]
 		
 		self.readonly = False
-		self.notify = False		
+		self.notify = False	
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # OUTLET IN USE
@@ -4513,6 +4558,7 @@ class characteristic_OutletInUse:
 		
 		self.readonly = True
 		self.notify = True		
+		self.changeMinMax = False
 		
 # ==============================================================================
 # OZONE DENSITY
@@ -4525,7 +4571,8 @@ class characteristic_OzoneDensity:
 		self.minStep = 1
 		
 		self.readonly = True
-		self.notify = True			
+		self.notify = True	
+		self.changeMinMax = False		
 		
 # ==============================================================================
 # PM2_5 DENSITY
@@ -4538,7 +4585,8 @@ class characteristic_PM2_5Density:
 		self.minStep = 1
 		
 		self.readonly = True
-		self.notify = True		
+		self.notify = True	
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # PM10 DENSITY
@@ -4551,7 +4599,8 @@ class characteristic_PM10Density:
 		self.minStep = 1
 		
 		self.readonly = True
-		self.notify = True			
+		self.notify = True	
+		self.changeMinMax = False		
 		
 # ==============================================================================
 # POSITION STATE
@@ -4567,6 +4616,7 @@ class characteristic_PositionState:
 		
 		self.readonly = True
 		self.notify = True		
+		self.changeMinMax = False
 		
 # ==============================================================================
 # PROGRAM MODE
@@ -4581,7 +4631,8 @@ class characteristic_ProgramMode:
 		self.validValuesStr = "[no program scheduled, program scheduled, manual mode]"
 		
 		self.readonly = True
-		self.notify = True		
+		self.notify = True	
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # PROGRAMMABLE SWITCH EVENT
@@ -4596,7 +4647,8 @@ class characteristic_ProgrammableSwitchEvent:
 		self.validValuesStr = "[single press, double press, long press]"
 		
 		self.readonly = True
-		self.notify = True			
+		self.notify = True	
+		self.changeMinMax = False		
 		
 # ==============================================================================
 # RELATIVE HUMIDITY DEHUMIDIFIER THRESHOLD
@@ -4610,6 +4662,7 @@ class characteristic_RelativeHumidityDehumidifierThreshold:
 
 		self.readonly = False
 		self.notify = True		
+		self.changeMinMax = False
 		
 # ==============================================================================
 # RELATIVE HUMIDITY HUMIDIFIER THRESHOLD
@@ -4622,7 +4675,8 @@ class characteristic_RelativeHumidityHumidifierThreshold:
 		self.minStep = 1
 
 		self.readonly = False
-		self.notify = True				
+		self.notify = True	
+		self.changeMinMax = False			
 		
 # ==============================================================================
 # REMAINING DURATION (Need to update homebridge/hap-nodejs/lib/gen/HomeKitTypes.js to extend this range)
@@ -4635,7 +4689,8 @@ class characteristic_RemainingDuration:
 		self.minStep = 1
 				
 		self.readonly = True
-		self.notify = True				
+		self.notify = True		
+		self.changeMinMax = True		
 		
 # ==============================================================================
 # RESET FILTER INDICATION
@@ -4650,7 +4705,8 @@ class characteristic_ResetFilterIndication:
 		self.validValuesStr = "[reset filter indication]"
 		
 		self.readonly = False
-		self.notify = True					
+		self.notify = True		
+		self.changeMinMax = False			
 		
 # ==============================================================================
 # ROTATION DIRECTION
@@ -4665,7 +4721,8 @@ class characteristic_RotationDirection:
 		self.validValuesStr = "[clockwise, counter clockwise]"
 		
 		self.readonly = False
-		self.notify = True		
+		self.notify = True	
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # ROTATION SPEED
@@ -4679,6 +4736,7 @@ class characteristic_RotationSpeed:
 				
 		self.readonly = False
 		self.notify = True		
+		self.changeMinMax = False
 	
 # ==============================================================================
 # SATURATION
@@ -4692,6 +4750,7 @@ class characteristic_Saturation:
 
 		self.readonly = False
 		self.notify = True
+		self.changeMinMax = False
 		
 # ==============================================================================
 # SERVICE LABEL INDEX
@@ -4704,7 +4763,8 @@ class characteristic_ServiceLabelIndex:
 		self.minStep = 1
 
 		self.readonly = False
-		self.notify = False		
+		self.notify = False	
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # SET DURATION (Need to update homebridge/hap-nodejs/lib/gen/HomeKitTypes.js to extend this range)
@@ -4717,7 +4777,8 @@ class characteristic_SetDuration:
 		self.minStep = 1
 				
 		self.readonly = False
-		self.notify = True						
+		self.notify = True		
+		self.changeMinMax = True				
 		
 # ==============================================================================
 # SLAT TYPE
@@ -4732,7 +4793,8 @@ class characteristic_SlatType:
 		self.validValuesStr = "[horizontal, vertical]"
 		
 		self.readonly = True
-		self.notify = True			
+		self.notify = True	
+		self.changeMinMax = False		
 		
 # ==============================================================================
 # SMOKE DETECTED
@@ -4747,7 +4809,8 @@ class characteristic_SmokeDetected:
 		self.validValuesStr = "[smoke not detected, smoke detected]"
 		
 		self.readonly = False
-		self.notify = True			
+		self.notify = True	
+		self.changeMinMax = False		
 		
 # ==============================================================================
 # STATUS ACTIVE
@@ -4759,7 +4822,8 @@ class characteristic_StatusActive:
 		self.validValues = [True, False]
 		
 		self.readonly = True
-		self.notify = False			
+		self.notify = False		
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # STATUS FAULT
@@ -4774,7 +4838,8 @@ class characteristic_StatusFault:
 		self.validValuesStr = "[no fault, fault]"
 		
 		self.readonly = True
-		self.notify = True			
+		self.notify = True		
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # STATUS LOW BATTERY
@@ -4789,7 +4854,8 @@ class characteristic_StatusLowBattery:
 		self.validValuesStr = "[normal, low]"
 		
 		self.readonly = True
-		self.notify = True			
+		self.notify = True	
+		self.changeMinMax = False		
 		
 # ==============================================================================
 # STATUS TAMPERED
@@ -4804,7 +4870,8 @@ class characteristic_StatusTampered:
 		self.validValuesStr = "[not tampered, tampered]"
 		
 		self.readonly = True
-		self.notify = True			
+		self.notify = True		
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # SWING MODE
@@ -4820,6 +4887,7 @@ class characteristic_SwingMode:
 		
 		self.readonly = False
 		self.notify = True		
+		self.changeMinMax = False
 		
 # ==============================================================================
 # SECURITY SYSTEM ALARM TYPE
@@ -4834,7 +4902,8 @@ class characteristic_SecuritySystemAlarmType:
 		self.validValuesStr = "[no alarm, alarm]"
 		
 		self.readonly = True
-		self.notify = True			
+		self.notify = True		
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # SECURITY SYSTEM CURRENT STATE
@@ -4849,7 +4918,8 @@ class characteristic_SecuritySystemCurrentState:
 		self.validValuesStr = "[stay armed, away armed, night armed, disarmed, alarm triggered]"
 		
 		self.readonly = True
-		self.notify = True			
+		self.notify = True		
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # SECURITY SYSTEM TARGET STATE
@@ -4864,7 +4934,8 @@ class characteristic_SecuritySystemTargetState:
 		self.validValuesStr = "[stay arm, away arm, night arm, disarm]"
 		
 		self.readonly = False
-		self.notify = True		
+		self.notify = True	
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # SELECTED RTP STREAM CONFIGURATION
@@ -4874,7 +4945,8 @@ class characteristic_SelectedRTPStreamConfiguration:
 		self.value = u"" 
 		
 		self.readonly = True
-		self.notify = False			
+		self.notify = False		
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # SET UP ENDPOINTS
@@ -4885,6 +4957,7 @@ class characteristic_SetupEndpoints:
 		
 		self.readonly = True
 		self.notify = True	
+		self.changeMinMax = False
 		
 # ==============================================================================
 # STREAMING STATUS
@@ -4894,7 +4967,8 @@ class characteristic_StreamingStatus:
 		self.value = u"" 
 		
 		self.readonly = True
-		self.notify = True				
+		self.notify = True		
+		self.changeMinMax = False		
 		
 # ==============================================================================
 # SULPHUR DIOXIDE DENSITY
@@ -4908,6 +4982,7 @@ class characteristic_SulphurDioxideDensity:
 		
 		self.readonly = True
 		self.notify = True	
+		self.changeMinMax = False
 
 # ==============================================================================
 # SUPPORTED AUDIO STREAM CONFIGURATION
@@ -4918,6 +4993,7 @@ class characteristic_SupportedAudioStreamConfiguration:
 		
 		self.readonly = True
 		self.notify = False	
+		self.changeMinMax = False
 		
 # ==============================================================================
 # SUPPORTED RTP CONFIGURATION
@@ -4927,7 +5003,8 @@ class characteristic_SupportedRTPConfiguration:
 		self.value = u"" 
 		
 		self.readonly = True
-		self.notify = False			
+		self.notify = False	
+		self.changeMinMax = False		
 		
 # ==============================================================================
 # SUPPORTED VIDEO STREAM CONFIGURATION
@@ -4937,7 +5014,8 @@ class characteristic_SupportedVideoStreamConfiguration:
 		self.value = u"" 
 		
 		self.readonly = True
-		self.notify = False				
+		self.notify = False		
+		self.changeMinMax = False		
 		
 # ==============================================================================
 # TARGET AIR PURIFIER STATE
@@ -4952,7 +5030,8 @@ class characteristic_TargetAirPurifierState:
 		self.validValuesStr = "[manual, auto]"
 		
 		self.readonly = False
-		self.notify = True			
+		self.notify = True		
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # TARGET DOOR STATE
@@ -4968,6 +5047,7 @@ class characteristic_TargetDoorState:
 		
 		self.readonly = False
 		self.notify = True			
+		self.changeMinMax = False
 
 # ==============================================================================
 # TARGET FAN STATTE
@@ -4983,6 +5063,7 @@ class characteristic_TargetFanState:
 		
 		self.readonly = False
 		self.notify = True
+		self.changeMinMax = False
 		
 # ==============================================================================
 # TARGET HEATING/COOLING STATE
@@ -4998,6 +5079,7 @@ class characteristic_TargetHeatingCoolingState:
 		
 		self.readonly = False
 		self.notify = True		
+		self.changeMinMax = False
 		
 # ==============================================================================
 # TARGET HEATER/COOLER STATE
@@ -5012,7 +5094,8 @@ class characteristic_TargetHeaterCoolerState:
 		self.validValuesStr = "[auto, heat, cool]"
 		
 		self.readonly = True
-		self.notify = True			
+		self.notify = True	
+		self.changeMinMax = False		
 		
 # ==============================================================================
 # TARGET HORIZONTAL TILT ANGLE
@@ -5026,6 +5109,7 @@ class characteristic_TargetHorizontalTiltAngle:
 
 		self.readonly = False
 		self.notify = True		
+		self.changeMinMax = False
 		
 # ==============================================================================
 # TARGET HUMIDIFIER / DEHUMIDIFIER STATE
@@ -5040,7 +5124,8 @@ class characteristic_TargetHumidifierDehumidifierState:
 		self.validValuesStr = "[humidifier or dehumidifier, humidifier, dehumidifier]"
 		
 		self.readonly = False
-		self.notify = True				
+		self.notify = True		
+		self.changeMinMax = False		
 		
 # ==============================================================================
 # TARGET POSITION
@@ -5053,10 +5138,11 @@ class characteristic_TargetPosition:
 		self.minStep = 1
 
 		self.readonly = False
-		self.notify = True			
+		self.notify = True		
+		self.changeMinMax = False	
 		
 # ==============================================================================
-# TARGET TEMPERATURE (Need to update homebridge/hap-nodejs/lib/gen/HomeKitTypes.js to extend this range)
+# TARGET TEMPERATURE
 # ==============================================================================		
 class characteristic_TargetTemperature:
 	def __init__(self):
@@ -5066,7 +5152,8 @@ class characteristic_TargetTemperature:
 		self.minStep = 0.1
 
 		self.readonly = False
-		self.notify = True			
+		self.notify = True	
+		self.changeMinMax = True		
 
 # ==============================================================================
 # TARGET RELATIVE HUMIDITY
@@ -5080,6 +5167,7 @@ class characteristic_TargetRelativeHumidity:
 
 		self.readonly = False
 		self.notify = True	
+		self.changeMinMax = False
 		
 # ==============================================================================
 # TARGET TILT ANGLE
@@ -5092,7 +5180,8 @@ class characteristic_TargetTiltAngle:
 		self.minStep = 1
 
 		self.readonly = False
-		self.notify = True				
+		self.notify = True	
+		self.changeMinMax = False			
 		
 # ==============================================================================
 # TARGET VERTICAL TILT ANGLE
@@ -5105,7 +5194,8 @@ class characteristic_TargetVerticalTiltAngle:
 		self.minStep = 1
 
 		self.readonly = False
-		self.notify = True		
+		self.notify = True	
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # TEMPERATURE DISPLAY UNITS
@@ -5121,6 +5211,7 @@ class characteristic_TemperatureDisplayUnits:
 		
 		self.readonly = False
 		self.notify = True		
+		self.changeMinMax = False
 		
 # ==============================================================================
 # VOC DENSITY
@@ -5133,7 +5224,8 @@ class characteristic_VOCDensity:
 		self.minStep = 1
 		
 		self.readonly = True
-		self.notify = True			
+		self.notify = True	
+		self.changeMinMax = False		
 				
 # ==============================================================================
 # VOLUME
@@ -5147,6 +5239,7 @@ class characteristic_Volume:
 
 		self.readonly = False
 		self.notify = True		
+		self.changeMinMax = False
 		
 # ==============================================================================
 # VALVE TYPE
@@ -5161,7 +5254,8 @@ class characteristic_ValveType:
 		self.validValuesStr = "[generic, irrigation, shower head, water faucet]"
 		
 		self.readonly = True
-		self.notify = True						
+		self.notify = True	
+		self.changeMinMax = False					
 		
 # ==============================================================================
 # WATER LEVEL
@@ -5173,4 +5267,5 @@ class characteristic_WaterLevel:
 		self.minValue = 0.0
 
 		self.readonly = True
-		self.notify = True			
+		self.notify = True		
+		self.changeMinMax = False	

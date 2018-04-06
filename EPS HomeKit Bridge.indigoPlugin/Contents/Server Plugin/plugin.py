@@ -600,7 +600,7 @@ class Plugin(indigo.PluginBase):
 			# If this is the stupid NEST thermostat that updates every damn second then ignore most changes
 			if newDev.pluginId == "com.corporatechameleon.nestplugBeta":
 				#self.logger.debug (u"Idiotic NEST plugin updating 8-12 states every 1 second, ignoring")
-				wecareabout = ["coolSetpoint", "hvacMode", "temperatures", "heatSetpoint", "humidities"]
+				wecareabout = ["coolSetpoint", "hvacMode", "temperatures", "heatSetpoint", "humidities", "hvacFanModeIsAlwaysOn", "isheating", "iscooling", "target_temperature_c", "ambient_temperature_c", "humidityInput1", "temperatureInput1"]
 				youshallnotpass = True
 				for w in wecareabout:
 					if w in dir(origDev):
@@ -678,8 +678,9 @@ class Plugin(indigo.PluginBase):
 						
 						if self.pluginPrefs.get('newpackage', True):
 							HomeKit.legacy_cache_device(r, serverId)
-						
-						self.serverSendObjectUpdateToHomebridge (indigo.devices[serverId], r["jkey"], r)
+							HomeKit.send_refresh_to_homebridge(r["jkey"])
+						else:						
+							self.serverSendObjectUpdateToHomebridge (indigo.devices[serverId], r["jkey"], r)
 						
 			if rebuildRequired:
 				self.catalogServerDevices()
@@ -799,16 +800,22 @@ class Plugin(indigo.PluginBase):
 				includedDevices = json.loads(serverProps["includedDevices"])
 				includedActions = json.loads(serverProps["includedActions"])
 				
-				r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", int(valuesDict["simdevice"]))
-				if r is None: r = eps.jstash.getRecordWithFieldEquals (includedActions, "id", int(valuesDict["simdevice"]))
+				r = eps.jstash.getRecordWithFieldEquals (includedDevices, "jkey", valuesDict["simdevice"])
+				if r is None: 
+					r = eps.jstash.getRecordWithFieldEquals (includedActions, "jkey", valuesDict["simdevice"])
+					dev = indigo.actionGroups[r["id"]]
+				else:
+					dev = indigo.devices[r["id"]]
+					
 				if r is None: 
 					self.logger.error (u"Unable to simuluate server item because it could not be found in the stash")
 					return
 				
+				
 				valuesDict["showall"] = True
 				valuesDict["device2"] = valuesDict["simdevice"]
 				valuesDict["hkType"] = r["hktype"]
-				self.onAfter_btnAdvPluginAction_Simulate (valuesDict, typeId, int(valuesDict["device"]))
+				self.onAfter_btnAdvPluginAction_Simulate (valuesDict, typeId, int(valuesDict["device"]), dev)
 			
 				
 		except Exception as e:
@@ -845,17 +852,19 @@ class Plugin(indigo.PluginBase):
 	#
 	# Run advanced plugin action to simulate a homekit device
 	#
-	def onAfter_btnAdvPluginAction_Simulate (self, valuesDict, typeId, serverId = 0):
+	def onAfter_btnAdvPluginAction_Simulate (self, valuesDict, typeId, serverId = 0, dev = None):
 		try:
-			dev = indigo.devices[int(valuesDict["device2"])]
+			if dev is None: dev = indigo.devices[int(valuesDict["device2"])]
 						
 			self.logger.info (u"Simulating HomeKit values for {}".format(dev.name))
 			
-			if valuesDict["showall"]:
-				self.logger.info (u"##### DEVICE DATA DUMP #####")
-				self.logger.info (unicode(dev))
+			output = ""
 			
-			self.logger.info (u"##### DEVICE SIMULATION DATA #####")
+			if valuesDict["showall"]:
+				output += u"##### DEVICE DATA DUMP #####\n\n"
+				output += unicode(dev)
+			
+			output += u"\n\n##### DEVICE SIMULATION DATA #####\n\n"
 			x = eps.homekit.getServiceObject (dev.id, serverId, valuesDict["hkType"])
 			
 			if valuesDict["invert"]:
@@ -868,7 +877,17 @@ class Plugin(indigo.PluginBase):
 				x.convertFahrenheit = True
 				x.setAttributes()	
 				
-			self.logger.info (unicode(x))
+			output += unicode(x)
+			
+			sim = output.split("\n")
+			output = ""
+			for s in sim:
+				output += u"\t{}\n".format(s)
+				
+			msg = "\n\n--- SIMULATION COPY-AND-PASTE INSTRUCTIONS ---\n\n"
+			msg += "If pasting to Git copy BETWEEN [code] and [/code] and paste to Git,\n"
+			msg += "if pasting to the forums, copy INCLUDING [code] AND [/code] and paste\nto the forum.\n\n\n\n"	
+			indigo.server.log(u"{}--- COPY FROM BELOW THIS LINE, NOT ABOVE ---\n\n\t[code]\n{}\n\t[/code]\n\n".format(msg, output))
 			
 		except Exception as e:
 			self.logger.error (ext.getException(e))		
@@ -1150,8 +1169,9 @@ class Plugin(indigo.PluginBase):
 			
 			if self.pluginPrefs.get('newpackage', True):
 				HomeKit.legacy_cache_device(r, serverId)
-			
-			self.serverSendObjectUpdateToHomebridge (indigo.devices[int(serverId)], devId, r)
+				HomeKit.send_refresh_to_homebridge(r["jkey"])
+			else:			
+				self.serverSendObjectUpdateToHomebridge (indigo.devices[int(serverId)], devId, r)
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -1649,6 +1669,8 @@ class Plugin(indigo.PluginBase):
 			props["objectType"] = "device"
 			props["autoStartStop"] = True
 			props["accessoryNamePrefix"] = ""
+			props["modelValue"] = "indigoModelSubmodel"
+			props["firmwareValue"] = "indigoVersion"
 			
 			server = indigo.device.create (protocol = indigo.kProtocol.Plugin,
 				address = "{} | {}".format(props["pin"], props["port"]),
@@ -2885,7 +2907,10 @@ class Plugin(indigo.PluginBase):
 			if self.pluginPrefs.get('newpackage', True):
 				HomeKit.legacy_cache_device(r, server.id)
 				
-			self.serverSendObjectUpdateToHomebridge (server, r["jkey"], r)	
+			if self.pluginPrefs.get('newpackage', True):
+				HomeKit.send_refresh_to_homebridge(r["jkey"])	
+			else:
+				self.serverSendObjectUpdateToHomebridge (server, r["jkey"], r)	
 			
 		
 		except Exception as e:
@@ -3014,10 +3039,16 @@ class Plugin(indigo.PluginBase):
 					if "includedDevices" in dev.pluginProps:
 						objects = json.loads(dev.pluginProps["includedDevices"])	
 						for r in objects:
-							used.append (r["id"])
-			else:
+							if valuesDict["objectAction"] == "edit" and valuesDict["deviceList"] and valuesDict["deviceList"][0] == str(r["jkey"]): 
+								continue # We are editing this, it needs to be on the list
+							else:
+								used.append (r["id"])
+			elif "objectType" in valuesDict and valuesDict["objectType"] == "device":
 				for r in includedDevices:
-					used.append (r["id"])
+					if valuesDict["objectAction"] == "edit" and valuesDict["deviceList"] and valuesDict["deviceList"][0] == str(r["jkey"]): 
+						continue # We are editing this, it needs to be on the list
+					else:
+						used.append (r["id"])
 			
 			
 			for dev in indigo.devices:
@@ -3033,8 +3064,8 @@ class Plugin(indigo.PluginBase):
 				
 				# HomeKit doesn't allow the same ID more than once and the only way WE will allow it is
 				# via a complication or customization
-				r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", dev.id)
-				if r is not None: continue					
+				#r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", dev.id)
+				#if r is not None: continue					
 				
 				# Homebridge Buddy Legacy support
 				if dev.pluginId == "com.eps.indigoplugin.homebridge":
@@ -3100,17 +3131,23 @@ class Plugin(indigo.PluginBase):
 			#retList = eps.ui.addLine (retList)
 			
 			used = []
-				
+
 			if "objectType" in valuesDict and valuesDict["objectType"] == "actionfiltered":
 				for dev in indigo.devices.iter(self.pluginId + ".Server"):	
 					if "includedActions" in dev.pluginProps:
 						objects = json.loads(dev.pluginProps["includedActions"])	
 						for r in objects:
-							used.append (r["id"])
-			else:
+							if valuesDict["objectAction"] == "edit" and valuesDict["deviceList"] and valuesDict["deviceList"][0] == str(r["jkey"]): 
+								continue # We are editing this, it needs to be on the list
+							else:
+								used.append (r["id"])
+			elif "objectType" in valuesDict and valuesDict["objectType"] == "action":
 				for r in includedActions:
-					used.append (r["id"])
-			
+					if valuesDict["objectAction"] == "edit" and valuesDict["deviceList"] and valuesDict["deviceList"][0] == str(r["jkey"]): 
+						continue # We are editing this, it needs to be on the list
+					else:
+						used.append (r["id"])
+
 			for dev in indigo.actionGroups:
 				if dev.id in hidden: continue
 				if dev.id in used: continue
@@ -3170,7 +3207,8 @@ class Plugin(indigo.PluginBase):
 				if name == "": name = d["name"]
 				name = u"{0}\t{1}".format(d["object"], name)
 				
-				retList.append ( (str(d["id"]), name) )
+				#retList.append ( (str(d["id"]), name) )
+				retList.append ( (str(d["jkey"]), name) )
 				
 			return retList
 		
@@ -3358,6 +3396,8 @@ class Plugin(indigo.PluginBase):
 				valuesDict["deviceLimitReached"] = False # Since removing even just one guarantees we aren't at the limit yet	
 				
 			if valuesDict["objectAction"] == "edit":
+				return self.serverButtonRunAction_Edit (valuesDict, devId, typeId, errorsDict)
+				
 				if len(valuesDict["deviceList"]) > 1:	
 					errorsDict["showAlertText"] = "You can only edit one device at a time, you selected multiple devices."
 					return (valuesDict, errorsDict)
@@ -3430,6 +3470,95 @@ class Plugin(indigo.PluginBase):
 			self.logger.error (ext.getException(e))	
 	
 		return (valuesDict, errorsDict)	
+		
+	#
+	# Edit an item
+	#
+	def serverButtonRunAction_Edit (self, valuesDict, devId, typeId, errorsDict):		
+		try:
+			includedDevices = json.loads(valuesDict["includedDevices"])
+			includedActions = json.loads(valuesDict["includedActions"])
+			
+			if len(valuesDict["deviceList"]) > 1:	
+				errorsDict["showAlertText"] = "You can only edit one device at a time, you selected multiple devices."
+				return (valuesDict, errorsDict)
+		
+			else:
+				isAction = False
+				#r = eps.jstash.getRecordWithFieldEquals (includedDevices, "id", int(valuesDict["deviceList"][0]))
+				r = eps.jstash.getRecordWithFieldEquals (includedDevices, "jkey", valuesDict["deviceList"][0])
+				if r is None:
+					#r = eps.jstash.getRecordWithFieldEquals (includedActions, "id", int(valuesDict["deviceList"][0]))
+					r = eps.jstash.getRecordWithFieldEquals (includedActions, "jkey", valuesDict["deviceList"][0])
+					if r is not None: isAction = True
+								
+				if r is not None:
+					# Remove from our list since technically we are removing and readding rather than editing
+					#includedDevices = eps.jstash.removeRecordFromStash (includedDevices, "jkey", valuesDict["deviceList"][0])
+					#includedActions = eps.jstash.removeRecordFromStash (includedActions, "jkey", valuesDict["deviceList"][0])
+					if r["complex"]:
+						errorsDict["showAlertText"] = "Editing complex devices is not currently permitted.  Please delete the primary device in the complication and re-add it."
+						return (valuesDict, errorsDict)
+					
+					valuesDict["editing_record"] = r["jkey"]
+					
+					if not isAction: 
+						valuesDict["objectType"] = "device"
+						valuesDict["device"] = str(r["id"])
+					
+						if "onState" in dir(indigo.devices[int(valuesDict["device"])]):
+							valuesDict["enableOnOffInvert"] = True
+						else:
+							valuesDict["enableOnOffInvert"] = False
+						
+						if r["hktype"] == "service_Thermostat" or r["hktype"] == "service_TemperatureSensor":
+							valuesDict["isFahrenheitEnabled"] = True
+						else:
+							valuesDict["isFahrenheitEnabled"] = False
+					
+					if isAction: 
+						valuesDict["objectType"] = "action"
+						valuesDict["action"] = str(r["id"])
+						valuesDict["enableOnOffInvert"] = False
+						valuesDict["isFahrenheitEnabled"] = False
+						
+					valuesDict["name"] = r["name"]
+					valuesDict["alias"] = r["alias"]
+					valuesDict["hkType"] = r["hktype"]
+					valuesDict["hkStatesJSON"] = r["char"]
+					valuesDict["hkActionsJSON"] = r["action"]
+					valuesDict["deviceOrActionSelected"] = True
+					
+					valuesDict["invertOnOff"] = False
+					if "invert" in r: valuesDict["invertOnOff"] = r["invert"]
+					
+					valuesDict["isFahrenheit"] = False
+					if "tempIsF" in r: valuesDict["isFahrenheit"] = r["tempIsF"]
+					
+					valuesDict["isAPIDevice"] = False
+					if "api" in r: valuesDict["isAPIDevice"] = r["api"]
+				
+					valuesDict["deviceLimitReached"] = False # Since we only allow 99 we are now at 98 and valid again
+					valuesDict["editActive"] = True # Disable fields so the user knows they are in edit mode
+					valuesDict["showEditArea"] = True # Display the device add/edit fields		
+					
+					if r["complex"]:
+						valuesDict["homeKitTypeEnabled"] = False
+						valuesDict["hktype_memory"] = valuesDict["hkType"]  # In case they go back to manually define
+						valuesDict["hkType"] = "complex"
+						
+						if r["complexrole"] == "parent":
+							valuesDict["complexMenu"] = r["complexId"]
+						else:
+							pass
+		
+			valuesDict['includedDevices'] = json.dumps(includedDevices)
+			valuesDict['includedActions'] = json.dumps(includedActions)	
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+	
+		return (valuesDict, errorsDict)			
 	
 	#
 	# Add device or action
@@ -3573,24 +3702,6 @@ class Plugin(indigo.PluginBase):
 			
 			(includeList, max) = self.getIncludeStashList (thistype, valuesDict)
 			
-			totalRemoved = 0 # if we remove below because we need it to count
-			
-			# If we already have a none then ignore and return
-			r = eps.jstash.getRecordWithFieldEquals (includeList, "type", "ALL")
-			if r is not None: 
-				includeList = eps.jstash.removeRecordFromStash (includeList, "type", "ALL")
-				errorsDict = eps.ui.setErrorStatus (errorsDict, "You had specified to include all {0}s, that has been cleared so you can add them individually.".format(thistype.lower()))
-				totalRemoved = totalRemoved - 1 # since we are adding the two together below but just removed one
-				
-			# If its already set to all then change it out with none and pop a message
-			r = eps.jstash.getRecordWithFieldEquals (includeList, "type", "NONE")
-			if r is not None: 
-				includeList = eps.jstash.removeRecordFromStash (includeList, "type", "NONE")
-				errorsDict = eps.ui.setErrorStatus (errorsDict, "You had specified to include no {0}s, that has been cleared so you can add them.".format(thistype.lower()))
-				totalRemoved = totalRemoved - 1 # since we are adding the two together below but just removed one
-			
-			total = total + totalRemoved
-			
 			if thistype == "Device":
 				dev = indigo.devices[int(valuesDict["device"])]
 			else:
@@ -3609,7 +3720,7 @@ class Plugin(indigo.PluginBase):
 			
 			if device is not None: 
 				r = eps.jstash.getRecordWithFieldEquals (includeList, "alias", device["alias"])
-				if r is None:					
+				if r is None or (valuesDict["editActive"] and "editing_record" in valuesDict):
 					#device['treatas'] = valuesDict["treatAs"] # Homebridge Buddy Legacy
 					device['hktype'] = valuesDict["hkType"]
 					if "enableOnOffInvert" in valuesDict and valuesDict["enableOnOffInvert"]: device["invert"] = valuesDict["invertOnOff"]
@@ -3626,9 +3737,17 @@ class Plugin(indigo.PluginBase):
 					#device["action"] = valuesDict["hkActionsJSON"]
 				
 					total = total + 1			
-					includeList.append (device)
-				
+					
+					# If we are editing
+					if valuesDict["editActive"] and "editing_record" in valuesDict:
+						includeList = eps.jstash.replaceRecord (includeList, device, valuesDict["editing_record"])
+						del(valuesDict["editing_record"])
+						
+					else:
+						includeList.append (device)
+					
 					valuesDict = self.getIncludeStashList (thistype, valuesDict, includeList)
+	
 					return (valuesDict, errorsDict)
 				
 				else:
@@ -3874,7 +3993,7 @@ class Plugin(indigo.PluginBase):
 				valuesDict["isAPIDevice"] = False
 				valuesDict["editActive"] = False
 				valuesDict["configOption"] = "include"
-				
+								
 				# See if any of our critical items changed from the current config (or if this is a new device)
 				if "port" not in server.pluginProps or server.pluginProps["port"] != valuesDict["port"] or server.pluginProps["listenPort"] != valuesDict["listenPort"] or server.pluginProps["username"] != valuesDict["username"]:
 					if server.onState:
@@ -3916,6 +4035,9 @@ class Plugin(indigo.PluginBase):
 				
 			# In case we warned about being in edit mode above, remove that now
 			if "editActiveWarning" in valuesDict: del(valuesDict["editActiveWarning"])
+			
+			# Failsafe to make sure editing mode is removed
+			if "editing_record" in valuesDict: del(valuesDict["editing_record"])
 			
 			# For our API we need to go through all devices and see if they were added by an API so we can update them
 			includedDevices = json.loads(valuesDict["includedDevices"])
@@ -4067,6 +4189,8 @@ class Plugin(indigo.PluginBase):
 			if not server.states["onOffState"]:
 				self.logger.debug (u"Homebridge update requested, but '{}' isn't running, ignoring update request".format(server.name))
 				return
+				
+			if r["hktype"] == "service_CameraRTPStreamManagement": return
 				
 			url = "http://127.0.0.1:{1}/devices/{0}".format(str(objId), server.pluginProps["listenPort"])
 			

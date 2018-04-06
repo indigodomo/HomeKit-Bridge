@@ -191,7 +191,8 @@ class HomebridgePayloadProcessor:
 			else:								
 				obj, rec = self.extract_json_object (jkey, serverId, includedDevices, includedActions, includedVariables)		
 						
-			if obj:		
+			if obj:
+				data = {}	
 				for a in obj.actions:
 					if a.characteristic == characteristic: 
 						result = a.run (value, obj.objId, False)
@@ -203,12 +204,18 @@ class HomebridgePayloadProcessor:
 							if devId in indigo.actionGroups:
 								# Action groups don't do anything, just return that it is on and call back in 2 seconds to toggle off
 								data = payload.legacy_populate_from_service (obj, rec, serverId, characteristic, newvalue)
-								thread.start_new_thread(self.factory.factory.PluginBase.timedCallbackToURL, (serverId, jkey, 2, rec))
+								#thread.start_new_thread(self.factory.factory.PluginBase.timedCallbackToURL, (serverId, jkey, 2, rec))
+								thread.start_new_thread(self.factory.queue_homebridge_refresh, (jkey, 2))
 								
 							if obj.recurringUpdate:
 								# Timer based device where we need real-time updates
-								thread.start_new_thread(self.factory.factory.PluginBase.timedCallbackToURL, (serverId, jkey, obj.recurringSeconds, rec))
+								#thread.start_new_thread(self.factory.factory.PluginBase.timedCallbackToURL, (serverId, jkey, obj.recurringSeconds, rec))
+								thread.start_new_thread(self.factory.queue_homebridge_refresh, (jkey, obj.recurringSeconds))
 							break  
+				
+				if not data:
+					# No action found, return the cached payload
+					data = json.dumps(self.factory.HKCACHE[jkey])
 				
 				#indigo.server.log(json.dumps(data, indent=4))
 				#thread.start_new_thread(self.factory.factory.PluginBase.timedCallbackToURL, (serverId, rec["jkey"], 0))

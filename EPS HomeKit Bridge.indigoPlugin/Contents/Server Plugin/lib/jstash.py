@@ -117,6 +117,26 @@ class jstash:
 		return None
 		
 	#
+	# Update a record
+	#
+	def replaceRecord (self, recordsList, newRecord, jkey):
+		try:
+			newList = []
+			for r in recordsList:
+				if r["jkey"] == jkey:
+					newRecord["jkey"] = jkey
+					r = newRecord
+					
+				newList.append(r)
+				
+			recordsList = newList
+					
+		except Exception as e:
+			self.logger.error (ext.getException(e))
+			
+		return recordsList				
+		
+	#
 	# Sort a list via one of the dict keys contained within it's objects
 	#
 	def sortStash (self, recordsList, sortField, sortDesc = False):

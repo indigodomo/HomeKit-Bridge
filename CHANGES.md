@@ -1,8 +1,26 @@
 Release Notes
 ==========
 
-Version 0.22.1 (Beta 22.1)
+Version 0.22.2 (Beta 22.2)
 ==========
+* **NOTE** As stated earlier, the entire HomeKit engine is being optimized and rewritten for various reasons.  There is a new plugin configuration option that allows you to revert to the previous method if the new method is causing problem, but this is on a release-by-release basis, meaning that only changes in **this** release will roll back to using the old methods, the next release will not be able to roll back anything from this release.  The functions impacted will be noted in the release notes as 'Library Change'.  Please report any issues that are caused by the new library that are resolved by returning to the old methods.  Each revision will re-enable this option automatically if it gets turned off.
+* **NOTE** All minor revisions can still be rolled back for Library Changes until the next full beta version is released
+* Added changeMinMax parameter to API JSON payload to notify HomeKit that min or max values need to be changed from the HapNode defaults
+* Added failsafe to prevent any CameraRTPStreamManagement services from attempting to contact Homebridge when there is an update - this should never happen anyway because no camera states are monitored but this was added as an extra measure in case something slips through for one reason or another, particularly since Homebridge-Indigo2 wouldn't know what to do with it since it's Camera-FFMPEG handling camera integration
+* Changed UI form so that editing is a true edit rather than a remove-edit-add method, this allows a device to be edited in the plugin and not lose it's room or scene assignment in HomeKit as a result of an ID change
+* Changed simulation output to be formatted for easy copy-and-paste to both the Indigo forum and Git so that it appears properly as a code block without any additional editing so long as the user reads the instructions also added to the output
+* Changed watched-for states from Nest thermostats to be more inclusive and to better trap Nest changes.  Because Nest can update every 10-30 seconds it had to be specifically filtered because it causes far too much unnecessary activity otherwise
+* Library Change: Moved HBI2 API calls to new factory package
+* Homebridge-Camera-FFMPEG updated to 0.1.8
+* Homebridge-Indigo2 updated to 0.2.1 (implements POST method added in 0.22.1)
+* This release may help with issues where servers disappear from the live HomeKit config or become unreachable
+* Fixed bug in Homebridge Buddy migration where model and firmware fields were not being populated in the migration, causing the server to crash during the JSON population and that was then causing Homebridge errors because it wasn't complete and the ID wasn't being passed
+
+Previous Release Notes
+==========
+
+Version 0.22.1 (Beta 22.1)
+---------------
 * **NOTE** As stated earlier, the entire HomeKit engine is being optimized and rewritten for various reasons.  There is a new plugin configuration option that allows you to revert to the previous method if the new method is causing problem, but this is on a release-by-release basis, meaning that only changes in **this** release will roll back to using the old methods, the next release will not be able to roll back anything from this release.  The functions impacted will be noted in the release notes as 'Library Change'.  Please report any issues that are caused by the new library that are resolved by returning to the old methods.  Each revision will re-enable this option automatically if it gets turned off.
 * **NOTE** All minor revisions can still be rolled back for Library Changes until the next full beta version is released
 * Added optimized Homebridge callback POST method to replace the current GET method, in preparation for an updated Homebridge-Indigo2 script that will parse the data instead of calling back to the API ([Issue #93]((https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/93))
@@ -11,9 +29,6 @@ Version 0.22.1 (Beta 22.1)
 * [Issue #94]((https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/94) resolved
 * [Issue #92]((https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/92) resolved
 * [Issue #93]((https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/93) implemented
-
-Previous Release Notes
-==========
 
 Version 0.22.0 (Beta 22.0)
 ---------------

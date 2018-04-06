@@ -6,17 +6,17 @@ This plugin for the [Indigo Domotics](http://www.indigodomo.com/) home automatio
 
 ## This Plugin is BETA
 
-This plugin is being released to the public as a BETA plugin, meaning that it has been working and quite stable for some time under a number of systems (there was a closed beta for a month) that anything may happen and changes happen somewhat rapidly.  If you want the most stable releases then wait until the latest version posts to the [Indigo Plugin Store](http://www.indigodomo.com/pluginstore/) or if you want the release earlier then you can download the latest build as they will be put into a pre-release state for at least a few days in case there are stability issues or new bugs that pop up.
+This plugin is being released to the public as a BETA plugin, meaning that it has been working and quite stable for some time under a number of systems (there was a closed beta for a month) that anything may happen and changes happen somewhat rapidly.  This will not be published to the [Indigo Plugin Store](http://www.indigodomo.com/pluginstore/) while in beta, so you will need to download the [latest release](https://github.com/Colorado4Wheeler/HomeKit-Bridge/releases) from Git if you wish to use this plugin until it is out of beta.
 
 ## Supported HomeKit Devices
 
-The following list represents all of the HomeKit devices (which is 99% of all of them) that are supported via this plugin.  Their ability to work with your Indigo devices depends on the type of device you are using.  At this point do not plan on custom plugin devices that do not use standard Indigo device types (switches, dimmers, sensors, thermostats, irrigation, fans, etc) to work as very little custom plugin mappings have been built into this plugin.  That being said, many users find that using a wrapper from another plugin, such as Masquerade, has aided them in getting their custom device to work.
+The following list represents all of the HomeKit devices (which is 99% of all of them) that are supported via this plugin.  Their ability to work with your Indigo devices depends on the type of device you are using.  At this point do not plan on custom plugin devices that do not use standard Indigo device types (switches, dimmers, sensors, thermostats, irrigation, fans, etc) to work as very little custom plugin mappings have been built into this plugin.  That being said, many users find that using a wrapper from another plugin, such as [Masquerade](http://www.indigodomo.com/pluginstore/34/) or [Device Extensions](http://www.indigodomo.com/pluginstore/126/), has aided them in getting their custom device to work.
 
 * Action Groups
 * [Air Purifier](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#airpurifier)
 * [Air Quality Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#airqualitysensor)
 * [Battery Service (3rd Party Only)](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#batteryservice)
-* [Camera RTP Stream Management (Experimental)](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#camerartpstreammanagement)
+* [Camera RTP Stream](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#camerartpstreammanagement)
 * [Carbon Dioxide (CO2) Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#carbondioxidesensor)
 * [Carbon Monoxide (CO) Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#carbonmonoxidesensor)
 * [Contact Sensor](https://github.com/Colorado4Wheeler/HomeKit-Bridge/wiki/HomeKit-Model-Reference#contactsensor)

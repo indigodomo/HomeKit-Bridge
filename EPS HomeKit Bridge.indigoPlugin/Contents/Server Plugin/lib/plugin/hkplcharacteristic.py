@@ -46,7 +46,8 @@ class HomebridgePayloadCharacteristic:
 			self.minValue = 0			# Minimum value
 			self.readonly = False		# Characteristic is read only
 			self.notify = True			# Characteristic can be used in notifications
-			self.value = None			# Value of the characteristic
+			self.value = None			# Value of the characteristic		
+			self.changeMinMax = False	# True when min/max are different than HapNode.JS
 					
 			self.logger.debug ("{} {} loaded".format(__modname__, __version__))
 			
@@ -85,6 +86,11 @@ class HomebridgePayloadCharacteristic:
 			
 			self.readonly = characteristic.readonly
 			self.notify = characteristic.notify
+			
+			if "changeMinMax" in dir(characteristic) and characteristic.changeMinMax:
+				self.changeMinMax = True
+				self.minValue = characteristic.minValue
+				self.maxValue = characteristic.maxValue
 							
 		except Exception as e:
 				self.logger.error (ex.stack_trace(e))
