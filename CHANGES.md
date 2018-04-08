@@ -1,8 +1,16 @@
 Release Notes
 ==========
 
-Version 0.23.0 (Beta 23.0)
+Version 0.23.1 (Beta 23.1)
 ==========
+* Fixed bug in SenseMe support where fans and lights were not populating their HomeKit characteristics
+* Updated Homebridge-Indigo2 to 0.2.4
+
+Previous Release Notes
+==========
+
+Version 0.23.0 (Beta 23.0)
+---------------
 * **NOTE** As stated earlier, the entire HomeKit engine is being optimized and rewritten for various reasons.  There is a new plugin configuration option that allows you to revert to the previous method if the new method is causing problem, but this is on a release-by-release basis, meaning that only changes in **this** release will roll back to using the old methods, the next release will not be able to roll back anything from this release.  The functions impacted will be noted in the release notes as 'Library Change'.  Please report any issues that are caused by the new library that are resolved by returning to the old methods.  Each revision will re-enable this option automatically if it gets turned off.
 * **NOTE** All minor revisions can still be rolled back for Library Changes until the next full beta version is released
 * Removed all functions that were moved to the new package (Library Changes) made in the last three releases, they are now a permanent part of the plugin
@@ -13,9 +21,6 @@ Version 0.23.0 (Beta 23.0)
 * Updated Homebridge-Indigo2 to 0.2.3
 * [Issue #99](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/99) partially addressed
 * [Issue #97](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/97) resolved (pending testing by end users)
-
-Previous Release Notes
-==========
 
 Version 0.22.2 (Beta 22.2)
 ---------------

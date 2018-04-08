@@ -469,12 +469,12 @@ Indigo2Accessory.prototype.addCharacteristic = function(characteristicJSON) {
     if (characteristicJSON.changeMinMax) {
         var minValue = characteristicJSON.minValue;
         if (minValue !== undefined && minValue !== null) {
-            this.log("%s: Overriding min value to %s", this.name, minValue);
+            this.log("%s: Overriding min value for %s to %s", this.name, name, minValue);
             characteristic.setProps({minValue: minValue});
         }
         var maxValue = characteristicJSON.maxValue;
         if (maxValue !== undefined && maxValue !== null) {
-            this.log("%s: Overriding max value to %s", this.name, maxValue);
+            this.log("%s: Overriding max value for %s to %s", this.name, name, maxValue);
             characteristic.setProps({maxValue: maxValue});
         }
     }

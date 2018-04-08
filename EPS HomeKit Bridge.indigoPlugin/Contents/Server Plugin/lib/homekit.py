@@ -2223,6 +2223,10 @@ class Service (object):
 	def special_SenseMeFanSpeed (self, classes, sourceDict, getter, characteristic, isOptional = False):
 		try:
 			if self.serverId == 0: return
+			
+			obj = indigo.devices[self.objId]
+			self.setAttributeValue (characteristic, int(obj.states["speed"]))
+			self.characterDict[characteristic] = getattr (self, characteristic).value
 		
 			valuesDict = {'speed': "=value="}
 			self.actions.append (HomeKitAction(characteristic, "between", 0, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["fanSpeed", self.objId, valuesDict]], 7, {self.objId: "state_speed"}))			
@@ -2253,6 +2257,10 @@ class Service (object):
 	def special_SenseMeLightLevel (self, classes, sourceDict, getter, characteristic, isOptional = False):
 		try:
 			if self.serverId == 0: return
+			
+			value = int(obj.states["brightness"])
+			self.setAttributeValue (characteristic, value)
+			self.characterDict[characteristic] = getattr (self, characteristic).value
 		
 			valuesDict = {'lightLevel': "=value="}
 			self.actions.append (HomeKitAction(characteristic, "between", 0, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["fanLightBrightness", self.objId, valuesDict]], 16, {self.objId: "state_brightness"}))			
