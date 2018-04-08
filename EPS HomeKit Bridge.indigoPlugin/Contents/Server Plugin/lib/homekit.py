@@ -1205,13 +1205,27 @@ class Service (object):
 				
 				else:
 					invalidType = True
+			
+			elif attrib == "coolSetpoint":
+				cmd = "thermostat.setFanMode"
+				if method == "RANGE":	
+					self.actions.append (HomeKitAction(characteristic, "between", 0.0, "homekit.commandSetTargetThermostatCooling", [self.objId, self.serverId, "=value="], 100.0, {self.objId: "attr_coolSetpoint"}))						
+				else:
+					invalidType = True
+					
+			elif attrib == "heatSetpoint":
+				cmd = "thermostat.setFanMode"
+				if method == "RANGE":	
+					self.actions.append (HomeKitAction(characteristic, "between", 0.0, "homekit.commandSetTargetThermostatHeating", [self.objId, self.serverId, "=value="], 100.0, {self.objId: "attr_coolSetpoint"}))						
+				else:
+					invalidType = True		
+			
 					
 			else:
 				# Whatever else, if we didn't specify it, will get a dummy action associated with it and it could cause errors if the characteristic is
 				# not read-only, but we need this so the plugin will monitor for any changes to the attribute
 				self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "attr_" + attrib}))
-				
-		
+						
 			if invalidType:
 				self.logger.warning (u"Unable to create default action for {} attribute '{}', the characteristic '{}' data type is {} and we can't translate to that from '{}'".format(self.alias.value, attrib, characteristic, str(type(a.value)).replace("<type '", "").replace("'>", ""), attrib))
 				return
@@ -1553,6 +1567,15 @@ class Service (object):
 				#if "minValue" in dir(obj) and obj.value < obj.minValue: obj.value = obj.minValue
 				#if "maxValue" in dir(obj) and obj.value > obj.maxValue: obj.value = obj.maxValue
 				pass
+				
+			# Special min/max adjustment for SenseMe fans
+			if self.pluginType == "indigo.Device.com.pennypacker.indigoplugin.senseme.SenseME_fan":
+				if attribute == "Brightness":
+					self.Brightness.minValue = 0
+					self.Brightness.maxValue = 16
+				if attribute == "RotationSpeed":
+					self.RotationSpeed.minValue = 0
+					self.RotationSpeed.maxValue = 7
 	
 			# Do temperature conversion on the value
 			if attribute in ["CurrentTemperature", "TargetTemperature", "HeatingThresholdTemperature", "CoolingThresholdTemperature"]:
@@ -2201,6 +2224,19 @@ class Service (object):
 		try:
 			if self.serverId == 0: return
 		
+			valuesDict = {'speed': "=value="}
+			self.actions.append (HomeKitAction(characteristic, "between", 0, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["fanSpeed", self.objId, valuesDict]], 7, {self.objId: "state_speed"}))			
+					
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+
+	#
+	# SenseMe Fan Speed
+	#
+	def special_SenseMeFanSpeedXXX (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			if self.serverId == 0: return
+		
 			obj = indigo.devices[self.objId]
 			self.setAttributeValue (characteristic, int(obj.states["speed"]) * 12.5)
 			self.characterDict[characteristic] = getattr (self, characteristic).value
@@ -2210,11 +2246,25 @@ class Service (object):
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))		
-			
+
 	#
 	# SenseMe Light Brightness
 	#
 	def special_SenseMeLightLevel (self, classes, sourceDict, getter, characteristic, isOptional = False):
+		try:
+			if self.serverId == 0: return
+		
+			valuesDict = {'lightLevel': "=value="}
+			self.actions.append (HomeKitAction(characteristic, "between", 0, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["fanLightBrightness", self.objId, valuesDict]], 16, {self.objId: "state_brightness"}))			
+					
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+
+			
+	#
+	# SenseMe Light Brightness
+	#
+	def special_SenseMeLightLevelXXX (self, classes, sourceDict, getter, characteristic, isOptional = False):
 		try:
 			if self.serverId == 0: return
 		

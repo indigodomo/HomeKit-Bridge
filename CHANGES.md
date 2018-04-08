@@ -1,8 +1,24 @@
 Release Notes
 ==========
 
-Version 0.22.2 (Beta 22.2)
+Version 0.23.0 (Beta 23.0)
 ==========
+* **NOTE** As stated earlier, the entire HomeKit engine is being optimized and rewritten for various reasons.  There is a new plugin configuration option that allows you to revert to the previous method if the new method is causing problem, but this is on a release-by-release basis, meaning that only changes in **this** release will roll back to using the old methods, the next release will not be able to roll back anything from this release.  The functions impacted will be noted in the release notes as 'Library Change'.  Please report any issues that are caused by the new library that are resolved by returning to the old methods.  Each revision will re-enable this option automatically if it gets turned off.
+* **NOTE** All minor revisions can still be rolled back for Library Changes until the next full beta version is released
+* Removed all functions that were moved to the new package (Library Changes) made in the last three releases, they are now a permanent part of the plugin
+* Added support to independently change heat/cool set points in HomeKit and have it translated properly to Indigo ([Issue #97](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/97))
+* Added experimental support for SenseMe fan/light level custom min/max pass-through ([Issue #99](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/99))
+* Added debug checkbox to advanced server parameters to enable debug logging in the Homebridge server
+* Fixed bug in device actions where the device ID could not be acted upon, resulting in 'invalid literal' messages when trying to 'Delete', 'Delete and Hide' or 'Delete and Exclude' as reported on the forum [thread by spiv](http://forums.indigodomo.com/viewtopic.php?p=158509#p158509) and [thread by srkindard](http://forums.indigodomo.com/viewtopic.php?p=158520#p158520), this was neglected in the move to change how the plugin references devices in the UI in preparation for complications
+* Updated Homebridge-Indigo2 to 0.2.3
+* [Issue #99](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/99) partially addressed
+* [Issue #97](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/97) resolved (pending testing by end users)
+
+Previous Release Notes
+==========
+
+Version 0.22.2 (Beta 22.2)
+---------------
 * **NOTE** As stated earlier, the entire HomeKit engine is being optimized and rewritten for various reasons.  There is a new plugin configuration option that allows you to revert to the previous method if the new method is causing problem, but this is on a release-by-release basis, meaning that only changes in **this** release will roll back to using the old methods, the next release will not be able to roll back anything from this release.  The functions impacted will be noted in the release notes as 'Library Change'.  Please report any issues that are caused by the new library that are resolved by returning to the old methods.  Each revision will re-enable this option automatically if it gets turned off.
 * **NOTE** All minor revisions can still be rolled back for Library Changes until the next full beta version is released
 * Added changeMinMax parameter to API JSON payload to notify HomeKit that min or max values need to be changed from the HapNode defaults
@@ -16,19 +32,16 @@ Version 0.22.2 (Beta 22.2)
 * This release may help with issues where servers disappear from the live HomeKit config or become unreachable
 * Fixed bug in Homebridge Buddy migration where model and firmware fields were not being populated in the migration, causing the server to crash during the JSON population and that was then causing Homebridge errors because it wasn't complete and the ID wasn't being passed
 
-Previous Release Notes
-==========
-
 Version 0.22.1 (Beta 22.1)
 ---------------
 * **NOTE** As stated earlier, the entire HomeKit engine is being optimized and rewritten for various reasons.  There is a new plugin configuration option that allows you to revert to the previous method if the new method is causing problem, but this is on a release-by-release basis, meaning that only changes in **this** release will roll back to using the old methods, the next release will not be able to roll back anything from this release.  The functions impacted will be noted in the release notes as 'Library Change'.  Please report any issues that are caused by the new library that are resolved by returning to the old methods.  Each revision will re-enable this option automatically if it gets turned off.
 * **NOTE** All minor revisions can still be rolled back for Library Changes until the next full beta version is released
-* Added optimized Homebridge callback POST method to replace the current GET method, in preparation for an updated Homebridge-Indigo2 script that will parse the data instead of calling back to the API ([Issue #93]((https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/93))
-* Fixed bug in configuration builder where if an error was tripped the exception would not populate ([Issue #94]((https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/94) and [Issue #92]((https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/92))
+* Added optimized Homebridge callback POST method to replace the current GET method, in preparation for an updated Homebridge-Indigo2 script that will parse the data instead of calling back to the API ([Issue #93](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/93))
+* Fixed bug in configuration builder where if an error was tripped the exception would not populate ([Issue #94](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/94) and [Issue #92](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/92))
 * Fixed bug in new library that would allow Homebridge to see a duplicate camera device and would send that device to HomeKit along with the normal camera ([Issue #83](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/83))
-* [Issue #94]((https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/94) resolved
-* [Issue #92]((https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/92) resolved
-* [Issue #93]((https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/93) implemented
+* [Issue #94](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/94) resolved
+* [Issue #92](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/92) resolved
+* [Issue #93](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/93) implemented
 
 Version 0.22.0 (Beta 22.0)
 ---------------

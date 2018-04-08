@@ -17,7 +17,8 @@
             "port": 8558,
             "serverId": "12345678",
             "accessoryNamePrefix": "",
-            "listenPort": 8559
+            "listenPort": 8559,
+            "debug": false
         }
     ],
 

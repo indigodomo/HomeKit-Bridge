@@ -360,11 +360,19 @@ class Plugin(indigo.PluginBase):
 				if "newpackage" in self.pluginPrefs and not self.pluginPrefs["newpackage"]:
 					self.logger.warning ("Re-enabled plugin preference option to 'Use New Library Methods'")
 					self.pluginPrefs["newpackage"] = True
+
+				# 0.23.0
+				if not "hbDebug" in props:
+					props["hbDebug"] = False
+					changed = True
+
+
+
 					
 				if changed: 
 					self.logger.info (u"Upgrading {} for changes in this plugin release".format(dev.name))
 					dev.replacePluginPropsOnServer(props)
-				
+					
 			
 		except Exception as e:
 			self.logger.error (ext.getException(e))		
@@ -676,11 +684,8 @@ class Plugin(indigo.PluginBase):
 						self.logger.debug (u"Device {} had an update that HomeKit needs to know about".format(obj.alias.value))
 						#self.serverSendObjectUpdateToHomebridge (indigo.devices[serverId], newDev.id)
 						
-						if self.pluginPrefs.get('newpackage', True):
-							HomeKit.legacy_cache_device(r, serverId)
-							HomeKit.send_refresh_to_homebridge(r["jkey"])
-						else:						
-							self.serverSendObjectUpdateToHomebridge (indigo.devices[serverId], r["jkey"], r)
+						HomeKit.legacy_cache_device(r, serverId)
+						HomeKit.send_refresh_to_homebridge(r["jkey"])
 						
 			if rebuildRequired:
 				self.catalogServerDevices()
@@ -908,270 +913,18 @@ class Plugin(indigo.PluginBase):
 	#
 	def onBefore_onReceivedHTTPGETRequest (self, request, query):	
 		try:
-			#if "serverId" in query and int(query["serverId"][0]) == 1794022133: return HomeKit.process_incoming_api_call (request, query)
-			if self.pluginPrefs.get('newpackage', True):
-				self.logger.threaddebug (u"Processing API request and delivering payload via new package")
-				return HomeKit.process_incoming_api_call (request, query)
-			
-			if not "/HomeKit" in request.path:
-				msg = {}
-				msg["result"] = "fail"
-				msg["message"] = "Invalid path"
-				return "text/css",	json.dumps(msg, indent=4)
-				
-			if not "cmd" in query:
-				msg = {}
-				msg["result"] = "fail"
-				msg["message"] = "Invalid command parameter"
-				return "text/css",	json.dumps(msg, indent=4)
-			
-			devId = 0
-			serverId = 0
-			jkey = None
-			isAction = False
-			obj = None
-			cmd = query["cmd"][0]
-			
-			
-			
-			if "objId" in query: devId = int(query["objId"][0])
-			if "serverId" in query: 
-				serverId = int(query["serverId"][0])
-				valuesDict = self.serverCheckForJSONKeys (indigo.devices[serverId].pluginProps)	
-				includedDevices = json.loads(valuesDict["includedDevices"])
-				includedActions = json.loads(valuesDict["includedActions"])	
-
-			if "jkey" in query: 
-				jkey = query["jkey"][0]
-				r = eps.jstash.getRecordWithFieldEquals (includedDevices, "jkey", jkey)
-				if r is None: 
-					r = eps.jstash.getRecordWithFieldEquals (includedActions, "jkey", jkey)
-					isAction = True
-					
-				obj = eps.homekit.getServiceObject (r["id"], serverId, r["hktype"], False,  True)
-				
-				if not obj:
-					msg = {}
-					msg["result"] = "fail"
-					msg["message"] = "Device could not be found"
-					return "text/css",	json.dumps(msg, indent=4)
-			
-			if serverId == 0:
-				msg = {}
-				msg["result"] = "fail"
-				msg["message"] = "Server ID was not passed to query, unable to process"
-				return "text/css",	json.dumps(msg, indent=4)
-			
-			if cmd == "setCharacteristic":
-				# Loop through actions to see if any of them are in the query
-				processedActions = False
-				response = False
-				thisCharacteristic = None
-				thisValue = None
-				#indigo.server.log(unicode(obj))
-				for a in obj.actions:
-					#indigo.server.log(unicode(a))
-					#indigo.server.log("Checking if {} is in {}".format(a.characteristic, unicode(query)))
-					if a.characteristic in query and not processedActions: 
-						self.logger.debug (u"Received {} in query, setting to {} using {} if rules apply".format(a.characteristic, query[a.characteristic][0], a.command))
-						#processedActions.append(a.characteristic)
-						#ret = a.run (query[a.characteristic][0], r["id"], True)
-						
-						thisCharacteristic = a.characteristic
-						thisValue = query[a.characteristic][0]
-						ret = a.run (thisValue, r["id"], True)
-						#self.HKREQUESTQUEUE[obj.id] = a.characteristic # It's ok that this overwrites, it's the same
-						if ret: 
-							response = True # Only change it if its true, that way we know the operation was a success
-							processedActions = True
-							break # we only ever get a single command on each query
-									
-				r = self.buildHKAPIDetails (devId, serverId, r["jkey"], thisCharacteristic, thisValue, isAction)		
-				return "text/css",	json.dumps(r, indent=4)
-			
-			elif cmd == "getInfo":
-				r = self.buildHKAPIDetails (devId, serverId, jkey)
-				return "text/css",	json.dumps(r, indent=4)
-					
-			elif cmd == "deviceList":
-				ret = []
-				for d in includedDevices:
-					r = self.buildHKAPIDetails (d["id"], serverId, d["jkey"])
-					if r is not None and len(r) > 0: ret.append (r)
-					
-				for a in includedActions:
-					r = self.buildHKAPIDetails (a["id"], serverId, a["jkey"])
-					if r is not None and len(r) > 0: ret.append (r)	
-				
-				return "text/css",	json.dumps(ret, indent=4)
-						
-			
-			msg = {}
-			msg["result"] = "fail"
-			msg["message"] = "Unknown query or invalid parameters, nothing to do"
-			return "text/css",	json.dumps(msg, indent=4)
+			return HomeKit.process_incoming_api_call (request, query)
 			
 		except Exception as e:
-			self.logger.error (ext.getException(e))	
-			msg = {}
-			msg["result"] = "fail"
-			msg["message"] = "A fatal exception was encountered while processing your request, check the Indigo log for details"
-			return "text/css",	json.dumps(msg, indent=4)
-
-	#
-	# Compose the type and versByte from server details
-	#
-	def getHKAPIModel (self, server, r):
-		try:
-			if r["object"] != "Action":
-				if "model" in r and r["model"] != "":
-					r["type"] = r["model"]
-					del(r["model"])
-				elif "modelValue" in server.pluginProps:
-					#r["type"] = self._getHKAPIModelData (r, server.pluginProps["modelValue"])
-					r["type"] = HomeKit.convert.homekit_type_and_firmware(server.pluginProps["modelValue"], r["id"], server.id)
-				else:
-					r["type"] = indigo.devices[r["id"]].model
-				
-				if "firmware" in r and r["firmware"] != "":
-					r["versByte"] = r["firmware"]
-					del(r["firmware"])	
-				elif "firmwareValue" in server.pluginProps:
-					#r["versByte"] = self._getHKAPIModelData (r, server.pluginProps["firmwareValue"])
-					r["versByte"] = HomeKit.convert.homekit_type_and_firmware(server.pluginProps["firmwareValue"], r["id"], server.id)
-				else:	
-					r["versByte"] = indigo.devices[r["id"]].pluginId
-					
-			else:
-				r["type"] = "Action Group"
-				r["versByte"] = ""
-		
-		except Exception as e:
-			self.logger.error (ext.getException(e))	
-			
-		return r
-			
-	#
-	# Build HK API details for object ID
-	#
-	def buildHKAPIDetails (self, objId, serverId, jkey, characteristic = None, value = None, runningAction = False):
-		try:
-			#http://10.1.200.3:8558/HomeKit?cmd=deviceList&serverId=1794022133
-			valuesDict = self.serverCheckForJSONKeys (indigo.devices[serverId].pluginProps)	
-			includedDevices = json.loads(valuesDict["includedDevices"])
-			includedActions = json.loads(valuesDict["includedActions"])
-			
-			r = eps.jstash.getRecordWithFieldEquals (includedDevices, "jkey", jkey)
-			#if r is None: r = eps.jstash.getRecordWithFieldEquals (includedActions, "id", objId)
-			if r is None: r = eps.jstash.getRecordWithFieldEquals (includedActions, "jkey", jkey)
-			
-			# Create an HK object so we can get all default data
-			self.logger.threaddebug (u"Looking for HomeKit class {}".format(r["hktype"]))
-			services = eps.homekit.getHomeKitServices()
-			if r["hktype"] not in services:
-				self.logger.error (u"Server '{}' device '{}' is trying to reference a HomeKit class of {} that isn't defined.".format(indigo.devices[serverId].name, r["alias"], r["hktype"]))
-				return []
-			if r["hktype"] == "service_CameraRTPStreamManagement": return []  # Cameras are handled in the config build because it has its own platform
-			
-			obj = eps.homekit.getServiceObject (r["id"], serverId, r["hktype"], False, True)
-			server = indigo.devices[int(serverId)]
-			
-			#if r["id"] == 145155245: HomeKit.legacy_get_payload (obj, r, serverId)
-			
-			# Invert if configured
-			#if "invert" in r: 
-			#	obj.invertOnState = r["invert"]
-			#	if obj.invertOnState: obj.setAttributes() # Force it to refresh values so we get our inverted onState
-			
-			# Add model and firmware
-			r = self.getHKAPIModel (server, r)
-				
-			# Add the callback
-			r["url"] = "/HomeKit?objId={}&serverId={}&jkey={}".format(str(objId), str(serverId), jkey)	
-			
-			# Fix characteristics for readability
-			charList = []
-			for charName, charValue in obj.characterDict.iteritems():
-				charItem = {}
-				
-				if charName not in dir(obj):
-					self.logger.error (u"Unable to find attribute {} in {}: {}".format(charName, obj.alias.value, unicode(obj)))
-					continue
-					
-				characteristic = getattr (obj, charName)
-				charItem["name"] = charName
-				charItem["value"] = charValue
-				
-				if runningAction and charItem["name"] == "On": charItem["value"] = True
-				if not characteristic is None and not value is None and charItem["name"] == characteristic: 
-					#indigo.server.log(u"Lying about {} being {}".format(characteristic, value))
-					charItem["value"] = value # Force it to see what it expects to see so it doesn't beachball
-				
-				charItem["readonly"] = characteristic.readonly
-				charItem["notify"] = characteristic.notify
-				charList.append (charItem)
-				
-			r["hkcharacteristics"] = charList
-			
-			# Fix up for output
-			r["hkservice"] = r["hktype"].replace("service_", "")
-			del r["hktype"]
-			#del r["jkey"]
-			#del r["type"]
-			del r["char"]
-			if "invert" in r: del r["invert"]
-			
-			# Fix actions for readability
-			actList = []
-			for a in obj.actions:
-				if not a.characteristic in actList: actList.append(a.characteristic)
-				
-			r["action"] = actList
-			
-			# This will only come up if an action group was turned on and then called down to here so this should be safe, but we need to now
-			# notify Homebridge that the action has completed and to get the false value
-			if runningAction:
-				#self.serverSendObjectUpdateToHomebridge (indigo.devices[int(serverId)], r["id"])
-				#thread.start_new_thread(self.timedCallbackToURL, (serverId, r["id"], 2))
-				thread.start_new_thread(self.timedCallbackToURL, (serverId, r["jkey"], 2, r))
-			
-			if obj.recurringUpdate:
-				thread.start_new_thread(self.timedCallbackToURL, (serverId, r["jkey"], obj.recurringSeconds, r))	
-			
-			
-			# Before we return r, use the jstash ID for our ID instead of the Indigo ID
-			r["deviceId"] = r["id"] # So we still have it
-			r["id"] = r["jkey"]
-			del r["jkey"]
-			
-			# Fix up the alias name for any problematic characters
-			alias = unicode(r["alias"])
-			try:
-				alias = r"{}".format(alias)
-			except:
-				alias = unicode(r["alias"])
-				
-			r["alias"] = alias
-			
-			return r
-		
-		except Exception as e:
-			self.logger.error (ext.getException(e))			
-			
-		return []
+			self.logger.error (ext.getException(e))		
 		
 	#
 	# Run in a thread, this will run the URL in the specified seconds
 	#
 	def timedCallbackToURL (self, serverId, devId, waitSeconds, r):
 		try:
-			if waitSeconds > 0: time.sleep(waitSeconds)
-			
-			if self.pluginPrefs.get('newpackage', True):
-				HomeKit.legacy_cache_device(r, serverId)
-				HomeKit.send_refresh_to_homebridge(r["jkey"])
-			else:			
-				self.serverSendObjectUpdateToHomebridge (indigo.devices[int(serverId)], devId, r)
+			HomeKit.legacy_cache_device(r, serverId)
+			HomeKit.send_refresh_to_homebridge(r["jkey"])
 		
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -1841,8 +1594,7 @@ class Plugin(indigo.PluginBase):
 			self.SERVERS = []
 			self.SERVER_ID = {}
 			
-			if self.pluginPrefs.get('newpackage', True):
-				self.logger.info("Caching all HomeKit Bridge devices...")
+			self.logger.info("Caching all HomeKit Bridge devices...")
 			
 			if serverId == 0:
 				for dev in indigo.devices.iter(self.pluginId + ".Server"):
@@ -1870,8 +1622,7 @@ class Plugin(indigo.PluginBase):
 			self.SERVERS.append(dev.id)
 			
 			for d in includedDevices:
-				if self.pluginPrefs.get('newpackage', True):
-					HomeKit.legacy_cache_device(d, serverId)
+				HomeKit.legacy_cache_device(d, serverId)
 			
 				self.SERVER_ALIAS[d["alias"]] = dev.id
 				
@@ -1884,8 +1635,7 @@ class Plugin(indigo.PluginBase):
 						self.SERVER_ID[d["id"]] = servers
 						
 			for d in includedActions:
-				if self.pluginPrefs.get('newpackage', True):
-					HomeKit.legacy_cache_device(d, serverId)
+				HomeKit.legacy_cache_device(d, serverId)
 					
 				self.SERVER_ALIAS[d["alias"]] = dev.id
 				
@@ -2904,15 +2654,9 @@ class Plugin(indigo.PluginBase):
 			
 			self.logger.info(u"Sending HomeKit refresh request for '{}'".format(r["alias"]))
 			
-			if self.pluginPrefs.get('newpackage', True):
-				HomeKit.legacy_cache_device(r, server.id)
-				
-			if self.pluginPrefs.get('newpackage', True):
-				HomeKit.send_refresh_to_homebridge(r["jkey"])	
-			else:
-				self.serverSendObjectUpdateToHomebridge (server, r["jkey"], r)	
-			
-		
+			HomeKit.legacy_cache_device(r, server.id)
+			HomeKit.send_refresh_to_homebridge(r["jkey"])	
+					
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
 		
@@ -3352,8 +3096,8 @@ class Plugin(indigo.PluginBase):
 			if valuesDict["objectAction"] == "delete":
 				deleted = 0
 				for id in valuesDict["deviceList"]:
-					includedDevices = eps.jstash.removeRecordFromStash (includedDevices, "id", int(id))
-					includedActions = eps.jstash.removeRecordFromStash (includedActions, "id", int(id))
+					includedDevices = eps.jstash.removeRecordFromStash (includedDevices, "jkey", id)
+					includedActions = eps.jstash.removeRecordFromStash (includedActions, "jkey", id)
 					deleted = deleted + 1
 					
 				errorsDict["showAlertText"] = "You removed {0} items and can add up to {1} more.".format(str(deleted), str(99 - len(includedDevices) - len(includedActions)))
@@ -3367,8 +3111,8 @@ class Plugin(indigo.PluginBase):
 					hidden = []
 				
 				for id in valuesDict["deviceList"]:
-					includedDevices = eps.jstash.removeRecordFromStash (includedDevices, "id", int(id))
-					includedActions = eps.jstash.removeRecordFromStash (includedActions, "id", int(id))
+					includedDevices = eps.jstash.removeRecordFromStash (includedDevices, "jkey", id)
+					includedActions = eps.jstash.removeRecordFromStash (includedActions, "jkey", id)
 					deleted = deleted + 1
 					hidden.append (int(id))
 					
@@ -3385,8 +3129,8 @@ class Plugin(indigo.PluginBase):
 					hidden = []
 				
 				for id in valuesDict["deviceList"]:
-					includedDevices = eps.jstash.removeRecordFromStash (includedDevices, "id", int(id))
-					includedActions = eps.jstash.removeRecordFromStash (includedActions, "id", int(id))
+					includedDevices = eps.jstash.removeRecordFromStash (includedDevices, "jkey", id)
+					includedActions = eps.jstash.removeRecordFromStash (includedActions, "jkey", id)
 					deleted = deleted + 1
 					hidden.append (int(id))
 					
@@ -3411,6 +3155,8 @@ class Plugin(indigo.PluginBase):
 										
 					if r is not None:
 						# Remove from our list since technically we are removing and readding rather than editing
+						#includedDevices = eps.jstash.removeRecordFromStash (includedDevices, "jkey", valuesDict["deviceList"][0])
+						#includedActions = eps.jstash.removeRecordFromStash (includedActions, "jkey", valuesDict["deviceList"][0])
 						includedDevices = eps.jstash.removeRecordFromStash (includedDevices, "id", int(valuesDict["deviceList"][0]))
 						includedActions = eps.jstash.removeRecordFromStash (includedActions, "id", int(valuesDict["deviceList"][0]))
 						
@@ -3938,6 +3684,8 @@ class Plugin(indigo.PluginBase):
 			# Failsafe in case they are not even looking at this window:
 			if valuesDict["configOption"] != "include":
 				valuesDict["showEditArea"] = False
+				
+			#indigo.server.log(unicode(valuesDict))	
 					
 			
 		except Exception as e:
@@ -4569,6 +4317,7 @@ class Plugin(indigo.PluginBase):
 				#hb["password"] = self.pluginPrefs["password"]
 				hb["listenPort"] = server.pluginProps["listenPort"]
 				hb["serverId"] = serverId
+				if "hbDebug" in server.pluginProps: hb["debug"] = server.pluginProps["hbDebug"]
 			
 				platforms.append (hb)
 			

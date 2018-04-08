@@ -49,6 +49,11 @@
 				<Label>HB callback:</Label>
 			</Field>
 			
+			<Field type="checkbox" id="hbDebug" defaultValue="false" visibleBindingId="configOption" visibleBindingValue="server" >
+				<Label> </Label>
+				<Description>Enable Homebridge debugging</Description>
+			</Field>
+			
 			<Field type="menu" id="tempunits" defaultValue="c" visibleBindingId="configOption" visibleBindingValue="config">
                 <Label>In HomeKit:</Label>
                 <List>
