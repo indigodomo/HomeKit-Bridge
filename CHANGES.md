@@ -1,13 +1,27 @@
 Release Notes
 ==========
 
-Version 0.23.1 (Beta 23.1)
+Version 1.0.0 RC 1 (Release Candidate 1)
 ==========
-* Fixed bug in SenseMe support where fans and lights were not populating their HomeKit characteristics
-* Updated Homebridge-Indigo2 to 0.2.4
+* Final fixes for SenseMe fan/light support ([Issue #97](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/97))
+* Adjusted acceptable value range on Heat and Cooling set points to allow for wider changes ([Issue #97](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/97))
+* Added automatic server restart if the Homebridge debug option is changed
+* Removed Simulated Device Dump from plugin actions (still remains in device actions) in Advanced Plugin Actions menu since the recent changes have rendered that somewhat inoperable
+* Removed 'use new library' option from plugin config until needed again
+* Removed 'performance options' from plugin menu as it is no longer needed
+* Removed 'development testing' from plugin menu in preparation for release
+* Changed Homebridge debug checkbox in the server advanced options to a combobox that will allow the user to debug Homebridge-Indigo, Homebridge server, neither or both to allow for a full comprehensive debug if there are issues that require seeing what Homebridge is doing
+* Changed server device re-caching to only happen when the included devices or actions are changed in a server rather than on any properly or attribute change
+* [Issue #99](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/99) resolved
+* [Issue #97](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/97) resolved
 
 Previous Release Notes
 ==========
+
+Version 0.23.1 (Beta 23.1)
+---------------
+* Fixed bug in SenseMe support where fans and lights were not populating their HomeKit characteristics
+* Updated Homebridge-Indigo2 to 0.2.4
 
 Version 0.23.0 (Beta 23.0)
 ---------------

@@ -49,10 +49,16 @@
 				<Label>HB callback:</Label>
 			</Field>
 			
-			<Field type="checkbox" id="hbDebug" defaultValue="false" visibleBindingId="configOption" visibleBindingValue="server" >
-				<Label> </Label>
-				<Description>Enable Homebridge debugging</Description>
-			</Field>
+			<Field type="menu" id="hbDebug" defaultValue="none" visibleBindingId="configOption" visibleBindingValue="server">
+                <Label>Debugging:</Label>
+                <List>
+                    <Option value="none">Debugging Off</Option>
+                    <Option value="hbi2">Debug Homebridge-Indigo script</Option>
+                    <Option value="hb">Debug Homebridge Server</Option>
+                    <Option value="both">Debug Homebridge and Indigo Script</Option>
+                </List>
+                <CallbackMethod>formFieldChanged</CallbackMethod>
+            </Field>
 			
 			<Field type="menu" id="tempunits" defaultValue="c" visibleBindingId="configOption" visibleBindingValue="config">
                 <Label>In HomeKit:</Label>

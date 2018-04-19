@@ -63,7 +63,7 @@
 	
 	<Field id="sep_apiport" type="separator" />
 	
-	<Field type="checkbox" id="newpackage" defaultValue="true" >
+	<Field type="checkbox" id="newpackage" defaultValue="true" hidden="true">
 		<Label>New Methods:</Label>
 		<Description>Use new library methods for this release</Description>
 	</Field>

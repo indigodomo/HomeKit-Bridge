@@ -363,10 +363,13 @@ class Plugin(indigo.PluginBase):
 
 				# 0.23.0
 				if not "hbDebug" in props:
-					props["hbDebug"] = False
+					props["hbDebug"] = "none"
 					changed = True
 
-
+				# 0.24.0
+				if "hbDebug" in props and unicode(props["hbDebug"]) == "True":
+					props["hbDebug"] = "hbi2"
+					changed = True
 
 					
 				if changed: 
@@ -688,7 +691,7 @@ class Plugin(indigo.PluginBase):
 						HomeKit.send_refresh_to_homebridge(r["jkey"])
 						
 			if rebuildRequired:
-				self.catalogServerDevices()
+				self.catalogServerDevices(0, False) # Since we just cached we don't need to do it again
 					
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -1589,20 +1592,20 @@ class Plugin(indigo.PluginBase):
 	#
 	# Catalog the devices for each server into our globals
 	#
-	def catalogServerDevices (self, serverId = 0):
+	def catalogServerDevices (self, serverId = 0, cache = True):
 		try:
 			self.SERVERS = []
 			self.SERVER_ID = {}
 			
-			self.logger.info("Caching all HomeKit Bridge devices...")
+			if cache: self.logger.info("Caching all HomeKit Bridge devices...")
 			
 			if serverId == 0:
 				for dev in indigo.devices.iter(self.pluginId + ".Server"):
-					self._catalogServerDevices (dev, dev.id)
+					self._catalogServerDevices (dev, dev.id, cache)
 					
 			else:
 				dev = indigo.devices[serverId]
-				self._catalogServerDevices (dev, dev.id)
+				self._catalogServerDevices (dev, dev.id, cache)
 				
 			#indigo.server.log(unicode(self.SERVER_ALIAS))
 			#indigo.server.log(unicode(self.SERVER_ID))
@@ -1613,7 +1616,7 @@ class Plugin(indigo.PluginBase):
 	#
 	# Callback for catalog server devices
 	#
-	def _catalogServerDevices (self, dev, serverId):
+	def _catalogServerDevices (self, dev, serverId, cache):
 		try:
 			valuesDict = self.serverCheckForJSONKeys (dev.pluginProps)	
 			includedDevices = json.loads(valuesDict["includedDevices"])
@@ -1622,7 +1625,7 @@ class Plugin(indigo.PluginBase):
 			self.SERVERS.append(dev.id)
 			
 			for d in includedDevices:
-				HomeKit.legacy_cache_device(d, serverId)
+				if cache: HomeKit.legacy_cache_device(d, serverId)
 			
 				self.SERVER_ALIAS[d["alias"]] = dev.id
 				
@@ -1637,7 +1640,7 @@ class Plugin(indigo.PluginBase):
 			for d in includedActions:
 				HomeKit.legacy_cache_device(d, serverId)
 					
-				self.SERVER_ALIAS[d["alias"]] = dev.id
+				if cache: self.SERVER_ALIAS[d["alias"]] = dev.id
 				
 				if d["id"] not in self.SERVER_ID:
 					self.SERVER_ID[d["id"]] = [dev.id]
@@ -3775,7 +3778,7 @@ class Plugin(indigo.PluginBase):
 
 			# Re-catalog the server just to be safe
 			#self._catalogServerDevices (server)
-			self.catalogServerDevices ()
+			#self.catalogServerDevices ()  # taken out temporarily to see if it causes a problem
 				
 			# No matter what happens, if we are hiding objects for this session only then remove that cache now
 			if "hiddenIds" in valuesDict:
@@ -3824,22 +3827,25 @@ class Plugin(indigo.PluginBase):
 			self.logger.threaddebug (u"Server property change: " + unicode(changedProps))
 			
 			# States that will prompt us to save and restart the server
-			watchStates = ["port", "listenPort", "includedDevices", "includedActions", "accessoryNamePrefix", "pin", "username", "modelValue", "firmwareValue"]
+			watchStates = ["hbDebug", "port", "listenPort", "includedDevices", "includedActions", "accessoryNamePrefix", "pin", "username", "modelValue", "firmwareValue"]
 			needsRestart = False
+			needsRecache = False
 			
 			for w in watchStates:
 				if w in changedProps:
 					if w not in origDev.states or w not in newDev.states:
 						needsRestart = True
+						if w == "includedDevices" or w == "includedActions": needsRecache = True
 						break
 						
 					if origDev.states[w] != newDev.states[w]:
 						needsRestart = True
+						if w == "includedDevices" or w == "includedActions": needsRecache = True
 						break
 					
 			if needsRestart:
 				# Rebuild indexes
-				self.catalogServerDevices()	
+				self.catalogServerDevices(0, needsRecache)	
 				
 				# Save the configuration
 				self.saveConfigurationToDisk (newDev)
@@ -3879,7 +3885,7 @@ class Plugin(indigo.PluginBase):
 					
 			if needsRestart:
 				# Rebuild indexes
-				self.catalogServerDevices()	
+				self.catalogServerDevices(0, False)	 # No need to recache for a name change
 				
 				# Save the configuration
 				self.saveConfigurationToDisk (newDev)
@@ -4210,6 +4216,18 @@ class Plugin(indigo.PluginBase):
 			if os.path.exists (startpath):
 				with open(startpath + "/config.json", 'w') as file_:
 					file_.write (jsonData)
+					
+				# Added in HBI2 0.2.5, if debugging is on then also add a file so Homebridge can be debugged too
+				if "hbDebug" in server.pluginProps and (server.pluginProps["hbDebug"] == "hb" or server.pluginProps["hbDebug"] == "both"):
+					self.logger.warning (u"Turning on full Homebridge debugging for {}".format(server.name))
+					with open(startpath + "/homebridge.debug", 'w') as file_:
+						file_.write ("export DEBUG=*")
+						
+				else:
+					if os.path.isfile(startpath + "/homebridge.debug"):
+						self.logger.info (u"Turning off Homebridge debugging for {}".format(server.name))
+						os.remove(startpath + "/homebridge.debug")
+					
 			
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -4317,7 +4335,10 @@ class Plugin(indigo.PluginBase):
 				#hb["password"] = self.pluginPrefs["password"]
 				hb["listenPort"] = server.pluginProps["listenPort"]
 				hb["serverId"] = serverId
-				if "hbDebug" in server.pluginProps: hb["debug"] = server.pluginProps["hbDebug"]
+				if "hbDebug" in server.pluginProps and (server.pluginProps["hbDebug"] == "hbi2" or server.pluginProps["hbDebug"] == "both"):
+					hb["debug"] = True
+				else:
+					hb["debug"] = False
 			
 				platforms.append (hb)
 			

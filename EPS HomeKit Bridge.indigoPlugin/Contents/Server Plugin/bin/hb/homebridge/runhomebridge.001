@@ -23,8 +23,4 @@ if [ -f "$LOG.2" ]; then /bin/mv -f "$LOG.2" "$LOG.3"; fi
 if [ -f "$LOG.1" ]; then /bin/mv -f "$LOG.1" "$LOG.2"; fi
 if [ -f "$LOG" ];   then /bin/mv -f "$LOG"   "$LOG.1"; fi
 
-if [ -f "$CDIR/homebridge.debug" ]; then
-	. "$CDIR/homebridge.debug"
-fi
-
 exec "$DIR/homebridge" -D -U "$CDIR" -P "$CDIR" > "$LOG" 2>&1

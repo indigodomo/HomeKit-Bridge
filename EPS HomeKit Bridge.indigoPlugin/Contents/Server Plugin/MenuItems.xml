@@ -112,82 +112,6 @@
     </MenuItem>
     
     <MenuItem id="sep_excludes"/>
-
-
-	<MenuItem id="performanceOptions">
-        <Name>Performance Options</Name>
-        <ButtonTitle>Save</ButtonTitle>
-        <CallbackMethod>performanceOptions</CallbackMethod>
-        <ConfigUI>
-			<Field type="menu" id="pollingMode" defaultValue="realTime">
-				<Label>Device Updating:</Label>
-				<List>
-					<Option value="realTime">Realtime Device Updating</Option>
-					<Option value="pollDevice">Periodic Polling</Option>
-					<Option value="concurrentThread">Concurrent Threading</Option>
-				</List>
-			</Field>
-			
-			<Field id="realTime" type="label" visibleBindingId="pollingMode" visibleBindingValue="realTime">
-				<Label>Monitors every change to the plugin device and any associated subdevices in real-time.
-				
-Under most circumstances this is preferred but if you create a lot of devices or subdevices in a plugin with a lot of calculations this can cause timeouts, high memory usage and performance problems for both Indigo and the plugin.
-
-If you experience errors or timeouts in Indigo try changing to a different method.
-
-
-
-
-
-				</Label>
-			</Field>
-			
-			<Field id="pollDevice" type="label" visibleBindingId="pollingMode" visibleBindingValue="pollDevice">
-				<Label>Instead of monitoring for device and subdevice changes, instead periodically poll the device based on a schedule.
-				
-This will result in less real-time information but is far more efficient in terms of memory and processor usage than real-time updating.
-
-
-
-
-				</Label>
-			</Field>
-			
-			<Field id="concurrentThread" type="label" visibleBindingId="pollingMode" visibleBindingValue="concurrentThread">
-				<Label>Only update information for the device and subdevices when the plugins Concurrent Threading occurs.
-				
-This is similar to polling but instead of checking every ~1 second to see if polling needs to occur the plugin will instead only update on a set interval and update devices with no further calculations.
-
-Using this method is nit-picking performance since polling is almost equally as efficient, but if both other methods don't rectify performance problems or Indigo errors as a result of the plugin then this method is a good option.
-				</Label>
-			</Field>
-			
-			<Field id="sep_pollingMode" type="separator" visibleBindingId="pollingMode" visibleBindingValue="pollDevice,concurrentThread" />
-			
-			<Field id="realTimeSpacer" type="label" visibleBindingId="pollingMode" visibleBindingValue="realTime">
-				<Label>
-				
-				
-				</Label>
-			</Field>
-			
-			<Field id="pollingInterval" type="textfield" defaultValue="1" visibleBindingId="pollingMode" visibleBindingValue="pollDevice,concurrentThread">
-				<Label>Interval:</Label>
-			</Field>
-			
-			<Field type="menu" id="pollingFrequency" defaultValue="s" visibleBindingId="pollingMode" visibleBindingValue="pollDevice,concurrentThread">
-				<Label>Frequency:</Label>
-				<List>
-					<Option value="s">Seconds</Option>
-					<Option value="m">Minutes</Option>
-					<Option value="h">Hours</Option>
-				</List>
-			</Field>
-			
-        </ConfigUI>
-    </MenuItem>
-    
-    <MenuItem id="sep_options"/>
     
  	<MenuItem id="libVersion">
     	<Name>Show Support Information</Name>
@@ -197,11 +121,6 @@ Using this method is nit-picking performance since polling is almost equally as 
     <MenuItem id="pluginVersion">
     	<Name>Check For Update</Name>
     	<CallbackMethod>version_check</CallbackMethod>
-    </MenuItem>
-    
-    <MenuItem id="devtest">
-    	<Name>Development Testing</Name>
-    	<CallbackMethod>devTest</CallbackMethod>
     </MenuItem>
     
     <MenuItem id="sep_advanced"/>
@@ -271,7 +190,6 @@ Using this method is nit-picking performance since polling is almost equally as 
 					<Option value="health">Perform Health Check</Option>
 					<Option value="data">Plugin Data Dump</Option>
 					<Option value="compdata">Comprehensive Plugin Data Dump</Option>
-					<Option value="simhomekit">Simulated HomeKit Device Data Dump</Option>
 					<Option value="migratehbb">Migrate From Homebridge Buddy</Option>
 				</List>
 			</Field>

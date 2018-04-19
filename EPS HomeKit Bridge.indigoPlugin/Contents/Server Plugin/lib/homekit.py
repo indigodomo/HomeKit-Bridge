@@ -1573,9 +1573,11 @@ class Service (object):
 				if attribute == "Brightness":
 					self.Brightness.minValue = 0
 					self.Brightness.maxValue = 16
+					self.Brightness.changeMinMax = True
 				if attribute == "RotationSpeed":
 					self.RotationSpeed.minValue = 0
 					self.RotationSpeed.maxValue = 7
+					self.RotationSpeed.changeMinMax = True
 	
 			# Do temperature conversion on the value
 			if attribute in ["CurrentTemperature", "TargetTemperature", "HeatingThresholdTemperature", "CoolingThresholdTemperature"]:
@@ -2229,7 +2231,7 @@ class Service (object):
 			self.characterDict[characteristic] = getattr (self, characteristic).value
 		
 			valuesDict = {'speed': "=value="}
-			self.actions.append (HomeKitAction(characteristic, "between", 0, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["fanSpeed", self.objId, valuesDict]], 7, {self.objId: "state_speed"}))			
+			self.actions.append (HomeKitAction(characteristic, "between", 0, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, "=value=", ["fanSpeed", self.objId, valuesDict]], 7, {self.objId: "state_speed"}))			
 					
 		except Exception as e:
 			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
@@ -2258,12 +2260,14 @@ class Service (object):
 		try:
 			if self.serverId == 0: return
 			
+			obj = indigo.devices[self.objId]
+			
 			value = int(obj.states["brightness"])
 			self.setAttributeValue (characteristic, value)
 			self.characterDict[characteristic] = getattr (self, characteristic).value
 		
 			valuesDict = {'lightLevel': "=value="}
-			self.actions.append (HomeKitAction(characteristic, "between", 0, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["fanLightBrightness", self.objId, valuesDict]], 16, {self.objId: "state_brightness"}))			
+			self.actions.append (HomeKitAction(characteristic, "between", 0, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, "=value=", ["fanLightBrightness", self.objId, valuesDict]], 16, {self.objId: "state_brightness"}))			
 					
 		except Exception as e:
 			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
@@ -2545,7 +2549,7 @@ class HomeKitAction ():
 				
 					for c in cmd:
 						func = getattr(func, c)
-				
+						
 					if len(args) > 0: 
 						retval = func(*args)
 					else:
@@ -2708,8 +2712,9 @@ class HomeKitAction ():
 							args.append(value)
 						else:
 							args.append(a)
-							
-				self.logger.threaddebug (u"Running plugin action on {} with {}".format(pluginId, unicode(args)))
+					
+				#self.logger.warning (u"Value passed is {}".format(value))		
+				self.logger.debug (u"Running plugin action on {} with {}".format(pluginId, unicode(args)))
 				result = plugin.executeAction(*args, waitUntilDone=True)
 				self.logger.threaddebug (u"Plugin action return value: " + unicode(result))
 			else:
@@ -4128,13 +4133,13 @@ class characteristic_ContactSensorState:
 class characteristic_CoolingThresholdTemperature:
 	def __init__(self):
 		self.value = 0.0
-		self.maxValue = 35
+		self.maxValue = 38
 		self.minValue = 10
 		self.minStep = 0.1
 
 		self.readonly = False
 		self.notify = True		
-		self.changeMinMax = False	
+		self.changeMinMax = True	
 		
 # ==============================================================================
 # CURRENT AMBIENT LIGHT LEVEL
@@ -4384,13 +4389,13 @@ class characteristic_FilterLifeLevel:
 class characteristic_HeatingThresholdTemperature:
 	def __init__(self):
 		self.value = 0.0
-		self.maxValue = 25
+		self.maxValue = 38
 		self.minValue = 0
 		self.minStep = 0.1
 
 		self.readonly = False
 		self.notify = True	
-		self.changeMinMax = False
+		self.changeMinMax = True
 		
 # ==============================================================================
 # HOLD POSITION
