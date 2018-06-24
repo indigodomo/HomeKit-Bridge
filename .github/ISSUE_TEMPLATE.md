@@ -1,4 +1,4 @@
-<!-- Provide a general summary in the Title above -->
+<!-- Provide a general summary in the Title above, you do not need to type the title again here -->
 
 <!-- If you are having multiple issues please open multiple tickets instead of trying to cram it all into a single ticket since some issue may take longer than others to resolve. -->
 
