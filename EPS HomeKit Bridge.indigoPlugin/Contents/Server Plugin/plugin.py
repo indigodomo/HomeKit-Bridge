@@ -247,7 +247,6 @@ class Plugin(indigo.PluginBase):
 	# Check plugin store version
 	#		
 	def version_check(self):
-		return
 		# Create some URLs we'll use later on
 		pluginId = self.pluginId
 		current_version_url = "https://api.indigodomo.com/api/v2/pluginstore/plugin-version-info.json?pluginId={}".format(pluginId)
@@ -256,7 +255,10 @@ class Plugin(indigo.PluginBase):
 			# GET the url from the servers with a short timeout (avoids hanging the plugin)
 			reply = requests.get(current_version_url, timeout=5)
 			# This will raise an exception if the server returned an error
-			reply.raise_for_status()
+			try:
+				reply.raise_for_status()
+			except Exception as ex:
+				return # We aren't on the plugin store yet
 			# We now have a good reply so we get the json
 			reply_dict = reply.json()
 			plugin_dict = reply_dict["plugins"][0]
@@ -2211,6 +2213,7 @@ class Plugin(indigo.PluginBase):
 				
 			retList = []
 			includedObjects = []
+			name = None
 			
 			for objId in hidden:
 				d = {}
@@ -2222,15 +2225,16 @@ class Plugin(indigo.PluginBase):
 					name = indigo.actionGroups[objId].name	
 					object = "Action"
 				
-				d["id"] = objId
-				d["sortbyname"] = name.lower()
-				d["name"] = name
-				d["object"] = object
+				if name:
+					d["id"] = objId
+					d["sortbyname"] = name.lower()
+					d["name"] = name
+					d["object"] = object
 				
-				name = "{0}: {1}".format(object, name)
-				d["sortbytype"] = name.lower()
+					name = "{0}: {1}".format(object, name)
+					d["sortbytype"] = name.lower()
 				
-				includedObjects.append (d)
+					includedObjects.append (d)
 				
 			if "listSort" in valuesDict:
 				includedObjects = eps.jstash.sortStash (includedObjects, valuesDict["listSort"])

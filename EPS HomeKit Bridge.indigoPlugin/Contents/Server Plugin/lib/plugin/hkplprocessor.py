@@ -239,6 +239,7 @@ class HomebridgePayloadProcessor:
 
 			for r in includedDevices:
 				if r["hktype"] == "service_CameraRTPStreamManagement": continue
+				#indigo.server.log (u"{} {}".format(r["alias"], r["hktype"]))
 				if r["jkey"] in self.factory.HKCACHE:
 					deviceList.append(self.factory.HKCACHE[r["jkey"]])
 				else:		

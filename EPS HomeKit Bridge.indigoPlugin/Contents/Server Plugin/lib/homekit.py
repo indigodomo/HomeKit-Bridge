@@ -1556,6 +1556,12 @@ class Service (object):
 				if vtype == "float" and atype == "int":
 					obj.value = int(round(value))
 					converted = True
+				if vtype == "unicode" and atype == "float":
+					try:
+						obj.value = float(value)
+						converted = True
+					except Exception as e:
+						self.logger.error (ext.getException(e))
 			
 				if not converted:
 					self.logger.warning (u"Unable to set the value of {} on {} to {} because that attribute requires {} and it was given {}".format(attribute, self.alias.value, unicode(value), atype, vtype))
@@ -2353,6 +2359,35 @@ class Service (object):
 			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
 			
 			
+	#
+	# iTunes Playback State
+	#
+	def special_itunesPlaybackState (self, classes, sourceDict, getter, characteristic, isOptional = False):			
+		try:
+			if self.serverId == 0: return
+		
+			obj = indigo.devices[self.objId]
+			
+			if obj.states["playStatus.playing"]:
+				self.setAttributeValue (characteristic, 0)
+				self.characterDict[characteristic] = getattr (self, characteristic).value
+				
+			if obj.states["playStatus.paused"]:
+				self.setAttributeValue (characteristic, 1)
+				self.characterDict[characteristic] = getattr (self, characteristic).value	
+				
+			if obj.states["playStatus.stopped"]:
+				self.setAttributeValue (characteristic, 2)
+				self.characterDict[characteristic] = getattr (self, characteristic).value
+			
+			
+			self.actions.append (HomeKitAction(characteristic, "equal", 0, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, 0, ["play", self.objId]], 100, {self.objId: "state_playStatus.playing"}))			
+			self.actions.append (HomeKitAction(characteristic, "equal", 1, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, 0, ["pause", self.objId]], 100, {self.objId: "state_playStatus.paused"}))			
+			self.actions.append (HomeKitAction(characteristic, "equal", 2, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, 0, ["pause", self.objId]], 100, {self.objId: "state_playStatus.stopped"}))			
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))		
+			
 				
 	#
 	# Convert RGB to Hue, Saturation and Color Temperature
@@ -2913,7 +2948,7 @@ class service_AirQualitySensor (Service):
 		super(service_AirQualitySensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["AirQuality"] = {"indigo.SensorDevice": "attr_sensorValue"}
+		self.required["AirQuality"] = {"indigo.SensorDevice": "attr_sensorValue", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedValue"}
 		
 		self.optional = {}
 		self.optional["StatusActive"] = {"*": "attr_onState"}
@@ -3037,7 +3072,7 @@ class service_CarbonDioxideSensor (Service):
 		super(service_CarbonDioxideSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["CarbonDioxideDetected"] = {"*": "attr_onState"}
+		self.required["CarbonDioxideDetected"] = {"*": "attr_onState", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedValue"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
@@ -3067,7 +3102,7 @@ class service_CarbonMonoxideSensor (Service):
 		super(service_CarbonMonoxideSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["CarbonMonoxideDetected"] = {"*": "attr_onState"}
+		self.required["CarbonMonoxideDetected"] = {"*": "attr_onState", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedValue"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
@@ -3098,7 +3133,7 @@ class service_ContactSensor (Service):
 		
 		if not self.jsoninit:
 			self.required = {}
-			self.required["ContactSensorState"] = {"*": "special_invertedOnState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedBoolean", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open"}
+			self.required["ContactSensorState"] = {"*": "special_invertedOnState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedBoolean", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedBoolean"}
 	
 			self.optional = {}
 			self.optional["StatusActive"] = {}
@@ -3184,7 +3219,7 @@ class service_Fan (Service):
 		super(service_Fan, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 	
 		self.required = {}
-		self.required["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.pennypacker.indigoplugin.senseme.SenseME_fan": "special_SenseMeFanToggle"}
+		self.required["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.pennypacker.indigoplugin.senseme.SenseME_fan": "special_SenseMeFanToggle", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedBoolean"}
 	
 		self.optional = {}
 		self.optional["Name"] = {}
@@ -3210,7 +3245,7 @@ class service_Fanv2 (Service):
 		super(service_Fanv2, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 	
 		self.required = {}
-		self.required["Active"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.pennypacker.indigoplugin.senseme.SenseME_fan": "special_SenseMeFanToggle"}
+		self.required["Active"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.pennypacker.indigoplugin.senseme.SenseME_fan": "special_SenseMeFanToggle", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedBoolean"}
 	
 		self.optional = {}
 		self.optional["CurrentFanState"] = {}
@@ -3242,7 +3277,7 @@ class service_Faucet (Service):
 		super(service_Faucet, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["Active"] = {"*": "attr_onState"}
+		self.required["Active"] = {"*": "attr_onState", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedValue"}
 
 		self.optional = {}
 		self.optional["StatusFault"] = {}
@@ -3390,7 +3425,7 @@ class service_HumiditySensor (Service):
 		super(service_HumiditySensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["CurrentRelativeHumidity"] = {"*": "attr_sensorValue", "indigo.ThermostatDevice": "state_humidityInput1", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "state_relativeHumidity", "indigo.Device.com.karlwachs.piBeacon.i2cBMExx": "state_Humidity"}
+		self.required["CurrentRelativeHumidity"] = {"*": "attr_sensorValue", "indigo.ThermostatDevice": "state_humidityInput1", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "state_relativeHumidity", "indigo.Device.com.karlwachs.piBeacon.i2cBMExx": "state_Humidity", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedValue"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
@@ -3450,7 +3485,7 @@ class service_LeakSensor (Service):
 		super(service_LeakSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["LeakDetected"] = {"*": "attr_onState"}
+		self.required["LeakDetected"] = {"*": "attr_onState", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedBoolean"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
@@ -3478,7 +3513,7 @@ class service_Lightbulb (Service):
 		super(service_Lightbulb, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_status.connected", "indigo.Device.com.pennypacker.indigoplugin.senseme.SenseME_fan": "special_SenseMeLightToggle"}
+		self.required["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_status.connected", "indigo.Device.com.pennypacker.indigoplugin.senseme.SenseME_fan": "special_SenseMeLightToggle", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedBoolean"}
 	
 		self.optional = {}
 		self.optional["Brightness"] = {"indigo.DimmerDevice": "attr_brightness", "indigo.SpeedControlDevice": "attr_speedLevel", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_volume", "indigo.Device.com.pennypacker.indigoplugin.senseme.SenseME_fan": "special_SenseMeLightLevel"}
@@ -3506,7 +3541,7 @@ class service_LightSensor (Service):
 		super(service_LightSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["CurrentAmbientLightLevel"] = {"*": "attr_sensorValue"}
+		self.required["CurrentAmbientLightLevel"] = {"*": "attr_sensorValue", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedValue"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
@@ -3561,7 +3596,7 @@ class service_MotionSensor (Service):
 		super(service_MotionSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["MotionDetected"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open", "indigo.Device.org.cynic.indigo.securityspy.camera": "state_motion"}
+		self.required["MotionDetected"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open", "indigo.Device.org.cynic.indigo.securityspy.camera": "state_motion", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedBoolean"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
@@ -3589,7 +3624,7 @@ class service_OccupancySensor (Service):
 		super(service_OccupancySensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["OccupancyDetected"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open", "indigo.Device.com.karlwachs.piBeacon.beacon": "special_piBeaconStatus"}
+		self.required["OccupancyDetected"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open", "indigo.Device.com.karlwachs.piBeacon.beacon": "special_piBeaconStatus", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedValue"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
@@ -3617,14 +3652,40 @@ class service_Outlet (Service):
 		super(service_Outlet, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone"}
+		self.required["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "attr_activeZone"}
 		self.required["OutletInUse"] = {"*": "special_inuse"}
 	
 		self.optional = {}
 					
 		super(service_Outlet, self).setAttributes ()							
 				
-		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))			
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+		
+# ==============================================================================
+# PLAYBACK DEVICE SERVICE (Community Type)
+# ==============================================================================
+class service_PlaybackDeviceService (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "PlaybackDeviceService"
+		desc = "Playback Device Service (3rd Party Only)"
+	
+		super(service_PlaybackDeviceService, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = {}
+		self.required["PlaybackState"] = {"indigo.Device.com.perceptiveautomation.indigoplugin.itunes.mediaserver": "special_itunesPlaybackState"}
+
+		self.optional = {}
+		self.optional["MediaItemAlbumName"] = {"indigo.Device.com.perceptiveautomation.indigoplugin.itunes.mediaserver": "state_album"}
+		self.optional["MediaItemArtist"] = {"indigo.Device.com.perceptiveautomation.indigoplugin.itunes.mediaserver": "state_artist"}
+		self.optional["MediaItemName"] = {"indigo.Device.com.perceptiveautomation.indigoplugin.itunes.mediaserver": "state_track"}
+					
+		super(service_PlaybackDeviceService, self).setAttributes ()							
+				
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))					
 		
 # ==============================================================================
 # LOCK MECHANISM
@@ -3724,7 +3785,7 @@ class service_SmokeSensor (Service):
 		super(service_SmokeSensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["SmokeDetected"] = {"*": "attr_onState", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open"}
+		self.required["SmokeDetected"] = {"*": "attr_onState", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedBoolean"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
@@ -3764,6 +3825,30 @@ class service_Speaker (Service):
 				
 		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
 		
+
+# ==============================================================================
+# STATELESS PROGRAMMABLE SWITCH
+# ==============================================================================
+class service_StatelessProgrammableSwitch (Service):
+
+	#
+	# Initialize the class
+	#
+	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
+		type = "StatelessProgrammableSwitch"
+		desc = "Stateless Programmable Switch"
+	
+		super(service_StatelessProgrammableSwitch, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
+		
+		self.required = {}
+		self.required["ProgrammableSwitchEvent"] = {}
+	
+		self.optional = {}
+					
+		super(service_StatelessProgrammableSwitch, self).setAttributes ()	
+				
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+
 # ==============================================================================
 # SWITCH
 # ==============================================================================
@@ -3779,7 +3864,7 @@ class service_Switch (Service):
 		super(service_Switch, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open", "indigo.Device.org.cynic.indigo.securityspy.camera": "state_recording"}
+		self.required["On"] = {"*": "attr_onState", "indigo.ThermostatDevice": "attr_fanIsOn", "indigo.MultiIODevice": "state_binaryOutput1", "indigo.SprinklerDevice": "activeZone", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmZone": "state_state.open", "indigo.Device.org.cynic.indigo.securityspy.camera": "state_recording", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedBoolean"}
 	
 		self.optional = {}
 					
@@ -3803,7 +3888,7 @@ class service_TemperatureSensor (Service):
 		
 		self.required = {}
 		#self.required["CurrentTemperature"] = {"indigo.SensorDevice": "special_sensorTemperature", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "special_wuTemperature", "indigo.ThermostatDevice": "special_thermTemperature", "indigo.Device.com.perceptiveautomation.indigoplugin.weathersnoop.ws3station": "special_wsTemperature"}
-		self.required["CurrentTemperature"] = {"indigo.SensorDevice": "attr_sensorValue", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "state_temp", "indigo.ThermostatDevice": "state_temperatureInput1", "indigo.Device.com.perceptiveautomation.indigoplugin.weathersnoop.ws3station": "state_temperature_F", "indigo.Device.com.karlwachs.piBeacon.i2cTMP102": "state_Temperature", "indigo.Device.com.karlwachs.piBeacon.i2cBMExx": "state_Temperature", "indigo.Device.com.karlwachs.piBeacon.i2cMS5803": "state_Temperature"}
+		self.required["CurrentTemperature"] = {"indigo.SensorDevice": "attr_sensorValue", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "state_temp", "indigo.ThermostatDevice": "state_temperatureInput1", "indigo.Device.com.perceptiveautomation.indigoplugin.weathersnoop.ws3station": "state_temperature_F", "indigo.Device.com.karlwachs.piBeacon.i2cTMP102": "state_Temperature", "indigo.Device.com.karlwachs.piBeacon.i2cBMExx": "state_Temperature", "indigo.Device.com.karlwachs.piBeacon.i2cMS5803": "state_Temperature", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedValue"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
@@ -4519,6 +4604,39 @@ class characteristic_LockTargetState:
 		self.readonly = False
 		self.notify = True		
 		self.changeMinMax = False
+		
+# ==============================================================================
+# MEDIA ITEM NAME (Community)
+# ==============================================================================		
+class characteristic_MediaItemName:
+	def __init__(self):
+		self.value = u""	
+		
+		self.readonly = True
+		self.notify = True
+		self.changeMinMax = False	
+		
+# ==============================================================================
+# MEDIA ITEM ALBUM NAME (Community)
+# ==============================================================================		
+class characteristic_MediaItemAlbumName:
+	def __init__(self):
+		self.value = u""	
+		
+		self.readonly = True
+		self.notify = True
+		self.changeMinMax = False	
+		
+# ==============================================================================
+# MEDIA ITEM ARTIST (Community)
+# ==============================================================================		
+class characteristic_MediaItemArtist:
+	def __init__(self):
+		self.value = u""	
+		
+		self.readonly = True
+		self.notify = True
+		self.changeMinMax = False						
 
 # ==============================================================================
 # MOTION DETECTED
@@ -4666,6 +4784,22 @@ class characteristic_PM10Density:
 		self.changeMinMax = False		
 		
 # ==============================================================================
+# PLAYBACK STATE (Community)
+# ==============================================================================
+class characteristic_PlaybackState:	
+	def __init__(self):
+		self.value = 2 
+		self.maxValue = 2
+		self.minValue = 0
+		
+		self.validValues = [0, 1, 2]
+		self.validValuesStr = "[playing, paused, stopped]"
+		
+		self.readonly = False
+		self.notify = True		
+		self.changeMinMax = False		
+		
+# ==============================================================================
 # POSITION STATE
 # ==============================================================================
 class characteristic_PositionState:	
@@ -4702,7 +4836,7 @@ class characteristic_ProgramMode:
 # ==============================================================================
 class characteristic_ProgrammableSwitchEvent:	
 	def __init__(self):
-		self.value = 0
+		self.value = 2
 		self.maxValue = 2
 		self.minValue = 0
 		

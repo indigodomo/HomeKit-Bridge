@@ -1,8 +1,17 @@
 Release Notes
 ==========
 
-Version 1.0.0 RC 1 (Release Candidate 1)
+Version 1.0.0 (Official Release)
 ==========
+* Added ability to use Device Extension Conversion Extension devices as temperature sensors, air quality sensors, CO2 sensors, CO sensors, contact sensors (when boolean), fan devices (when boolean), faucets (when boolean), humidity sensors, leak sensors (when boolean), lightbulb (when boolean), light sensor, motion sensor (when boolean), occupancy sensor (when boolean), smoke sensor (when boolean) or switch (when boolean)
+* Enabled Plugin Store update checking when the plugin starts and at 10am each day
+* Fixed bug in the excluded device management that would throw an error and not populate the excluded items list if any of the excluded items had been removed from Indigo
+
+Previous Release Notes
+==========
+
+Version 1.0.0 RC 1 (Release Candidate 1)
+---------------
 * Final fixes for SenseMe fan/light support ([Issue #97](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/97))
 * Adjusted acceptable value range on Heat and Cooling set points to allow for wider changes ([Issue #97](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/97))
 * Added automatic server restart if the Homebridge debug option is changed
@@ -14,9 +23,6 @@ Version 1.0.0 RC 1 (Release Candidate 1)
 * Changed server device re-caching to only happen when the included devices or actions are changed in a server rather than on any properly or attribute change
 * [Issue #99](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/99) resolved
 * [Issue #97](https://github.com/Colorado4Wheeler/HomeKit-Bridge/issues/97) resolved
-
-Previous Release Notes
-==========
 
 Version 0.23.1 (Beta 23.1)
 ---------------
