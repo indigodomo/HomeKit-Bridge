@@ -1,14 +1,19 @@
 Release Notes
 ==========
 
-Version 1.0.0 (Official Release)
-==========
-* Added ability to use Device Extension Conversion Extension devices as temperature sensors, air quality sensors, CO2 sensors, CO sensors, contact sensors (when boolean), fan devices (when boolean), faucets (when boolean), humidity sensors, leak sensors (when boolean), lightbulb (when boolean), light sensor, motion sensor (when boolean), occupancy sensor (when boolean), smoke sensor (when boolean) or switch (when boolean)
-* Enabled Plugin Store update checking when the plugin starts and at 10am each day
-* Fixed bug in the excluded device management that would throw an error and not populate the excluded items list if any of the excluded items had been removed from Indigo
+Version 1.0.1
+---------------
+* Added native ability to use Dave's amazing new [Fantastic Weather](https://github.com/DaveL17/Fantastic-Weather/releases) device as a temperature sensor (current temp) or humidity sensor (current humidity)
+* Added native ability to use Fantastic Weather Forecast device as a temperature sensor (todays high) or humidity sensor (todays humidity)
 
 Previous Release Notes
 ==========
+
+Version 1.0.0 (Official Release)
+---------------
+* Added ability to use Device Extension Conversion Extension devices as temperature sensors, air quality sensors, CO2 sensors, CO sensors, contact sensors (when boolean), fan devices (when boolean), faucets (when boolean), humidity sensors, leak sensors (when boolean), lightbulb (when boolean), light sensor, motion sensor (when boolean), occupancy sensor (when boolean), smoke sensor (when boolean) or switch (when boolean)
+* Enabled Plugin Store update checking when the plugin starts and at 10am each day
+* Fixed bug in the excluded device management that would throw an error and not populate the excluded items list if any of the excluded items had been removed from Indigo
 
 Version 1.0.0 RC 1 (Release Candidate 1)
 ---------------

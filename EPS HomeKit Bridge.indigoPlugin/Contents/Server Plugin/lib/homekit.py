@@ -228,6 +228,10 @@ class HomeKit:
 			if dev.pluginId == "com.pennypacker.indigoplugin.senseme":
 				return "service_Fanv2"		
 				
+			if dev.pluginId == "com.fogbert.indigoplugin.fantasticwWeather":
+				if dev.deviceTypeId == 'Weather': return "service_TemperatureSensor"			
+				if dev.deviceTypeId == 'Daily': return "service_HumiditySensor"			
+				
 			if dev.pluginId == "com.GlennNZ.indigoplugin.BlueIris" or dev.pluginId == "org.cynic.indigo.securityspy":
 				return "service_CameraRTPStreamManagement"
 			
@@ -3425,7 +3429,7 @@ class service_HumiditySensor (Service):
 		super(service_HumiditySensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["CurrentRelativeHumidity"] = {"*": "attr_sensorValue", "indigo.ThermostatDevice": "state_humidityInput1", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "state_relativeHumidity", "indigo.Device.com.karlwachs.piBeacon.i2cBMExx": "state_Humidity", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedValue"}
+		self.required["CurrentRelativeHumidity"] = {"*": "attr_sensorValue", "indigo.ThermostatDevice": "state_humidityInput1", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "state_relativeHumidity", "indigo.Device.com.karlwachs.piBeacon.i2cBMExx": "state_Humidity", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedValue", "indigo.Device.com.fogbert.indigoplugin.fantasticwWeather.Weather": "state_humidity", "indigo.Device.com.fogbert.indigoplugin.fantasticwWeather.Daily": "state_d01_humidity"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
@@ -3888,7 +3892,7 @@ class service_TemperatureSensor (Service):
 		
 		self.required = {}
 		#self.required["CurrentTemperature"] = {"indigo.SensorDevice": "special_sensorTemperature", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "special_wuTemperature", "indigo.ThermostatDevice": "special_thermTemperature", "indigo.Device.com.perceptiveautomation.indigoplugin.weathersnoop.ws3station": "special_wsTemperature"}
-		self.required["CurrentTemperature"] = {"indigo.SensorDevice": "attr_sensorValue", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "state_temp", "indigo.ThermostatDevice": "state_temperatureInput1", "indigo.Device.com.perceptiveautomation.indigoplugin.weathersnoop.ws3station": "state_temperature_F", "indigo.Device.com.karlwachs.piBeacon.i2cTMP102": "state_Temperature", "indigo.Device.com.karlwachs.piBeacon.i2cBMExx": "state_Temperature", "indigo.Device.com.karlwachs.piBeacon.i2cMS5803": "state_Temperature", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedValue"}
+		self.required["CurrentTemperature"] = {"indigo.SensorDevice": "attr_sensorValue", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "state_temp", "indigo.ThermostatDevice": "state_temperatureInput1", "indigo.Device.com.perceptiveautomation.indigoplugin.weathersnoop.ws3station": "state_temperature_F", "indigo.Device.com.karlwachs.piBeacon.i2cTMP102": "state_Temperature", "indigo.Device.com.karlwachs.piBeacon.i2cBMExx": "state_Temperature", "indigo.Device.com.karlwachs.piBeacon.i2cMS5803": "state_Temperature", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedValue", "indigo.Device.com.fogbert.indigoplugin.fantasticwWeather.Weather": "state_temperature", "indigo.Device.com.fogbert.indigoplugin.fantasticwWeather.Daily": "state_d01_temperatureHigh"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
