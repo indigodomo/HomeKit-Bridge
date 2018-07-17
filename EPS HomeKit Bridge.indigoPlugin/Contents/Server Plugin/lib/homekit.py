@@ -2831,16 +2831,16 @@ class HomeKitAction ():
 		"""
 		
 		try:
-			indigo.server.log('Adding {} to service'.format(characteristic))
+			#indigo.server.log('Adding {} to service'.format(characteristic))
 			
 			if characteristic == "Hue": hkservice.hue = value
 			if characteristic == "Saturation": hkservice.saturation = value
 			if characteristic == "ColorTemperature": hkservice.colortemperature = value
 			
-			indigo.server.log (u'H: {} | S: {} | T: {}'.format(hkservice.hue,hkservice.saturation,hkservice.colortemperature))
+			#indigo.server.log (u'H: {} | S: {} | T: {}'.format(hkservice.hue,hkservice.saturation,hkservice.colortemperature))
 						
 			if hkservice.hue != -1 and hkservice.saturation != -1:
-				indigo.server.log('Setting color for {}'.format(indigo.devices[devId].name))
+				#indigo.server.log('Setting color for {}'.format(indigo.devices[devId].name))
 				
 				h = float(hkservice.hue) / 360 # Get percentage of 360 (max hue value)
 				s = float(hkservice.saturation) / 100 # Get percentage
@@ -2849,12 +2849,12 @@ class HomeKitAction ():
 				#if 'Brightness' in cache:
 				#	v = cache['Brightness'] / 100
 				
-				indigo.server.log (u'Converting H: {} | S: {} | V: {}'.format(h,s,v))
+				#indigo.server.log (u'Converting H: {} | S: {} | V: {}'.format(h,s,v))
 				
 				r, g, b = colorsys.hsv_to_rgb(h, s, v)
 				r, g, b = [x*255.0 for x in r, g, b]
 				
-				indigo.server.log (u'R: {} | G: {} | B: {}'.format(r,g,b))
+				#indigo.server.log (u'R: {} | G: {} | B: {}'.format(r,g,b))
 				
 				indigo.dimmer.setColorLevels (devId, redLevel=r, greenLevel=g, blueLevel=b)
 				
