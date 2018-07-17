@@ -10,8 +10,10 @@ import indigo
 import logging
 import colorsys
 
+
 import ext
 import dtutil
+import calcs
 
 import sys, inspect, json
 
@@ -2861,44 +2863,19 @@ class HomeKitAction ():
 				# Reset for the next color change
 				hkservice.hue = -1
 				hkservice.saturation = -1
+				hkservice.colortemperature = -1
 				
 			if hkservice.colortemperature != -1:
-				indigo.dimmer.setColorLevels (devId, whiteTemperature=int(hkservice.colortemperature))
+				# Color temps are completely independant of color (at least when using a Hue bulb integrated from the Hue app in Home it is, it can be white to orange
+				kelvin = 1000000 / value # Convert mireds to Kelvin for the conversion
+				r, g, b = calcs.convert_K_to_RGB(kelvin) # Convert Kelvin to RGB
+				
+				indigo.dimmer.setColorLevels (devId, redLevel=r, greenLevel=g, blueLevel=b)
+				
+				# Reset for the next color change
+				hkservice.hue = -1
+				hkservice.saturation = -1
 				hkservice.colortemperature = -1
-			
-			return
-			
-			cache = {}
-			
-			dev = indigo.devices[devId]
-			
-			#if 'Hue' in cache and 'Saturation' in cache and 'Brightness' in cache and 'ColorTemperature' in cache:
-			#if 'Hue' in cache and 'Saturation' in cache:
-			if (characteristic == 'Hue' and 'Saturation' in cache) or (characteristic == 'Saturation' and 'Hue' in cache):
-				# Ready to convert and change the color
-				indigo.server.log('Setting color for {}'.format(indigo.devices[devId].name))
-				
-				cache[characteristic] = value
-				
-				h = cache['Hue']
-				s = cache['Saturation'] / 100
-				v = indigo.devices[devId].brightness / 100
-				if 'Brightness' in cache:
-					v = cache['Brightness'] / 100
-				
-				r, g, b = colorsys.hls_to_rgb(h, l, s)
-				r, g, b = [x*255.0 for x in r, g, b]
-				
-				indigo.server.log (u'R: {} | G: {} | B: {}'.format(r,g,b))
-				
-				del(self.characteristicCache[devId])
-			
-			else:
-				# Add this characteristic to cache and pass
-				indigo.server.log('Adding {} to cache'.format(characteristic))
-				cache[characteristic] = value
-				self.characteristicCache[devId] = cache
-				indigo.server.log(u'Saved: {}'.format(unicode(self.characteristicCache)))
 			
 		except Exception as e:
 			self.logger.error (ext.getException(e))
@@ -3666,7 +3643,7 @@ class service_Lightbulb (Service):
 		try:
 			obj = indigo.devices[objId]
 			if "supportsRGB" in dir(obj) and obj.supportsRGB:
-				self.optional["Brightness"] = {"indigo.DimmerDevice": "special_HSV"}
+				#self.optional["Brightness"] = {"indigo.DimmerDevice": "special_HSV"}
 				self.optional["Hue"] = {"indigo.DimmerDevice": "special_HSV"}
 				self.optional["Saturation"] = {"indigo.DimmerDevice": "special_HSV"}
 				self.optional["ColorTemperature"] = {"indigo.DimmerDevice": "special_HSV"}

@@ -1,14 +1,19 @@
 Release Notes
 ==========
 
-Version 1.0.2-b2
+Version 1.0.2-beta.3
 ---------------
-* Fixed issue where a color supporting bulb that does not support RGB would cause the plugin to error (note, right now only RGB capable bulbs are supported)
+* Added ability to change color using the color temperature wheel in Home.  Strictly speaking, color temperature is a color from white to orange (and this is how the Hue app sees it and then how the Hue app deals with it when it integrates into Home), therefore when you use the color temperature wheel it will set the color from white to orange, if you want actual colors then you use the color wheel instead.  Confused?  Yea, it is confusing.
+* Fixed an issue where brightness controls were incorporated into the color setting (which they are when setting the RGB values of a light) and as a result that meant that changing brightness in Home didn't actually change the bulb brightness, this has been restored to the pre 1.0.2 setting of brightness changing brightness as normal when using an RGB light
 
 Previous Release Notes
 ==========
 
-Version 1.0.2-b1
+Version 1.0.2-beta.2
+---------------
+* Fixed issue where a color supporting bulb that does not support RGB would cause the plugin to error (note, right now only RGB capable bulbs are supported)
+
+Version 1.0.2-beta.1
 ---------------
 * Added some UI adjustments to pretty up the UI a little
 * Added color support for ALL Indigo dimmers that support color
