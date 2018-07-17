@@ -2461,7 +2461,7 @@ class Service (object):
 					setvalue = obj.brightness
 				elif characteristic == 'ColorTemperature': setvalue = int(round(obj.brightness / 100.0 * 4500.0 + 2000.0))
 					
-				if obj.id == 624004987: indigo.server.log('Setting {} on {} to {}'.format(characteristic, obj.name, setvalue))	
+				#if obj.id == 624004987: indigo.server.log('Setting {} on {} to {}'.format(characteristic, obj.name, setvalue))	
 					
 				self.setAttributeValue (characteristic, setvalue)
 				self.characterDict[characteristic] = getattr (self, characteristic).value
@@ -3665,7 +3665,7 @@ class service_Lightbulb (Service):
 		
 		try:
 			obj = indigo.devices[objId]
-			if "supportsColor" in dir(obj) and obj.supportsColor:
+			if "supportsRGB" in dir(obj) and obj.supportsRGB:
 				self.optional["Brightness"] = {"indigo.DimmerDevice": "special_HSV"}
 				self.optional["Hue"] = {"indigo.DimmerDevice": "special_HSV"}
 				self.optional["Saturation"] = {"indigo.DimmerDevice": "special_HSV"}

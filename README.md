@@ -1,4 +1,4 @@
-![](https://github.com/Colorado4Wheeler/WikiDocs/blob/master/HomeKit-Bridge/logo.png)
+![](https://raw.githubusercontent.com/Colorado4Wheeler/WikiDocs/master/HomeKit-Bridge/header.png)
 
 # HomeKit Bridge
 

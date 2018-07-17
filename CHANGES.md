@@ -1,6 +1,13 @@
 Release Notes
 ==========
 
+Version 1.0.2-b2
+---------------
+* Fixed issue where a color supporting bulb that does not support RGB would cause the plugin to error (note, right now only RGB capable bulbs are supported)
+
+Previous Release Notes
+==========
+
 Version 1.0.2-b1
 ---------------
 * Added some UI adjustments to pretty up the UI a little
@@ -9,9 +16,6 @@ Version 1.0.2-b1
 * Fixed minor issue where if debugging level had not be specified (since it was added late in beta) that it will now default properly instead of showing an empty field
 * Note that this beta release has some UI annoyances because it is being released to test color bulbs before the UI changes have been completed
 * Note that this beta release does not fully support changing color temperatures via HomeKit, only colors themselves
-
-Previous Release Notes
-==========
 
 Version 1.0.1
 ---------------
