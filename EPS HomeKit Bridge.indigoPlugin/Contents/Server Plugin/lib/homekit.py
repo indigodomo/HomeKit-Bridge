@@ -8,6 +8,7 @@
 
 import indigo
 import logging
+import colorsys
 
 import ext
 import dtutil
@@ -714,6 +715,11 @@ class Service (object):
 			self.invertOnState = False # This is set by the HTTP utility during processing if the user passed it in the stash
 			self.convertFahrenheit = False # This is set by the HTTP utility during processing if the user passes it in the stash
 			
+			# Color support
+			self.hue = -1
+			self.saturation = -1
+			self.colortemperature = -1
+			
 			# For timer baseed operations
 			self.recurringUpdate = False # When true, the API will schedule a thread to refresh every X seconds
 			self.recurringSeconds = 0
@@ -1045,6 +1051,9 @@ class Service (object):
 						#indigo.server.log ("Alias: {} | Invert: {} | Getter: {}".format(self.alias.value, unicode(self.invertOnState), getter))
 						if self.invertOnState and getter == "attr_onState": # In case we are reversing AND this is the onState attribute
 							self.logger.threaddebug (u"Inverting {}".format(self.alias.value))
+							if self.objId == 1899394989:
+								indigo.server.log(u'{}'.format('Inverted'))
+								
 							if getattr (self, characteristic).value:
 								self.setAttributeValue (characteristic, False) # Make true false
 							else:
@@ -1566,6 +1575,10 @@ class Service (object):
 						converted = True
 					except Exception as e:
 						self.logger.error (ext.getException(e))
+						
+				if self.objId == 1899394989:
+					indigo.server.log(u'Value: {} | Obj Value: {}'.format(value,obj.value))
+								
 			
 				if not converted:
 					self.logger.warning (u"Unable to set the value of {} on {} to {} because that attribute requires {} and it was given {}".format(attribute, self.alias.value, unicode(value), atype, vtype))
@@ -2396,7 +2409,7 @@ class Service (object):
 	#
 	# Convert RGB to Hue, Saturation and Color Temperature
 	#
-	def special_HSL (self, classes, sourceDict, getter, characteristic, isOptional = False):
+	def XXXspecial_HSL (self, classes, sourceDict, getter, characteristic, isOptional = False):
 		try:
 			if self.serverId == 0: return
 		
@@ -2424,6 +2437,49 @@ class Service (object):
 			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))		
 			
 			
+	#
+	# Convert RGB to Hue, Saturation and Color Temperature
+	#
+	def special_HSV (self, classes, sourceDict, getter, characteristic, isOptional = False):			
+		try:
+			obj = indigo.devices[self.objId]
+			if "supportsColor" in dir(obj) and obj.supportsColor:
+				r = obj.redLevel
+				g = obj.greenLevel
+				b = obj.blueLevel
+				
+				r, g, b = [x/255.0 for x in r, g, b]
+				
+				# Convert
+				h, s, v = colorsys.rgb_to_hsv(r, g, b)
+				setvalue = h * 360
+				
+				if characteristic == 'Saturation': setvalue = s * 100
+				elif characteristic == 'Brightness': 
+					#if obj.id == 624004987: indigo.server.log('Brightness Raw: {}'.format(v))
+					#setvalue = v * 100 #obj.brightness
+					setvalue = obj.brightness
+				elif characteristic == 'ColorTemperature': setvalue = int(round(obj.brightness / 100.0 * 4500.0 + 2000.0))
+					
+				if obj.id == 624004987: indigo.server.log('Setting {} on {} to {}'.format(characteristic, obj.name, setvalue))	
+					
+				self.setAttributeValue (characteristic, setvalue)
+				self.characterDict[characteristic] = getattr (self, characteristic).value
+			
+			
+				#commandSetDeviceColor (self, devId, serverId, characteristic, value)
+				self.actions.append (HomeKitAction(characteristic, "between", 0.0, "homekit.commandSetDeviceColor", [self.objId, self.serverId, "=service=", characteristic, "=value="], 100000.0, {self.objId: "attr_whiteTemperature"}))		
+			
+				self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "attr_redLevel"}))	
+				self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "attr_blueLevel"}))	
+				self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "attr_greenLevel"}))	
+				self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "attr_whiteLevel"}))	
+				self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "attr_whiteLevel2"}))	
+				#self.actions.append (HomeKitAction(characteristic, "equal", "STUB", "STUB", [self.objId, 0], 0, {self.objId: "attr_whiteTemperature"}))	
+			
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))		
 			
 			
 			
@@ -2505,7 +2561,7 @@ class HomeKitAction ():
 		
 		return ret
 		
-	def run (self, value, objId, waitForComplete = True):
+	def run (self, value, objId, hkservice, waitForComplete = True):
 		try:
 			# See if the value falls within the actions limitations and if it does then run the associated command
 			#indigo.server.log(unicode(self))
@@ -2574,6 +2630,8 @@ class HomeKitAction ():
 					for a in self.arguments:
 						if unicode(a) == "=value=":
 							args.append(value)
+						elif unicode(a) == "=service=":
+							args.append(hkservice)	
 						else:
 							args.append(a)
 							
@@ -2765,6 +2823,85 @@ class HomeKitAction ():
 		except Exception as e:
 			self.logger.error (ext.getException(e))
 			return False
+			
+	###
+	def commandSetDeviceColor (self, devId, serverId, hkservice, characteristic, value):
+		"""
+		Set the color of a device so long as all four of the parameters have been passed.  These get passed on independant calls so cache each request until we have the full set.
+		"""
+		
+		try:
+			indigo.server.log('Adding {} to service'.format(characteristic))
+			
+			if characteristic == "Hue": hkservice.hue = value
+			if characteristic == "Saturation": hkservice.saturation = value
+			if characteristic == "ColorTemperature": hkservice.colortemperature = value
+			
+			indigo.server.log (u'H: {} | S: {} | T: {}'.format(hkservice.hue,hkservice.saturation,hkservice.colortemperature))
+						
+			if hkservice.hue != -1 and hkservice.saturation != -1:
+				indigo.server.log('Setting color for {}'.format(indigo.devices[devId].name))
+				
+				h = float(hkservice.hue) / 360 # Get percentage of 360 (max hue value)
+				s = float(hkservice.saturation) / 100 # Get percentage
+				v = float(indigo.devices[devId].brightness) / 100 # Get percentage
+				
+				#if 'Brightness' in cache:
+				#	v = cache['Brightness'] / 100
+				
+				indigo.server.log (u'Converting H: {} | S: {} | V: {}'.format(h,s,v))
+				
+				r, g, b = colorsys.hsv_to_rgb(h, s, v)
+				r, g, b = [x*255.0 for x in r, g, b]
+				
+				indigo.server.log (u'R: {} | G: {} | B: {}'.format(r,g,b))
+				
+				indigo.dimmer.setColorLevels (devId, redLevel=r, greenLevel=g, blueLevel=b)
+				
+				# Reset for the next color change
+				hkservice.hue = -1
+				hkservice.saturation = -1
+				
+			if hkservice.colortemperature != -1:
+				indigo.dimmer.setColorLevels (devId, whiteTemperature=int(hkservice.colortemperature))
+				hkservice.colortemperature = -1
+			
+			return
+			
+			cache = {}
+			
+			dev = indigo.devices[devId]
+			
+			#if 'Hue' in cache and 'Saturation' in cache and 'Brightness' in cache and 'ColorTemperature' in cache:
+			#if 'Hue' in cache and 'Saturation' in cache:
+			if (characteristic == 'Hue' and 'Saturation' in cache) or (characteristic == 'Saturation' and 'Hue' in cache):
+				# Ready to convert and change the color
+				indigo.server.log('Setting color for {}'.format(indigo.devices[devId].name))
+				
+				cache[characteristic] = value
+				
+				h = cache['Hue']
+				s = cache['Saturation'] / 100
+				v = indigo.devices[devId].brightness / 100
+				if 'Brightness' in cache:
+					v = cache['Brightness'] / 100
+				
+				r, g, b = colorsys.hls_to_rgb(h, l, s)
+				r, g, b = [x*255.0 for x in r, g, b]
+				
+				indigo.server.log (u'R: {} | G: {} | B: {}'.format(r,g,b))
+				
+				del(self.characteristicCache[devId])
+			
+			else:
+				# Add this characteristic to cache and pass
+				indigo.server.log('Adding {} to cache'.format(characteristic))
+				cache[characteristic] = value
+				self.characteristicCache[devId] = cache
+				indigo.server.log(u'Saved: {}'.format(unicode(self.characteristicCache)))
+			
+		except Exception as e:
+			self.logger.error (ext.getException(e))
 			
 	#
 	# Change thermostat temperature
@@ -3521,10 +3658,20 @@ class service_Lightbulb (Service):
 	
 		self.optional = {}
 		self.optional["Brightness"] = {"indigo.DimmerDevice": "attr_brightness", "indigo.SpeedControlDevice": "attr_speedLevel", "indigo.Device.com.perceptiveautomation.indigoplugin.airfoilpro.speaker": "state_volume", "indigo.Device.com.pennypacker.indigoplugin.senseme.SenseME_fan": "special_SenseMeLightLevel"}
-		self.optional["Hue"] = {"indigo.DimmerDevicexxx": "special_HSL", "indigo.DimmerDevice.com.nathansheldon.indigoplugin.HueLights.hueBulb": "state_hue", "indigo.DimmerDevice.com.autologplugin.indigoplugin.lifxcontroller.lifxDevice": "state_hsbkHue"}
-		self.optional["Saturation"] = {"indigo.DimmerDevicexxx": "special_HSL", "indigo.DimmerDevice.com.nathansheldon.indigoplugin.HueLights.hueBulb": "state_saturation", "indigo.DimmerDevice.com.autologplugin.indigoplugin.lifxcontroller.lifxDevice": "state_hsbkSaturation"}
+		#self.optional["Hue"] = {"indigo.DimmerDevicexxx": "special_HSL", "indigo.DimmerDevice.com.nathansheldon.indigoplugin.HueLights.hueBulb": "state_hue", "indigo.DimmerDevice.com.autologplugin.indigoplugin.lifxcontroller.lifxDevice": "state_hsbkHue"}
+		#self.optional["Saturation"] = {"indigo.DimmerDevicexxx": "special_HSL", "indigo.DimmerDevice.com.nathansheldon.indigoplugin.HueLights.hueBulb": "state_saturation", "indigo.DimmerDevice.com.autologplugin.indigoplugin.lifxcontroller.lifxDevice": "state_hsbkSaturation"}
 		self.optional["Name"] = {}
-		self.optional["ColorTemperature"] = {"indigo.DimmerDevicexxx": "special_HSL", "indigo.DimmerDevice.com.nathansheldon.indigoplugin.HueLights.hueBulb": "state_colorTemp", "indigo.DimmerDevice.com.autologplugin.indigoplugin.lifxcontroller.lifxDevice": "state_hsbkKelvin"}
+		#self.optional["ColorTemperature"] = {"indigo.DimmerDevicexxx": "special_HSL", "indigo.DimmerDevice.com.nathansheldon.indigoplugin.HueLights.hueBulb": "state_colorTemp", "indigo.DimmerDevice.com.autologplugin.indigoplugin.lifxcontroller.lifxDevice": "state_hsbkKelvin"}
+		
+		try:
+			obj = indigo.devices[objId]
+			if "supportsColor" in dir(obj) and obj.supportsColor:
+				self.optional["Brightness"] = {"indigo.DimmerDevice": "special_HSV"}
+				self.optional["Hue"] = {"indigo.DimmerDevice": "special_HSV"}
+				self.optional["Saturation"] = {"indigo.DimmerDevice": "special_HSV"}
+				self.optional["ColorTemperature"] = {"indigo.DimmerDevice": "special_HSV"}
+		except:
+			pass
 					
 		super(service_Lightbulb, self).setAttributes ()					
 				

@@ -37,6 +37,10 @@
 				<Label>HB user:</Label>
 			</Field>
 			
+			<Field id="label_username" type="label" fontColor="darkgray" fontSize="mini" alignWithControl="true" visibleBindingId="serverOverride" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true">
+                <Label>The unique username for this server.  Each server has its own username and that is one way that HomeKit finds the server.  If you are having problems seeing your server in HomeKit try changing a single character to a valid hex value (0-9, A-F) in the username and try again.</Label>
+            </Field>
+			
 			<Field type="textfield" id="pin" hidden="true" defaultValue="031-45-154" visibleBindingId="serverOverride" visibleBindingValue="true" readonly="false" tooltip="The key you will have to enter to access this Homebridge server in Homekit.  There is no need to change this as each Homekit server can have the same password.">
 				<Label>HB PIN:</Label>
 			</Field>
@@ -45,9 +49,17 @@
 				<Label>HB port:</Label>
 			</Field>
 			
+			<Field id="label_port" type="label" fontColor="darkgray" fontSize="mini" alignWithControl="true" visibleBindingId="serverOverride" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true">
+                <Label>The unique port for this server.  Each server has its own port, no two servers can be listening on the same port.</Label>
+            </Field>
+			
 			<Field type="textfield" id="listenPort" hidden="false" defaultValue="" visibleBindingId="serverOverride" visibleBindingValue="true" readonly="false" tooltip="The port that Homebridge-Indigo will listen on for a forced device update, this should only be changed if you are having port conflicts.">
 				<Label>HB callback:</Label>
 			</Field>
+			
+			<Field id="label_listenPort" type="label" fontColor="darkgray" fontSize="mini" alignWithControl="true" visibleBindingId="serverOverride" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true">
+                <Label>The unique listening port for this server.  Each server has its own port, no two servers can be listening on the same port.  This is a special port to allow Homebridge to make requests back to Indigo.</Label>
+            </Field>
 			
 			<Field type="menu" id="hbDebug" defaultValue="none" visibleBindingId="configOption" visibleBindingValue="server">
                 <Label>Debugging:</Label>
@@ -58,6 +70,10 @@
                     <Option value="both">Debug Homebridge and Indigo Script</Option>
                 </List>
                 <CallbackMethod>formFieldChanged</CallbackMethod>
+            </Field>
+            
+            <Field id="label_hbDebug" type="label" fontColor="darkgray" fontSize="mini" alignWithControl="true" visibleBindingId="serverOverride" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true">
+                <Label>If you are having problems with a device then you can select a level of debugging to help figure out the problem.  It should be noted that debugging the Homebridge server is quite verbose and will likely be difficult to interpret.</Label>
             </Field>
 			
 			<Field type="menu" id="tempunits" defaultValue="c" visibleBindingId="configOption" visibleBindingValue="config">
@@ -118,8 +134,9 @@
 			
 			
 			<!-- =========== Device List Area Starts Here =========== -->
-			<Field type="label" id="lbl_devicelist" visibleBindingId="configOption" visibleBindingValue="include" alwaysUseInDialogHeightCalc="true" >
-				<Label>        -= Indigo Devices and Action Groups Being Shared With HomeKit =-
+			
+			<Field type="label" id="lbl_devicelist" fontColor="blue" fontSize="regular" alignText="center" visibleBindingId="configOption" visibleBindingValue="include" alwaysUseInDialogHeightCalc="true" >
+				<Label>-= Indigo Devices and Action Groups Being Shared With HomeKit =-
 				</Label>
 			</Field>
 			
@@ -195,12 +212,12 @@
 			
 			<Field type="separator" id="sep_deviceList" visibleBindingId="showEditArea" visibleBindingValue="true" />
 			
-			<Field type="label" id="lbl_editarea" visibleBindingId="showEditArea" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true" >
-				<Label>        		  -= Share Indigo Device or Action With HomeKit =-
+			<Field type="label" id="lbl_editarea" fontColor="blue" fontSize="regular" alignText="center" visibleBindingId="showEditArea" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true" >
+				<Label>-= Share Indigo Device or Action With HomeKit =-
 				</Label>
 			</Field>
 			
-			<Field type="label" id="lbl_editactivewarning" visibleBindingId="editActive" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true" >
+			<Field type="label" id="lbl_editactivewarning" fontColor="red" fontSize="small" visibleBindingId="editActive" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true" >
 				<Label>You are currently in EDIT mode.  When you edit an item you are removing it from the devices and actions shared with HomeKit so it can be edited and saved back.  For this reason you must 'Add To HomeKit' when done editing so you don't lose your changes.  If you no longer want this item shared, please use the delete action(s) instead.				
 				</Label>
 			</Field>

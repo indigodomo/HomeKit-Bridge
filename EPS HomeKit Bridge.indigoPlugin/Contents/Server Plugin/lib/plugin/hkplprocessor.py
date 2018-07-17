@@ -195,7 +195,7 @@ class HomebridgePayloadProcessor:
 				data = {}	
 				for a in obj.actions:
 					if a.characteristic == characteristic: 
-						result = a.run (value, obj.objId, False)
+						result = a.run (value, obj.objId, obj, False)
 						if result: 
 							# Result will be true it passes and runs
 							payload = hkpldevice.HomebridgePayloadDevice (self.factory)

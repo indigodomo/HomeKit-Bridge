@@ -1,13 +1,22 @@
 Release Notes
 ==========
 
+Version 1.0.2-b1
+---------------
+* Added some UI adjustments to pretty up the UI a little
+* Added color support for ALL Indigo dimmers that support color
+* Removed Hue specific support in favor of generically supporting all color bulbs
+* Fixed minor issue where if debugging level had not be specified (since it was added late in beta) that it will now default properly instead of showing an empty field
+* Note that this beta release has some UI annoyances because it is being released to test color bulbs before the UI changes have been completed
+* Note that this beta release does not fully support changing color temperatures via HomeKit, only colors themselves
+
+Previous Release Notes
+==========
+
 Version 1.0.1
 ---------------
 * Added native ability to use Dave's amazing new [Fantastic Weather](https://github.com/DaveL17/Fantastic-Weather/releases) device as a temperature sensor (current temp) or humidity sensor (current humidity)
 * Added native ability to use Fantastic Weather Forecast device as a temperature sensor (todays high) or humidity sensor (todays humidity)
-
-Previous Release Notes
-==========
 
 Version 1.0.0 (Official Release)
 ---------------

@@ -902,6 +902,25 @@ class Plugin(indigo.PluginBase):
 		except Exception as e:
 			self.logger.error (ext.getException(e))		
 				
+				
+	###
+	def getDeviceConfigUiValues(self, valuesDict, typeId, devId):
+		"""
+		Indigo function called prior to the form loading in case we need to do pre-calculations.
+		"""
+		
+		try:
+			errorsDict = indigo.Dict()
+			
+			# Added prior to rewrite of plugin package so this is direct
+			if 'hbDebug' not in valuesDict or valuesDict['hbDebug'] == '' or valuesDict['hbDebug'] == False: valuesDict['hbDebug'] = 'none'
+			
+			self.serverPrePopulateDevices(valuesDict, typeId, devId)
+									
+		except Exception as e:
+			self.logger.error (ex.stack_trace(e))	
+			
+		return (valuesDict, errorsDict)					
 		
 	################################################################################
 	# PLUGIN SPECIFIC ROUTINES
@@ -2603,6 +2622,33 @@ class Plugin(indigo.PluginBase):
 	################################################################################
 	# SERVER METHODS
 	################################################################################
+	
+	###
+	def serverPrePopulateDevices (self, valuesDict, typeId, devId):
+		try:
+			# Pre-populate the device and action lists
+			filter = '#plugin#[index=device, callback=serverListIncludeDevices, ref=hideWrappedItems, nocache=true]'
+			l = eps.ui.getCustomList (filter, valuesDict, typeId, devId)
+			for item in l:
+				valuesDict['device'] = item[0]
+				self.serverFormFieldChanged_Device(valuesDict, typeId, devId)
+				break
+					
+			filter = '#plugin#[index=action, callback=serverListIncludeActionGroups, ref=hideWrappedItems, nocache=true]'
+			l = eps.ui.getCustomList (filter, valuesDict, typeId, devId)
+			for item in l:
+				valuesDict['action'] = item[0]
+				self.serverFormFieldChanged_Action(valuesDict, typeId, devId)	
+				break	
+				
+			
+				
+				
+		except Exception as e:
+			self.logger.error (ext.getException(e))
+			
+		return valuesDict		
+	
 	#
 	# Restart a server
 	#
@@ -3371,6 +3417,8 @@ class Plugin(indigo.PluginBase):
 			valuesDict["invertOnOff"] = False # Failsafe
 			valuesDict["isFahrenheit"] = False # Failsafe
 			if valuesDict["objectType"] == "stream": valuesDict["objectType"] = "device"
+			
+			self.serverPrePopulateDevices (valuesDict, typeId, devId)
 				
 		except Exception as e:
 			self.logger.error (ext.getException(e))	
@@ -3539,41 +3587,42 @@ class Plugin(indigo.PluginBase):
 			if valuesDict["device"] != "" and valuesDict["device"] != "-fill-" and valuesDict["device"] != "-line-":
 				valuesDict["deviceOrActionSelected"] = True # Enable fields
 				
-				# See if we should show the invert checkbox
-				if "onState" in dir(indigo.devices[int(valuesDict["device"])]):
-					valuesDict["enableOnOffInvert"] = True
-				else:
-					valuesDict["enableOnOffInvert"] = False
+				if valuesDict['objectType'] == 'device' or valuesDict['objectType'] == 'devicefiltered':
+					# See if we should show the invert checkbox
+					if "onState" in dir(indigo.devices[int(valuesDict["device"])]):
+						valuesDict["enableOnOffInvert"] = True
+					else:
+						valuesDict["enableOnOffInvert"] = False
 					
-				# Populate the name of the device if it is not already populated (this way if they are editing and change devices the alias remains the same)
-				if valuesDict["alias"] == "": valuesDict["alias"] = indigo.devices[int(valuesDict["device"])].name
+					# Populate the name of the device if it is not already populated (this way if they are editing and change devices the alias remains the same)
+					if valuesDict["alias"] == "": valuesDict["alias"] = indigo.devices[int(valuesDict["device"])].name
 							
-				# So long as we are not in edit mode then pull the HK defaults for this device and populate it
-				if not valuesDict["editActive"]:
-					obj = eps.homekit.getServiceObject (valuesDict["device"], devId, None, True, True)
-					#obj = hkapi.automaticHomeKitDevice (indigo.devices[int(valuesDict["device"])], True)
-					#valuesDict = self.serverFormFieldChanged_RefreshHKDef (valuesDict, obj) # For our test when we were defining the HK object here
-					valuesDict["hkType"] = "service_" + obj.type # Set to the default type		
+					# So long as we are not in edit mode then pull the HK defaults for this device and populate it
+					if not valuesDict["editActive"]:
+						obj = eps.homekit.getServiceObject (valuesDict["device"], devId, None, True, True)
+						#obj = hkapi.automaticHomeKitDevice (indigo.devices[int(valuesDict["device"])], True)
+						#valuesDict = self.serverFormFieldChanged_RefreshHKDef (valuesDict, obj) # For our test when we were defining the HK object here
+						valuesDict["hkType"] = "service_" + obj.type # Set to the default type		
 					
-					# Check if this is a HBB device and default to THAT type instead
-					if int(valuesDict["device"]) in indigo.devices and indigo.devices[int(valuesDict["device"])].pluginId == "com.eps.indigoplugin.homebridge":
-						hbb = indigo.devices[int(valuesDict["device"])]
-						if "treatAs" in hbb.ownerProps and (hbb.deviceTypeId == "Homebridge-Wrapper" or hbb.deviceTypeId == "Homebridge-Alias"):
-							if hbb.ownerProps["treatAs"] == "dimmer": valuesDict["hkType"] = "service_Lightbulb"
-							if hbb.ownerProps["treatAs"] == "switch": valuesDict["hkType"] = "service_Switch"
-							if hbb.ownerProps["treatAs"] == "lock": valuesDict["hkType"] = "service_LockMechanism"
-							if hbb.ownerProps["treatAs"] == "door": valuesDict["hkType"] = "service_Door"
-							if hbb.ownerProps["treatAs"] == "garage": valuesDict["hkType"] = "service_GarageDoorOpener"
-							if hbb.ownerProps["treatAs"] == "window": valuesDict["hkType"] = "service_Window"
-							if hbb.ownerProps["treatAs"] == "drape": valuesDict["hkType"] = "service_WindowCovering"
-							if hbb.ownerProps["treatAs"] == "sensor": valuesDict["hkType"] = "service_MotionSensor"
-							if hbb.ownerProps["treatAs"] == "fan": valuesDict["hkType"] = "service_Fanv2"
+						# Check if this is a HBB device and default to THAT type instead
+						if int(valuesDict["device"]) in indigo.devices and indigo.devices[int(valuesDict["device"])].pluginId == "com.eps.indigoplugin.homebridge":
+							hbb = indigo.devices[int(valuesDict["device"])]
+							if "treatAs" in hbb.ownerProps and (hbb.deviceTypeId == "Homebridge-Wrapper" or hbb.deviceTypeId == "Homebridge-Alias"):
+								if hbb.ownerProps["treatAs"] == "dimmer": valuesDict["hkType"] = "service_Lightbulb"
+								if hbb.ownerProps["treatAs"] == "switch": valuesDict["hkType"] = "service_Switch"
+								if hbb.ownerProps["treatAs"] == "lock": valuesDict["hkType"] = "service_LockMechanism"
+								if hbb.ownerProps["treatAs"] == "door": valuesDict["hkType"] = "service_Door"
+								if hbb.ownerProps["treatAs"] == "garage": valuesDict["hkType"] = "service_GarageDoorOpener"
+								if hbb.ownerProps["treatAs"] == "window": valuesDict["hkType"] = "service_Window"
+								if hbb.ownerProps["treatAs"] == "drape": valuesDict["hkType"] = "service_WindowCovering"
+								if hbb.ownerProps["treatAs"] == "sensor": valuesDict["hkType"] = "service_MotionSensor"
+								if hbb.ownerProps["treatAs"] == "fan": valuesDict["hkType"] = "service_Fanv2"
 							
-				# If the type is correct then turn on temperature
-				if valuesDict["hkType"] != "" and (valuesDict["hkType"] == "service_Thermostat" or valuesDict["hkType"] == "service_TemperatureSensor"):			
-					valuesDict["isFahrenheitEnabled"] = True
-				else:
-					valuesDict["isFahrenheitEnabled"] = False	
+					# If the type is correct then turn on temperature
+					if valuesDict["hkType"] != "" and (valuesDict["hkType"] == "service_Thermostat" or valuesDict["hkType"] == "service_TemperatureSensor"):			
+						valuesDict["isFahrenheitEnabled"] = True
+					else:
+						valuesDict["isFahrenheitEnabled"] = False	
 							
 			else:
 				pass
@@ -3595,18 +3644,20 @@ class Plugin(indigo.PluginBase):
 			# The device changed, if it's not a generic type then fill in defaults
 			if valuesDict["action"] != "" and valuesDict["action"] != "-fill-" and valuesDict["action"] != "-line-":
 				valuesDict["deviceOrActionSelected"] = True # Enable fields
-				valuesDict["enableOnOffInvert"] = False # NEVER show this on Actions
-				valuesDict["isFahrenheitEnabled"] = False
 				
-				valuesDict["alias"] = indigo.actionGroups[int(valuesDict["action"])].name
+				if valuesDict['objectType'] == 'action' or valuesDict['objectType'] == 'actionfiltered':
+					valuesDict["enableOnOffInvert"] = False # NEVER show this on Actions
+					valuesDict["isFahrenheitEnabled"] = False
 				
-				# So long as we are not in edit mode then pull the HK defaults for this device and populate it
-				if not valuesDict["editActive"]:
-					# Actions are always switches by default
-					#obj = hkapi.automaticHomeKitDevice (indigo.actionGroups[int(valuesDict["action"])], True)
-					obj = eps.homekit.getServiceObject (valuesDict["action"], devId, None, True, True)
-					#valuesDict = self.serverFormFieldChanged_RefreshHKDef (valuesDict, obj) # For our test when we were defining the HK object here
-					valuesDict["hkType"] = "service_" + obj.type # Set to the default type	
+					valuesDict["alias"] = indigo.actionGroups[int(valuesDict["action"])].name
+				
+					# So long as we are not in edit mode then pull the HK defaults for this device and populate it
+					if not valuesDict["editActive"]:
+						# Actions are always switches by default
+						#obj = hkapi.automaticHomeKitDevice (indigo.actionGroups[int(valuesDict["action"])], True)
+						obj = eps.homekit.getServiceObject (valuesDict["action"], devId, None, True, True)
+						#valuesDict = self.serverFormFieldChanged_RefreshHKDef (valuesDict, obj) # For our test when we were defining the HK object here
+						valuesDict["hkType"] = "service_" + obj.type # Set to the default type	
 					
 				
 					
@@ -3629,6 +3680,19 @@ class Plugin(indigo.PluginBase):
 			valuesDict["deviceOrActionSelected"] = False # We'll change it below if needed
 			if valuesDict["device"] == "": valuesDict["device"] = ""
 			if valuesDict["action"] == "": valuesDict["action"] = ""
+			
+			# If we are looking at a config option other than devices then exit here so that the fields are off
+			#if valuesDict['configOption'] != 'include' or (valuesDict['configOption'] == 'include' and (valuesDict['objectAction'] != 'add' or valuesDict['objectAction'] != 'edit')): 
+			#	valuesDict['objectType'] = '' # To disable fields
+			#	valuesDict['showEditArea'] = False
+			#	return (valuesDict, errorsDict)
+			
+			#if valuesDict['objectType'] == '': 
+			#	valuesDict['objectType'] = 'device' # To re-enable fields if they were disabled
+			#	valuesDict['showEditArea'] = True
+			
+			#if valuesDict["device"] == "" or valuesDict["action"] == "": self.serverPrePopulateDevices(valuesDict, typeId, devId)
+				
 			
 			#if valuesDict["treatAs"] == "": valuesDict["treatAs"] = "service_Switch" # Default
 			
