@@ -22,7 +22,7 @@
                     <Option value="config">Server Options</Option>
                     <Option value="include">Manage Devices and Action Groups</Option>
                 </List>
-                <CallbackMethod>formFieldChanged</CallbackMethod>
+                <CallbackMethod>serverFormFieldChanged_configOption</CallbackMethod>
             </Field>
             
             <Field type="separator" id="sep_configOption"  />
@@ -181,7 +181,7 @@
                     <Option value="hide">Delete and Hide (Single/Multiple Items)</Option>
                     <Option value="remove">Delete and Exclude (Single/Multiple Items)</Option>
                 </List>
-               	<CallbackMethod>formFieldChanged</CallbackMethod>
+               	<CallbackMethod>serverFormFieldChanged_objectAction</CallbackMethod>
             </Field>
             
             <Field type="label" id="lbl_spacer6" visibleBindingId="configOption" visibleBindingValue="include" alwaysUseInDialogHeightCalc="true">
@@ -218,7 +218,7 @@
 			</Field>
 			
 			<Field type="label" id="lbl_editactivewarning" fontColor="red" fontSize="small" visibleBindingId="editActive" visibleBindingValue="true" alwaysUseInDialogHeightCalc="true" >
-				<Label>You are currently in EDIT mode.  When you edit an item you are removing it from the devices and actions shared with HomeKit so it can be edited and saved back.  For this reason you must 'Add To HomeKit' when done editing so you don't lose your changes.  If you no longer want this item shared, please use the delete action(s) instead.				
+				<Label>You are currently in EDIT mode.  When you edit an item you are removing it from the devices and actions shared with HomeKit so it can be edited and saved back.  For this reason you must 'Save Device' when done editing so you don't lose your changes.  If you no longer want this item shared, please use the delete action(s) instead.				
 				</Label>
 			</Field>
 			
@@ -337,14 +337,13 @@
 				</Label>
 			</Field>
 			
+			
+			
 			<Field type="button" id="add" enabledBindingId="deviceLimitReached" enabledBindingNegate="true" visibleBindingId="deviceOrActionSelected" visibleBindingValue="true" >
 				<Label> </Label>
-				<Title>Add To HomeKit </Title>
+				<Title>Save Device </Title>
 				<CallbackMethod>serverButtonAddDeviceOrAction</CallbackMethod>
 			</Field>
-			
-			
-			
 			
 			
 		</ConfigUI>

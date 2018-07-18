@@ -312,7 +312,12 @@ class Plugin(indigo.PluginBase):
 	#
 	def pluginUpgraded (self, lastVersion, currentVersion):
 		try:
-			lastmajor, lastminor, lastrev = lastVersion.split(".")
+			#lastmajor, lastminor, lastminor = lastVersion.split(".")
+			lastv = lastVersion.split(".")
+			if len(lastv) >= 3:
+				lastmajor = lastv[0]
+				lastminor = lastv[1]
+				lastminor = lastv[2]
 			
 			if lastVersion == "0.0.1": # Prior to adding version to prefs
 				self.logger.info (u"Upgrading plugin to {}".format(currentVersion))
@@ -3595,7 +3600,8 @@ class Plugin(indigo.PluginBase):
 						valuesDict["enableOnOffInvert"] = False
 					
 					# Populate the name of the device if it is not already populated (this way if they are editing and change devices the alias remains the same)
-					if valuesDict["alias"] == "": valuesDict["alias"] = indigo.devices[int(valuesDict["device"])].name
+					#if valuesDict["alias"] == "": valuesDict["alias"] = indigo.devices[int(valuesDict["device"])].name
+					if not valuesDict['editActive']: valuesDict["alias"] = indigo.devices[int(valuesDict["device"])].name
 							
 					# So long as we are not in edit mode then pull the HK defaults for this device and populate it
 					if not valuesDict["editActive"]:
@@ -3649,7 +3655,7 @@ class Plugin(indigo.PluginBase):
 					valuesDict["enableOnOffInvert"] = False # NEVER show this on Actions
 					valuesDict["isFahrenheitEnabled"] = False
 				
-					valuesDict["alias"] = indigo.actionGroups[int(valuesDict["action"])].name
+					if not valuesDict['editActive']: valuesDict["alias"] = indigo.actionGroups[int(valuesDict["action"])].name
 				
 					# So long as we are not in edit mode then pull the HK defaults for this device and populate it
 					if not valuesDict["editActive"]:
@@ -3667,6 +3673,51 @@ class Plugin(indigo.PluginBase):
 			self.logger.error (ext.getException(e))	
 			
 		return (valuesDict, errorsDict)
+		
+	#
+	# Server form object action field changed
+	#
+	def serverFormFieldChanged_objectAction (self, valuesDict, typeId, devId):	
+		try:
+			errorsDict = indigo.Dict()	
+			
+			if valuesDict["objectAction"] == "add":
+				valuesDict["showEditArea"] = True
+				valuesDict['deviceOrActionSelected'] = True
+			else:
+				if not valuesDict["editActive"]: 
+					valuesDict["showEditArea"] = False
+					valuesDict['deviceOrActionSelected'] = False
+				else:
+					valuesDict["showEditArea"] = True
+					valuesDict['deviceOrActionSelected'] = True
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+		return (valuesDict, errorsDict)		
+
+	#
+	# Server form option screen field changed
+	#
+	def serverFormFieldChanged_configOption (self, valuesDict, typeId, devId):	
+		try:
+			errorsDict = indigo.Dict()	
+			
+			if valuesDict["configOption"] != "include":
+				valuesDict["showEditArea"] = False
+				valuesDict['deviceOrActionSelected'] = False
+				valuesDict['enableOnOffInvert'] = False
+				valuesDict['editActive'] = False
+				if 'editing_record' in valuesDict: del(valuesDict["editing_record"])
+			else:
+				return self.serverFormFieldChanged_objectAction(valuesDict, typeId, devId)
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e))	
+			
+		return (valuesDict, errorsDict)		
+
 		
 	#
 	# Server form field change
@@ -3744,13 +3795,13 @@ class Plugin(indigo.PluginBase):
 			else:
 				valuesDict["isFahrenheitEnabled"] = False
 					
-			if valuesDict["objectAction"] == "add":
-				valuesDict["showEditArea"] = True
-			else:
-				if not valuesDict["editActive"]: 
-					valuesDict["showEditArea"] = False
-				else:
-					valuesDict["showEditArea"] = True
+			#if valuesDict["objectAction"] == "add":
+			#	valuesDict["showEditArea"] = True
+			#else:
+			#	if not valuesDict["editActive"]: 
+			#		valuesDict["showEditArea"] = False
+			#	else:
+			#		valuesDict["showEditArea"] = True
 					
 			# Failsafe in case they are not even looking at this window:
 			if valuesDict["configOption"] != "include":

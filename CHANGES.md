@@ -1,13 +1,21 @@
 Release Notes
 ==========
 
+Version 1.0.2 Final
+---------------
+* Added ability for temperature sensors to use ANY device that has a state named "temp", "temperature" or "Temperature", this opens up compatibility to a large number of plugins and sensors that use this state name without having to support those plugin individually.  As a result, direct support for certain plugins was removed if they had been coded to use the "temperature" or "temp" states, such as wunderground.wunderground, piBeacon.i2cTMP102, piBeacon.i2cBMExx, piBeacon.i2cMS5803 and fantasticwWeather.Weather (these devices should continue to work just fine but no longer need special integration).
+* Added ability for humidity sensors to use ANY device that has a state named "relativeHumidity", "humidity" or "Humidity", opening up compatibility to any plugin device or sensor that uses this state name without having to support those plugins specifically.  As a result, direct support for certain plugins was removed if they had been coded to use one of these states, such as piBeacon.i2cBMExx, fantasticwWeather.Weather and wunderground.wunderground
+* Changed behavior of the HomeKit name field so that each time a device is changed it will change the HomeKit name to match unless editing an existing item, in which case the HomeKit name will not change unless done so manually
+* Changed the UI button "Add to HomeKit" to "Save Device" so that it better represents the action to take when both adding and editing a HomeKit device
+* Changed Speaker description to "3rd Party, Mute control in Home, Full Siri" because HomeKit updates since HomePod have allowed this device type to be used by Home but only in a mute/unmute capacity but no volume control.  Volume can still be changed via Siri.
+
+Previous Release Notes
+==========
+
 Version 1.0.2-beta.3
 ---------------
 * Added ability to change color using the color temperature wheel in Home.  Strictly speaking, color temperature is a color from white to orange (and this is how the Hue app sees it and then how the Hue app deals with it when it integrates into Home), therefore when you use the color temperature wheel it will set the color from white to orange, if you want actual colors then you use the color wheel instead.  Confused?  Yea, it is confusing.
 * Fixed an issue where brightness controls were incorporated into the color setting (which they are when setting the RGB values of a light) and as a result that meant that changing brightness in Home didn't actually change the bulb brightness, this has been restored to the pre 1.0.2 setting of brightness changing brightness as normal when using an RGB light
-
-Previous Release Notes
-==========
 
 Version 1.0.2-beta.2
 ---------------

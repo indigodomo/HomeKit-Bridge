@@ -79,7 +79,7 @@ class HomeKit:
 									if "special_" in state:
 										values += "**{}** ({}) | ".format("Calculated", state.replace("special_", "")) 
 									else:
-										values += "**{}** ({}) | ".format(state.replace("attr_", "").replace("state_", ""), devtype.replace("*", "all").replace("indigo.", "")) 
+										values += "**{}** ({}) | ".format(state.replace("attr_", "").replace("state_", ""), devtype.replace("****", "all").replace("***", "all").replace("**", "all").replace("*", "all").replace("indigo.", "")) 
 							else:
 								values += "**TBD** | "
 								
@@ -994,9 +994,28 @@ class Service (object):
 					getter = getters[self.pluginType]
 				elif self.indigoType in getters:
 					getter = getters[self.indigoType]
-				elif "*" in getters:
-					getter = getters["*"]
+				elif "*" in getters or "**" in getters or "***" in getters or "****" in getters:
+					try:
+						#if self.objId == 917972316: indigo.server.log(unicode(getters))
+						obj = indigo.devices[self.objId]
+						for plugin, attribute in getters.iteritems():
+							if plugin.startswith('*'):
+								#if self.objId == 917972316: indigo.server.log(u'{}: {}'.format(plugin, attribute))
+								if 'states' in dir(obj) and attribute.replace('state_', '') in obj.states:
+									getter = attribute
+									break
+									
+								if attribute.replace('attr_', '') in dir(obj):
+									getter = attribute
+									break	
 					
+					except Exception as ee:
+						self.logger.error (ext.getException(ee))	
+				
+					if not getter: getter = getters["*"]
+					
+				#if self.objId == 917972316: indigo.server.log(u'Using getter: {}'.format(getter))
+				
 				#indigo.server.log ("{}: {} is {}".format(self.alias.value, characteristic, getter))
 				#if getter is None: indigo.server.log ("{}: {}".format(self.alias.value, self.pluginType))
 					
@@ -2445,7 +2464,7 @@ class Service (object):
 	def special_HSV (self, classes, sourceDict, getter, characteristic, isOptional = False):			
 		try:
 			obj = indigo.devices[self.objId]
-			if "supportsColor" in dir(obj) and obj.supportsColor:
+			if "supportsRGB" in dir(obj) and obj.supportsRGB:
 				r = obj.redLevel
 				g = obj.greenLevel
 				b = obj.blueLevel
@@ -3543,7 +3562,8 @@ class service_HumiditySensor (Service):
 		super(service_HumiditySensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["CurrentRelativeHumidity"] = {"*": "attr_sensorValue", "indigo.ThermostatDevice": "state_humidityInput1", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "state_relativeHumidity", "indigo.Device.com.karlwachs.piBeacon.i2cBMExx": "state_Humidity", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedValue", "indigo.Device.com.fogbert.indigoplugin.fantasticwWeather.Weather": "state_humidity", "indigo.Device.com.fogbert.indigoplugin.fantasticwWeather.Daily": "state_d01_humidity"}
+		#self.required["CurrentRelativeHumidity"] = {"*": "attr_sensorValue", "indigo.ThermostatDevice": "state_humidityInput1", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "state_relativeHumidity", "indigo.Device.com.karlwachs.piBeacon.i2cBMExx": "state_Humidity", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedValue", "indigo.Device.com.fogbert.indigoplugin.fantasticwWeather.Weather": "state_humidity", "indigo.Device.com.fogbert.indigoplugin.fantasticwWeather.Daily": "state_d01_humidity"}
+		self.required["CurrentRelativeHumidity"] = {"*": "attr_sensorValue", "**": "Humidity", "***": "humidity", "****": "relativeHumidity", "indigo.ThermostatDevice": "state_humidityInput1", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedValue", "indigo.Device.com.fogbert.indigoplugin.fantasticwWeather.Daily": "state_d01_humidity"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
@@ -3639,16 +3659,10 @@ class service_Lightbulb (Service):
 		#self.optional["Saturation"] = {"indigo.DimmerDevicexxx": "special_HSL", "indigo.DimmerDevice.com.nathansheldon.indigoplugin.HueLights.hueBulb": "state_saturation", "indigo.DimmerDevice.com.autologplugin.indigoplugin.lifxcontroller.lifxDevice": "state_hsbkSaturation"}
 		self.optional["Name"] = {}
 		#self.optional["ColorTemperature"] = {"indigo.DimmerDevicexxx": "special_HSL", "indigo.DimmerDevice.com.nathansheldon.indigoplugin.HueLights.hueBulb": "state_colorTemp", "indigo.DimmerDevice.com.autologplugin.indigoplugin.lifxcontroller.lifxDevice": "state_hsbkKelvin"}
-		
-		try:
-			obj = indigo.devices[objId]
-			if "supportsRGB" in dir(obj) and obj.supportsRGB:
-				#self.optional["Brightness"] = {"indigo.DimmerDevice": "special_HSV"}
-				self.optional["Hue"] = {"indigo.DimmerDevice": "special_HSV"}
-				self.optional["Saturation"] = {"indigo.DimmerDevice": "special_HSV"}
-				self.optional["ColorTemperature"] = {"indigo.DimmerDevice": "special_HSV"}
-		except:
-			pass
+
+		self.optional["Hue"] = {"indigo.DimmerDevice": "special_HSV"}
+		self.optional["Saturation"] = {"indigo.DimmerDevice": "special_HSV"}
+		self.optional["ColorTemperature"] = {"indigo.DimmerDevice": "special_HSV"}		
 					
 		super(service_Lightbulb, self).setAttributes ()					
 				
@@ -3936,7 +3950,7 @@ class service_Speaker (Service):
 	#
 	def __init__ (self, factory, objId, serverId = 0, characterDict = {}, deviceActions = [], loadOptional = False):
 		type = "Speaker"
-		desc = "Speaker (3rd Party and Siri Only)"
+		desc = "Speaker (3rd Party, Mute control in Home, Full Siri)"
 		
 		self.wiki = "This service is unsupported by the native Apple Home application but is supported, in varying degrees, in 3rd party HomeKit apps.  Apps tested with this service that work are the [non-Apple version of Home](https://itunes.apple.com/us/app/home-smart-home-automation/id995994352?mt=8) and [Elgato Eve](https://itunes.apple.com/us/app/elgato-eve/id917695792?mt=8)."
 	
@@ -4016,7 +4030,8 @@ class service_TemperatureSensor (Service):
 		
 		self.required = {}
 		#self.required["CurrentTemperature"] = {"indigo.SensorDevice": "special_sensorTemperature", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "special_wuTemperature", "indigo.ThermostatDevice": "special_thermTemperature", "indigo.Device.com.perceptiveautomation.indigoplugin.weathersnoop.ws3station": "special_wsTemperature"}
-		self.required["CurrentTemperature"] = {"indigo.SensorDevice": "attr_sensorValue", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "state_temp", "indigo.ThermostatDevice": "state_temperatureInput1", "indigo.Device.com.perceptiveautomation.indigoplugin.weathersnoop.ws3station": "state_temperature_F", "indigo.Device.com.karlwachs.piBeacon.i2cTMP102": "state_Temperature", "indigo.Device.com.karlwachs.piBeacon.i2cBMExx": "state_Temperature", "indigo.Device.com.karlwachs.piBeacon.i2cMS5803": "state_Temperature", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedValue", "indigo.Device.com.fogbert.indigoplugin.fantasticwWeather.Weather": "state_temperature", "indigo.Device.com.fogbert.indigoplugin.fantasticwWeather.Daily": "state_d01_temperatureHigh"}
+		#self.required["CurrentTemperature"] = {"*": "state_temperature", "*": "state_temp", "indigo.SensorDevice": "attr_sensorValue", "indigo.Device.com.fogbert.indigoplugin.wunderground.wunderground": "state_temp", "indigo.ThermostatDevice": "state_temperatureInput1", "indigo.Device.com.perceptiveautomation.indigoplugin.weathersnoop.ws3station": "state_temperature_F", "indigo.Device.com.karlwachs.piBeacon.i2cTMP102": "state_Temperature", "indigo.Device.com.karlwachs.piBeacon.i2cBMExx": "state_Temperature", "indigo.Device.com.karlwachs.piBeacon.i2cMS5803": "state_Temperature", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedValue", "indigo.Device.com.fogbert.indigoplugin.fantasticwWeather.Weather": "state_temperature", "indigo.Device.com.fogbert.indigoplugin.fantasticwWeather.Daily": "state_d01_temperatureHigh"}
+		self.required["CurrentTemperature"] = {"*": "state_temperature", "**": "state_Temperature", "***": "state_temp", "indigo.SensorDevice": "attr_sensorValue", "indigo.ThermostatDevice": "state_temperatureInput1", "indigo.Device.com.perceptiveautomation.indigoplugin.weathersnoop.ws3station": "state_temperature_F", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedValue", "indigo.Device.com.fogbert.indigoplugin.fantasticwWeather.Daily": "state_d01_temperatureHigh"}
 	
 		self.optional = {}
 		self.optional["StatusActive"] = {}
