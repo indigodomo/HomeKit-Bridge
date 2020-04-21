@@ -2374,34 +2374,36 @@ class Service (object):
 		
 			obj = indigo.devices[self.objId]
 			if "ArmedState" in obj.states:
-				if obj.states["ArmedState.disarmed"]:
-					self.setAttributeValue (characteristic, 3)
-					self.characterDict[characteristic] = getattr (self, characteristic).value
-					
-				if obj.states["ArmedState.stay"]:
-					self.setAttributeValue (characteristic, 0)
-					self.characterDict[characteristic] = getattr (self, characteristic).value	
-					
-				if obj.states["ArmedState.away"]:
-					self.setAttributeValue (characteristic, 1)
-					self.characterDict[characteristic] = getattr (self, characteristic).value
-					
 				if obj.states["state.tripped"]:
-					self.setAttributeValue (characteristic, 4)
-					self.characterDict[characteristic] = getattr (self, characteristic).value			
+					self.setAttributeValue (characteristic, 4) # triggered
+					self.characterDict[characteristic] = getattr (self, characteristic).value
+
+				elif obj.states["ArmedState.disarmed"]:
+					self.setAttributeValue (characteristic, 3) # disarmed
+					self.characterDict[characteristic] = getattr (self, characteristic).value
+					
+				elif obj.states["ArmedState.stay"]:
+					self.setAttributeValue (characteristic, 0) # stayArm
+					self.characterDict[characteristic] = getattr (self, characteristic).value
+					
+				elif obj.states["ArmedState.away"]:
+					self.setAttributeValue (characteristic, 1) # awayArm
+					self.characterDict[characteristic] = getattr (self, characteristic).value
+
 			else:
-				self.setAttributeValue (characteristic, 3)
+				self.setAttributeValue (characteristic, 3) # disarmed
 				self.characterDict[characteristic] = getattr (self, characteristic).value	
 				
-			self.actions.append (HomeKitAction(characteristic, "equal", 0, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionArmStay", self.objId]], 100, {self.objId: "state_ArmedState.stay"}))			
-			self.actions.append (HomeKitAction(characteristic, "equal", 1, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionArmAway", self.objId]], 100, {self.objId: "state_ArmedState.away"}))			
-			self.actions.append (HomeKitAction(characteristic, "equal", 2, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionArmStay", self.objId]], 100, {self.objId: "state_ArmedState.stay"}))			
-			self.actions.append (HomeKitAction(characteristic, "equal", 3, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionDisarm", self.objId]], 100, {self.objId: "state_ArmedState.disarmed"}))			
+			self.actions.append (HomeKitAction(characteristic, "equal", 0, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionArmStay", self.objId]], 100, {self.objId: "state_ArmedState.stay"}))
+			self.actions.append (HomeKitAction(characteristic, "equal", 1, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionArmAway", self.objId]], 100, {self.objId: "state_ArmedState.away"}))
+			self.actions.append (HomeKitAction(characteristic, "equal", 2, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionArmStay", self.objId]], 100, {self.objId: "state_ArmedState.stay"}))
+			self.actions.append (HomeKitAction(characteristic, "equal", 3, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionDisarm", self.objId]], 100, {self.objId: "state_ArmedState.disarmed"}))
 
 			self.actions.append (HomeKitAction(characteristic, "equal", 99, "STUB", [indigo.devices[self.objId].pluginId, None, ["actionDisarm", self.objId]], 100, {self.objId: "state_state.tripped"}))			
 		
 		except Exception as e:
-			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))
+	
 
 	def special_dscKeypadTargetState (self, classes, sourceDict, getter, characteristic, isOptional = False):
 
