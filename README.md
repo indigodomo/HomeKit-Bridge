@@ -1,5 +1,15 @@
 ![](https://raw.githubusercontent.com/Colorado4Wheeler/WikiDocs/master/HomeKit-Bridge/header.png)
 
+# NOTICE
+
+As of December 2020 I have __officially__ decided to no longer maintain this plugin as I am moving away from Indigo as my Home Automation platform.  If you would like to take over this project please let me know and I'll transfer the Git to you.
+
+Once I wrote HomeKit Bridge I never looked back, and it has worked flawlessly for me ever since the last release and because of that I have had no reason to really mess with what worked.  I've come to realize that HomeKit is everything I want and need for controlling my home, thus rendering the need for Indigo much less.  Instead of expensive software and hardware for my system I'm opting for Home Assistant on a Rasberry Pi, which supports a much more robust HomeKit experience and is infinately expandable and well supported by a community of developers like myself.
+
+Indigo has been wonderful and it's a solid product with a great support system, I have no complaints!  However, it requires a Mac to run and as my current Indigo server is reaching the end of its life, I realize that I don't want to spend $1K+ as well as the yearly Indigo subscription when Home Assistant gives me thousands of built-in integrations, no need to wait for Z-Wave devices to be officially supported on a smaller and more capable inexpensive platform.
+
+Thank you to all the wonderful Indigo users, it has been wonderful to be a part of the community.  As a testament to this plugin, it still works two years later without a single line of extra code - albeit it may need to have a config file tweaked when you upgrade Indigo to a new version.
+
 # HomeKit Bridge
 
 This plugin for the [Indigo Domotics](http://www.indigodomo.com/) home automation platform that publishes Indigo devices and action groups to Homebridge so that you can use your Indigo devices and actions in HomeKit and with Siri.
