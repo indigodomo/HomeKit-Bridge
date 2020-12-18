@@ -8,7 +8,7 @@ Once I wrote HomeKit Bridge I never looked back, and it has worked flawlessly fo
 
 Indigo has been wonderful and it's a solid product with a great support system, I have no complaints!  However, it requires a Mac to run and as my current Indigo server is reaching the end of its life, I realize that I don't want to spend $1K+ as well as the yearly Indigo subscription when Home Assistant gives me thousands of built-in integrations and no need to wait for Z-Wave devices to be officially supported and all on a smaller and more capable inexpensive platform.
 
-Thank you to all the wonderful Indigo users, it has been wonderful to be a part of the community.  As a testament to this plugin, it still works two years later without a single line of extra code - albeit it may need to have a config file tweaked when you upgrade Indigo to a new version.
+Thank you to all the wonderful Indigo users, it has been wonderful to be a part of the community.  As a testament to this plugin, it still works __three years later__ without a single line of extra code - albeit it may need to have a config file tweaked when you upgrade Indigo to a new version.
 
 # HomeKit Bridge
 
