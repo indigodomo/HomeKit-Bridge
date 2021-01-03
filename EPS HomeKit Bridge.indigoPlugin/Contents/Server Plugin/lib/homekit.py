@@ -2361,40 +2361,101 @@ class Service (object):
 	#
 	# DSC Alarm Plugin Keypad
 	#
-	def special_dscKeypadState (self, classes, sourceDict, getter, characteristic, isOptional = False):
+	def special_dscKeypadCurrentState (self, classes, sourceDict, getter, characteristic, isOptional = False):
+
+		# HMCharacteristicValueCurrentSecuritySystemState enum values:
+		#	stayArm = 0
+		#	awayArm = 1
+		#	nightArm = 2 <-- Not used since the DSC panel doesn't have "night mode"
+		#	disarmed = 3
+		#	triggered = 4
 		try:
 			if self.serverId == 0: return
 		
 			obj = indigo.devices[self.objId]
 			if "ArmedState" in obj.states:
-				if obj.states["ArmedState.disarmed"]:
-					self.setAttributeValue (characteristic, 3)
-					self.characterDict[characteristic] = getattr (self, characteristic).value
-					
-				if obj.states["ArmedState.stay"]:
-					self.setAttributeValue (characteristic, 0)
-					self.characterDict[characteristic] = getattr (self, characteristic).value	
-					
-				if obj.states["ArmedState.away"]:
-					self.setAttributeValue (characteristic, 1)
-					self.characterDict[characteristic] = getattr (self, characteristic).value
-					
 				if obj.states["state.tripped"]:
-					self.setAttributeValue (characteristic, 4)
-					self.characterDict[characteristic] = getattr (self, characteristic).value			
+					self.setAttributeValue (characteristic, 4) # triggered
+					self.characterDict[characteristic] = getattr (self, characteristic).value
+
+				elif obj.states["ArmedState.disarmed"]:
+					self.setAttributeValue (characteristic, 3) # disarmed
+					self.characterDict[characteristic] = getattr (self, characteristic).value
+					
+				elif obj.states["ArmedState.stay"]:
+					self.setAttributeValue (characteristic, 0) # stayArm
+					self.characterDict[characteristic] = getattr (self, characteristic).value
+					
+				elif obj.states["ArmedState.away"]:
+					self.setAttributeValue (characteristic, 1) # awayArm
+					self.characterDict[characteristic] = getattr (self, characteristic).value
+
 			else:
-				self.setAttributeValue (characteristic, 3)
+				self.setAttributeValue (characteristic, 3) # disarmed
 				self.characterDict[characteristic] = getattr (self, characteristic).value	
 				
-			self.actions.append (HomeKitAction(characteristic, "equal", 0, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionArmStay", self.objId]], 100, {self.objId: "state_ArmedState.stay"}))			
-			self.actions.append (HomeKitAction(characteristic, "equal", 1, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionArmAway", self.objId]], 100, {self.objId: "state_ArmedState.away"}))			
-			self.actions.append (HomeKitAction(characteristic, "equal", 2, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionArmStay", self.objId]], 100, {self.objId: "state_ArmedState.stay"}))			
-			self.actions.append (HomeKitAction(characteristic, "equal", 3, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionDisarm", self.objId]], 100, {self.objId: "state_ArmedState.disarmed"}))			
+			self.actions.append (HomeKitAction(characteristic, "equal", 0, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionArmStay", self.objId]], 100, {self.objId: "state_ArmedState.stay"}))
+			self.actions.append (HomeKitAction(characteristic, "equal", 1, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionArmAway", self.objId]], 100, {self.objId: "state_ArmedState.away"}))
+			self.actions.append (HomeKitAction(characteristic, "equal", 2, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionArmStay", self.objId]], 100, {self.objId: "state_ArmedState.stay"}))
+			self.actions.append (HomeKitAction(characteristic, "equal", 3, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionDisarm", self.objId]], 100, {self.objId: "state_ArmedState.disarmed"}))
 
 			self.actions.append (HomeKitAction(characteristic, "equal", 99, "STUB", [indigo.devices[self.objId].pluginId, None, ["actionDisarm", self.objId]], 100, {self.objId: "state_state.tripped"}))			
 		
 		except Exception as e:
-			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))	
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))
+	
+
+	def special_dscKeypadTargetState (self, classes, sourceDict, getter, characteristic, isOptional = False):
+
+		# HMCharacteristicValueTargetSecuritySystemState enum values:
+		#	stayArm = 0
+		#	awayArm = 1
+		#	nightArm = 2 <-- Not used since the DSC panel doesn't have "night mode"
+		#	disarm = 3
+		try:
+			if self.serverId == 0: return
+		
+			obj = indigo.devices[self.objId]
+			if "state" in obj.states and "ArmedState" in obj.states and "LEDBypass" in obj.states:
+				
+				# If the DSC panel is disarmed, but it's reporting that exitDelay is true, assume that its
+				# target system state is an armed state (stay or away).
+
+				# If LEDBypass is 'on', assume the target state is "stayArm".
+				if obj.states["ArmedState.disarmed"] and obj.states["state.exitDelay"] and obj.states["LEDBypass"] == 'on':
+					self.setAttributeValue (characteristic, 0) # stayArm
+					self.characterDict[characteristic] = getattr (self, characteristic).value
+
+				# If LEDBypass is 'off', assume the target state is "awayArm".
+				elif obj.states["ArmedState.disarmed"] and obj.states["state.exitDelay"] and obj.states["LEDBypass"] == 'off':
+					self.setAttributeValue (characteristic, 1) # awayArm
+					self.characterDict[characteristic] = getattr (self, characteristic).value	
+				
+				# If the DSC panel is not disarmed, check for each explicit armed state individually.
+
+				elif obj.states["ArmedState.stay"]:
+					self.setAttributeValue (characteristic, 0) # stayArm
+					self.characterDict[characteristic] = getattr (self, characteristic).value
+
+				elif obj.states["ArmedState.away"]:
+					self.setAttributeValue (characteristic, 1) # awayArm
+					self.characterDict[characteristic] = getattr (self, characteristic).value
+
+				else:
+					self.setAttributeValue (characteristic, 3) # disarm
+					self.characterDict[characteristic] = getattr (self, characteristic).value
+
+			else:
+				self.setAttributeValue (characteristic, 3) # disarm
+				self.characterDict[characteristic] = getattr (self, characteristic).value	
+
+			self.actions.append (HomeKitAction(characteristic, "equal", 0, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionArmStay", self.objId]], 100, {self.objId: "state_state.exitDelay"}))
+			self.actions.append (HomeKitAction(characteristic, "equal", 1, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionArmAway", self.objId]], 100, {self.objId: "state_state.exitDelay"}))
+			self.actions.append (HomeKitAction(characteristic, "equal", 2, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionArmStay", self.objId]], 100, {self.objId: "state_state.exitDelay"}))
+			self.actions.append (HomeKitAction(characteristic, "equal", 3, "homekit.runPluginAction", [indigo.devices[self.objId].pluginId, None, ["actionDisarm", self.objId]], 100, {self.objId: "state_ArmedState.disarmed"}))
+		
+		except Exception as e:
+			self.logger.error (ext.getException(e) + "\nFor object id {} alias '{}'".format(str(self.objId), self.alias.value))
 			
 			
 	#
@@ -3869,8 +3930,8 @@ class service_SecuritySystem (Service):
 		super(service_SecuritySystem, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["SecuritySystemCurrentState"] = {"*": "attr_onState", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmKeypad": "special_dscKeypadState"}
-		self.required["SecuritySystemTargetState"] = {"*": "attr_onState", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmKeypad": "special_dscKeypadState"}
+		self.required["SecuritySystemCurrentState"] = {"*": "attr_onState", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmKeypad": "special_dscKeypadCurrentState"}
+		self.required["SecuritySystemTargetState"] = {"*": "attr_onState", "indigo.Device.com.frightideas.indigoplugin.dscAlarm.alarmKeypad": "special_dscKeypadTargetState"}
 
 		self.optional = {}
 		self.optional["StatusFault"] = {}
