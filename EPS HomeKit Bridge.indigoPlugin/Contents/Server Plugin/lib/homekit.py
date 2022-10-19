@@ -270,6 +270,9 @@ class HomeKit:
 				elif "Humidity" in dev.model:
 					return "service_HumiditySensor"	
 				
+				elif dev.pluginId == "net.segment7.ambient-weather" and (dev.deviceTypeId == "PM25" or dev.deviceTypeId == "AQIN"):
+					return "service_AirQualitySensor"
+
 				else:
 					return "service_MotionSensor"
 					
@@ -1557,7 +1560,7 @@ class Service (object):
 			ret = True
 		
 			if not attribute in dir(self):
-				self.logger.error (u"Cannot set {} value of {} because it is not an attribute".format(attribute, dev.Alias.value))
+				self.logger.error (u"Cannot set {} value of {} because it is not an attribute".format(attribute, self.alias.value))
 				return False
 			
 			obj = getattr (self, attribute)	
@@ -3085,7 +3088,7 @@ class service_AirQualitySensor (Service):
 		super(service_AirQualitySensor, self).__init__ (factory, type, desc, objId, serverId, characterDict, deviceActions, loadOptional)
 		
 		self.required = {}
-		self.required["AirQuality"] = {"indigo.SensorDevice": "attr_sensorValue", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedValue"}
+		self.required["AirQuality"] = {"*": "state_aqi", "indigo.SensorDevice": "attr_sensorValue", "indigo.Device.com.eps.indigoplugin.device-extensions.epsdecon": "state_convertedValue"}
 		
 		self.optional = {}
 		self.optional["StatusActive"] = {"*": "attr_onState"}
@@ -3093,18 +3096,19 @@ class service_AirQualitySensor (Service):
 		self.optional["StatusTampered"] = {}
 		self.optional["StatusLowBattery"] = {"*": "special_lowbattery"}
 		self.optional["Name"] = {}
-		self.optional["OzoneDensity"] = {}
-		self.optional["NitrogenDioxideDensity"] = {}
-		self.optional["SulphurDioxideDensity"] = {}
-		self.optional["PM2_5Density"] = {}
-		self.optional["PM10Density"] = {}
-		self.optional["VOCDensity"] = {}
-		self.optional["CarbonMonoxideLevel"] = {}
-		self.optional["CarbonDioxideLevel"] = {}
-					
-		super(service_AirQualitySensor, self).setAttributes ()					
-				
-		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))	
+		self.optional["OzoneDensity"] = {"*": "state_o3"}
+		self.optional["NitrogenDioxideDensity"] = {"*": "state_no2"}
+		self.optional["SulphurDioxideDensity"] = {"*": "state_so2"}
+		self.optional["PM2_5Density"] = {"*": "state_pm25"}
+		self.optional["PM10Density"] = {"*": "state_pm10"}
+		self.optional["VOCDensity"] = {"*": "state_voc"}
+		self.optional["CarbonMonoxideLevel"] = {"*": "state_co"}
+		self.optional["CarbonDioxideLevel"] = {"*": "state_co2"}
+		self.logger.debug(u'{}'.format(self))
+		
+		super(service_AirQualitySensor, self).setAttributes ()
+		
+		if objId != 0: self.logger.debug (u'{} started as a HomeKit {}'.format(self.alias.value, self.desc))
 
 # ==============================================================================
 # AIR PURIFIER
@@ -4883,6 +4887,20 @@ class characteristic_OutletInUse:
 		self.readonly = True
 		self.notify = True		
 		self.changeMinMax = False
+		
+# ==============================================================================
+# AIR QUALITY
+# ==============================================================================
+class characteristic_AirQuality:	
+	def __init__(self):
+		self.value = 0 
+		self.maxValue = 10000
+		self.minValue = 0
+		self.minStep = 1
+		
+		self.readonly = True
+		self.notify = True	
+		self.changeMinMax = False	
 		
 # ==============================================================================
 # OZONE DENSITY
